@@ -15,8 +15,9 @@ class Kernel extends ConsoleKernel
      */
     protected function schedule(Schedule $schedule)
     {
-        // $schedule->command('inspire')->hourly();
+        $schedule->command('payment:check-xendit')->everyFiveMinutes();
     }
+
 
     /**
      * Register the commands for the application.

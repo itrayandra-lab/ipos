@@ -76,9 +76,15 @@
                                             </div>
                                         </div>
 
-                                        <button type="submit" class="w-full text-center bg-indigo-600 rounded-xl py-3 px-6 font-semibold text-lg text-white transition hover:bg-indigo-700">
-                                            Bayar Sekarang
-                                        </button>
+                                        @auth
+                                            <button type="submit" class="w-full text-center bg-indigo-600 rounded-xl py-3 px-6 font-semibold text-lg text-white transition hover:bg-indigo-700">
+                                                Bayar Sekarang
+                                            </button>
+                                        @else
+                                        <a href="{{ route('login') }}" class="w-full text-center ml-auto bg-indigo-600 rounded-xl py-3 px-6 font-semibold text-lg text-white transition hover:bg-indigo-700">
+                                            Login Terlebih Dahulu
+                                        </a>
+                                        @endauth
                                     </form>
                                 </div>
                             </div>

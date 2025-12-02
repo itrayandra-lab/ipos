@@ -16,6 +16,7 @@
         "phpoffice/phpspreadsheet": "^1.29",
         "psr/simple-cache": "^2.0",
         "simplesoftwareio/simple-qrcode": "^4.2",
+        "xendit/xendit-php": "^7.0",
         "yajra/laravel-datatables-oracle": "^10.0"
     },
     "require-dev": {

@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Http\Controllers\Admin\ManageMaster;
+namespace App\Http\Controllers\Sales\ManageMaster;
 
 use Illuminate\Http\Request;
 use App\Http\Controllers\Controller;
