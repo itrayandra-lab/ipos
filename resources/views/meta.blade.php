@@ -8,22 +8,22 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black">
 <meta name="csrf-token" content="{{ csrf_token() }}">
 
-<meta name="description" content="IPOS - Sistem Point of Sale modern dari PT Lunaray Cahya Nanjung untuk mempermudah penjualan, manajemen stok, dan laporan bisnis.">
-<meta name="keywords" content="ipos, point of sale, pos system, aplikasi kasir, manajemen stok, laporan penjualan, PT Lunaray Cahya Nanjung">
-<meta name="author" content="PT Lunaray Cahya Nanjung">
+<meta name="description" content="IPOS - Sistem Point of Sale modern dari Beautylatory untuk mempermudah penjualan, manajemen stok, dan laporan bisnis.">
+<meta name="keywords" content="ipos, point of sale, pos system, aplikasi kasir, manajemen stok, laporan penjualan, Beautylatory">
+<meta name="author" content="Beautylatory">
 <meta name="robots" content="index, follow">
 
-<meta property="og:title" content="IPOS - Point of Sale System | PT Lunaray Cahya Nanjung">
-<meta property="og:description" content="IPOS adalah sistem Point of Sale dari PT Lunaray Cahya Nanjung yang membantu bisnis mengelola penjualan, stok, dan laporan dengan mudah.">
+<meta property="og:title" content="IPOS - Beautylatory">
+<meta property="og:description" content="IPOS adalah sistem Point of Sale dari Beautylatory yang membantu bisnis mengelola penjualan, stok, dan laporan dengan mudah.">
 <meta property="og:image" content="{{ asset('assets/img/logo-black.png') }}">
 <meta property="og:url" content="{{ request()->fullUrl() }}">
 
 <meta name="twitter:card" content="summary_large_image">
-<meta name="twitter:title" content="IPOS - Point of Sale System | PT Lunaray Cahya Nanjung">
-<meta name="twitter:description" content="IPOS dari PT Lunaray Cahya Nanjung memudahkan penjualan, stok, dan laporan bisnis.">
+<meta name="twitter:title" content="IPOS - Beautylatory">
+<meta name="twitter:description" content="IPOS dari Rayandra IT memudahkan penjualan, stok, dan laporan bisnis.">
 <meta name="twitter:image" content="{{ asset('assets/img/logo-black.png') }}">
 
-<title>IPOS - Point of Sale | PT Lunaray Cahya Nanjung</title>
+<title>IPOS | Beautylatory</title>
 
 <link rel="icon" href="{{ asset('assets/img/logo-black.png') }}">
 <link rel="apple-touch-icon" href="{{ asset('assets/img/logo-black.png') }}">
