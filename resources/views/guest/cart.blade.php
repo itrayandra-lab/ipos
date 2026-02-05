@@ -178,7 +178,7 @@
 
                     item.innerHTML = `
                         <div class="w-28">
-                            <img src="${product.photos?.[0]?.foto ? '/' + product.photos[0].foto : '/assets/img/human.png'}" class="rounded-xl object-cover">
+                            <img src="${product.photos?.[0]?.foto ? '/' + product.photos[0].foto : '/assets/img/Asset 3.png'}" class="rounded-xl object-cover">
                         </div>
                         <div class="flex-1">
                             <h6 class="font-semibold">${product.name}</h6>

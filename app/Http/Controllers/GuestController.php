@@ -6,7 +6,7 @@ use Midtrans\Snap;
 use Midtrans\Config;
 use App\Models\Product;
 use App\Models\Voucher;
-use App\Models\Category;
+// use App\Models\Category;
 use Midtrans\Notification;
 use App\Models\Transaction;
 use Illuminate\Http\Request;
@@ -20,10 +20,9 @@ class GuestController extends Controller
      */
     public function home(Request $request)
     {
-        $categories = Category::select(['id', 'name', 'slug', 'description'])->get();
+        $categories = [];
 
         $query = Product::where('status', 'Y')->where('price', '>', 0)->select(['id', 'category_id', 'name', 'slug', 'price', 'price_real', 'stock'])->with([
-            'category' => fn($query) => $query->select(['id', 'name', 'slug']),
             'photos' 
         ]);
 
@@ -42,7 +41,7 @@ class GuestController extends Controller
 
     public function showCart()
     {
-        $categories = Category::select(['id', 'name', 'slug'])->get();
+        $categories = [];
         return view('guest.cart', compact('categories'));
     }
 
@@ -61,12 +60,11 @@ class GuestController extends Controller
     {
         $product = Product::where('status', 'Y')->select(['id', 'category_id', 'name', 'slug', 'price', 'stock', 'price_real', 'neto', 'pieces'])
             ->with([
-                'category' => fn($query) => $query->select(['id', 'name', 'slug', 'description']),
                 'photos' => fn($query) => $query->select(['id', 'id_product', 'foto']),
             ])
             ->where('slug', $slug)
             ->firstOrFail();
-        $categories = Category::orderBy('name', 'asc')->get();
+        $categories = [];
 
         return view('guest.detail-product', compact('product', 'categories'));
     }
@@ -228,7 +226,7 @@ class GuestController extends Controller
         if(!$transaction) {
             abort(404);
         }
-        $categories = Category::select(['id', 'name', 'slug'])->get();
+        $categories = [];
         return view('guest.checkout-success', compact('categories', 'transaction'));
     }
 

@@ -44,7 +44,7 @@ class ProductController extends Controller
                 if ($firstPhoto) {
                     return '<img src="' . asset($firstPhoto->foto) . '" width="50" class="img-thumbnail">';
                 }
-                return '<span class="text-muted">No Photo</span>';
+                return '<img src="' . asset('assets/img/Asset 3.png') . '" width="50" class="img-thumbnail">';
             })
             ->addColumn('price_display', function (Product $product) {
                 $currentPrice = $product->price;

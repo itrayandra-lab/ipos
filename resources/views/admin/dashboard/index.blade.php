@@ -78,6 +78,50 @@
                     </div>
                 </div>
 
+                @if($lowStockProducts->count() > 0)
+                <div class="row">
+                    <div class="col-12">
+                        <div class="alert alert-warning alert-has-icon">
+                            <div class="alert-icon"><i class="fas fa-exclamation-triangle"></i></div>
+                            <div class="alert-body">
+                                <div class="alert-title">Stok Menipis!</div>
+                                Ada {{ $lowStockProducts->count() }} produk yang sudah mencapai batas minimum stok.
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="row">
+                    <div class="col-12">
+                        <div class="card">
+                            <div class="card-header">
+                                <h4>Daftar Stok Menipis</h4>
+                            </div>
+                            <div class="card-body p-0">
+                                <div class="table-responsive">
+                                    <table class="table table-striped table-md">
+                                        <tr>
+                                            <th>Produk</th>
+                                            <th>Stok Sekarang</th>
+                                            <th>Batas Minimum</th>
+                                            <th>Aksi</th>
+                                        </tr>
+                                        @foreach($lowStockProducts as $low)
+                                        <tr>
+                                            <td>{{ $low->name }}</td>
+                                            <td><span class="text-danger font-weight-bold">{{ $low->stock }}</span></td>
+                                            <td>{{ $low->min_stock_alert }}</td>
+                                            <td><a href="{{ route('admin.batches.index', $low->id) }}" class="btn btn-primary btn-sm">Tambah Batch</a></td>
+                                        </tr>
+                                        @endforeach
+                                    </table>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                @endif
+
                 <div class="row">
                     <!-- Produk Terbaru -->
                     <div class="col-lg-12 col-md-12 col-sm-12">

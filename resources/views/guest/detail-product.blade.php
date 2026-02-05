@@ -61,7 +61,7 @@
                                     <!-- Image gallery -->
                                     <div class="mx-auto mt-6 max-w-2xl sm:px-6 lg:grid lg:max-w-7xl lg:grid-cols-3 lg:gap-8 lg:px-8 overflow-x-auto">
                                         @if ($product->photos->isEmpty())
-                                            <img src="{{ asset('assets/img/human.png') }}" alt="{{ $product->name }}" class="row-span-2 aspect-3/4 mb-2 size-full rounded-lg object-cover" />
+                                            <img src="{{ asset('assets/img/Asset 3.png') }}" alt="{{ $product->name }}" class="row-span-2 aspect-3/4 mb-2 size-full rounded-lg object-cover" />
                                         @elseif($product->photos->count() == 1)
                                             <img src="{{ asset($product->photos->first()->foto) }}" alt="{{ $product->name }}" class="row-span-2 aspect-3/4 mb-2 size-full rounded-lg object-cover" />
                                         @else

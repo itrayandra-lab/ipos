@@ -47,7 +47,7 @@ class ProductController extends Controller
                 if ($firstPhoto) {
                     return '<img src="' . asset($firstPhoto->foto) . '" width="50" class="img-thumbnail">';
                 }
-                return '<span class="text-muted">No Photo</span>';
+                return '<img src="' . asset('assets/img/Asset 3.png') . '" width="50" class="img-thumbnail">';
             })
             ->addColumn('price_display', function (Product $product) {
                 $currentPrice = $product->price;
@@ -78,6 +78,8 @@ class ProductController extends Controller
                         Action
                     </button>
                     <ul class="dropdown-menu">
+                        <li><a href="' . route('admin.batches.index', $product->id) . '" class="dropdown-item">Batches (Stock)</a></li>
+                        <li><a href="#" data-id="' . $product->id . '" class="dropdown-item view-pricing">Rincian Harga</a></li>
                         <li><a data-id="' . $product->id . '" class="dropdown-item edit">Edit</a></li>
                         <li><a data-id="' . $product->id . '" class="dropdown-item hapus" href="#">Hapus</a></li>
                     </ul>
@@ -95,7 +97,7 @@ class ProductController extends Controller
             'name' => 'required|string|max:100',
             'category_id' => 'required|exists:categories,id',
             'raw_price' => 'required|numeric|min:0',
-            'stock' => 'required|integer|min:0',
+            'min_stock_alert' => 'required|integer|min:0',
             'neto' => 'nullable|string',
             'pieces' => 'nullable|string',
         ]);
@@ -115,7 +117,8 @@ class ProductController extends Controller
             'slug' => $slug,
             'category_id' => $request->category_id,
             'price' => $request->raw_price,
-            'stock' => $request->stock,
+            'stock' => 0, // Initial stock is 0 until batches are added
+            'min_stock_alert' => $request->min_stock_alert,
             'neto' => $request->neto,
             'pieces' => $request->pieces,
             'status' => $request->status,
@@ -155,7 +158,7 @@ class ProductController extends Controller
             'name' => 'required|string|max:100',
             'category_id' => 'required|exists:categories,id',
             'raw_price' => 'required|numeric|min:0',
-            'stock' => 'required|integer|min:0',
+            'min_stock_alert' => 'required|integer|min:0',
             'neto' => 'nullable|string',
             'pieces' => 'nullable|string',
             'deleted_photos' => 'nullable|string', 
@@ -197,7 +200,7 @@ class ProductController extends Controller
             'name' => $request->name,
             'slug' => $slug,
             'category_id' => $request->category_id,
-            'stock' => $request->stock,
+            'min_stock_alert' => $request->min_stock_alert,
             'neto' => $request->neto,
             'pieces' => $request->pieces,
             'status' => $request->status,
@@ -257,5 +260,48 @@ class ProductController extends Controller
         
         $product->delete();
         return response()->json(['message' => 'Data produk berhasil dihapus'], 200);
+    }
+
+    public function getPricing($id)
+    {
+        $product = Product::with('batches')->findOrFail($id);
+        
+        $recommendations = [
+            'shopee' => \App\Services\PricingService::calculateForProduct($product, 'shopee'),
+            'tokopedia' => \App\Services\PricingService::calculateForProduct($product, 'tokopedia'),
+            'tiktok' => \App\Services\PricingService::calculateForProduct($product, 'tiktok'),
+            'offline' => \App\Services\PricingService::calculateForProduct($product, 'offline'),
+        ];
+
+        $batches = $product->batches->map(function($batch) {
+            return [
+                'batch_no' => $batch->batch_no,
+                'expiry_date' => $batch->expiry_date->format('d M Y'),
+                'buy_price' => $batch->buy_price,
+                'prices' => [
+                    'shopee' => \App\Services\PricingService::calculate($batch, 'shopee'),
+                    'tokopedia' => \App\Services\PricingService::calculate($batch, 'tokopedia'),
+                    'tiktok' => \App\Services\PricingService::calculate($batch, 'tiktok'),
+                    'offline' => \App\Services\PricingService::calculate($batch, 'offline'),
+                ]
+            ];
+        });
+
+        return response()->json([
+            'product' => $product,
+            'batches' => $batches,
+            'recommendations' => $recommendations
+        ]);
+    }
+
+    public function syncPrice(Request $request)
+    {
+        $product = Product::findOrFail($request->id);
+        $product->update([
+            'price' => $request->price,
+            'price_real' => $request->price
+        ]);
+
+        return response()->json(['message' => 'Harga resmi produk berhasil diperbarui']);
     }
 }

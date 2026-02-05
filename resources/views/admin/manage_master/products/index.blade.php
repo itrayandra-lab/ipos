@@ -122,10 +122,10 @@
                             </div>
                         </div>
                         <div class="form-group">
-                            <label>Stok</label>
-                            <input type="number" placeholder="Masukkan Stok" class="form-control" name="stock" required min="0">
+                            <label>Min. Stock Alert</label>
+                            <input type="number" placeholder="Batas stok minimum untuk alert" class="form-control" name="min_stock_alert" required min="0" value="0">
                             <div class="invalid-feedback">
-                                Masukkan Stok
+                                Masukkan Batas Stok Minimum
                             </div>
                         </div>
                         <div class="form-group">
@@ -214,10 +214,10 @@
                             </div>
                         </div>
                         <div class="form-group">
-                            <label>Stok</label>
-                            <input type="number" placeholder="Masukkan Stok" class="form-control" name="stock" required id="stock" min="0">
+                            <label>Min. Stock Alert</label>
+                            <input type="number" placeholder="Batas stok minimum untuk alert" class="form-control" name="min_stock_alert" required id="min_stock_alert" min="0">
                             <div class="invalid-feedback">
-                                Masukkan Stok
+                                Masukkan Batas Stok Minimum
                             </div>
                         </div>
                         <div class="form-group">
@@ -259,6 +259,23 @@
                         <button type="submit" class="btn btn-primary">Update</button>
                     </div>
                 </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Pricing Details Modal -->
+    <div class="modal fade" id="pricingModal" tabindex="-1" role="dialog">
+        <div class="modal-dialog" role="document">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Rincian Harga - <span id="pricing-product-name"></span></h5>
+                    <button type="button" class="close" data-dismiss="modal"><span>&times;</span></button>
+                </div>
+                <div class="modal-body">
+                    <div id="pricing-content">
+                        <!-- Content loaded via AJAX -->
+                    </div>
+                </div>
             </div>
         </div>
     </div>
@@ -361,6 +378,90 @@
                 ]
             });
 
+            // Pricing details handler
+            $('.table').on('click', '.view-pricing', function(e) {
+                e.preventDefault();
+                let id = $(this).data('id');
+                $.ajax({
+                    url: "{{ url('admin/manage-master/products/get-pricing') }}/" + id,
+                    type: 'GET',
+                    beforeSend: function() {
+                        $.LoadingOverlay("show", { image: "", fontawesome: "fa fa-cog fa-spin" });
+                    },
+                    complete: function() {
+                        $.LoadingOverlay("hide");
+                    },
+                    success: function(data) {
+                        $('#pricing-product-name').text(data.product.name);
+                        
+                        let html = `
+                            <div class="alert alert-info border-primary mb-4">
+                                <h6 class="alert-heading"><i class="fas fa-info-circle"></i> Rekomendasi Harga Resmi (Terbaru)</h6>
+                                <p class="mb-2">Berdasarkan HPP batch terbaru: <strong>Rp ${data.recommendations.offline.toLocaleString('id-ID')}</strong></p>
+                                <button class="btn btn-sm btn-primary sync-official-price" data-id="${data.product.id}" data-price="${data.recommendations.offline}">
+                                    Terapkan sebagai Harga Toko Resmi
+                                </button>
+                            </div>
+                            <div class="list-group">
+                        `;
+                        
+                        if (data.batches.length === 0) {
+                            html += '<div class="alert alert-warning">Belum ada batch/stok. Silakan masukkan batch di menu Batches (Stock).</div>';
+                        }
+
+                        data.batches.forEach(batch => {
+                            html += `
+                                <div class="list-group-item flex-column align-items-start mb-3 border">
+                                    <div class="d-flex w-100 justify-content-between">
+                                        <h5 class="mb-1 text-primary">Batch: ${batch.batch_no}</h5>
+                                        <small class="text-muted">Expired: ${batch.expiry_date}</small>
+                                    </div>
+                                    <div class="bg-light p-2 mb-2 rounded">
+                                        <strong>Harga Modal (HPP):</strong> <span class="text-danger">Rp ${batch.buy_price.toLocaleString('id-ID')}</span>
+                                    </div>
+                                    <table class="table table-sm table-bordered mt-2 mb-0">
+                                        <thead class="thead-dark">
+                                            <tr>
+                                                <th>Channel</th>
+                                                <th>Harga Jual (Saran)</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            <tr><td>Shopee</td><td><strong>Rp ${batch.prices.shopee.toLocaleString('id-ID')}</strong></td></tr>
+                                            <tr><td>Tokopedia</td><td><strong>Rp ${batch.prices.tokopedia.toLocaleString('id-ID')}</strong></td></tr>
+                                            <tr><td>TikTok</td><td><strong>Rp ${batch.prices.tiktok.toLocaleString('id-ID')}</strong></td></tr>
+                                            <tr><td>Offline (Toko)</td><td><strong>Rp ${batch.prices.offline.toLocaleString('id-ID')}</strong></td></tr>
+                                        </tbody>
+                                    </table>
+                                </div>
+                            `;
+                        });
+                        html += '</div>';
+                        $('#pricing-content').html(html);
+                        $('#pricingModal').modal('show');
+                    }
+                });
+            });
+
+            // Handle Sync Official Price
+            $(document).on('click', '.sync-official-price', function() {
+                let id = $(this).data('id');
+                let price = $(this).data('price');
+                
+                if(confirm('Update harga resmi produk ini menjadi Rp ' + price.toLocaleString('id-ID') + '?')) {
+                    $.ajax({
+                        url: "{{ route('admin.products.sync-price') }}",
+                        type: 'POST',
+                        data: { _token: '{{ csrf_token() }}', id: id, price: price },
+                        success: function(res) {
+                            swal(res.message).then(() => {
+                                location.reload();
+                            });
+                        }
+                    });
+                }
+            });
+
             // Edit button handler
             $('.table').on('click', '.edit[data-id]', function(e) {
                 e.preventDefault();
@@ -386,7 +487,7 @@
                         $('#category_id').val(data.category_id);
                         $('#price').val(formatRupiah(data.price));
                         $('#raw_price_update').val(data.price);
-                        $('#stock').val(data.stock);
+                        $('#min_stock_alert').val(data.min_stock_alert);
                         $('#neto').val(data.neto);
                         $('#status').val(data.status);
                         $('#pieces').val(data.pieces);

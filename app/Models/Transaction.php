@@ -11,8 +11,14 @@ class Transaction extends Model
 
     protected $fillable = [
         'user_id',
+        'customer_name',
+        'customer_phone',
+        'customer_email',
+        'source',
+        'notes',
         'total_amount',
         'payment_status',
+        'payment_method',
         'delivery_type',
         'delivery_desc',
         'voucher_code',

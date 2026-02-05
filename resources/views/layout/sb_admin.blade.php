@@ -47,20 +47,32 @@
                 </a>
             </li>
 
-            <li class="menu-header">Master Data</li>
-            <li {{ $sb == 'Category' ? 'class=active' : '' }}>
-                <a class="nav-link" href="{{ url('admin/manage-master/categories') }}">
-                    <i class="fas fa-tags"></i> <span>Merk / Kategori</span>
+            <li class="menu-header">Inventory</li>
+            <li {{ $sb == 'Product' ? 'class=active' : '' }}>
+                <a class="nav-link" href="{{ url('admin/manage-master/products') }}">
+                    <i class="fas fa-boxes"></i> <span>Managemen Stok</span>
                 </a>
             </li>
+            <li class="nav-item dropdown {{ ($sb == 'OnlineSale' || $sb == 'OnlineSaleHistory') ? 'active' : '' }}">
+                <a href="#" class="nav-link has-dropdown"><i class="fas fa-shopping-bag"></i> <span>Marketplace</span></a>
+                <ul class="dropdown-menu">
+                    <li class="{{ $sb == 'OnlineSale' ? 'active' : '' }}"><a class="nav-link" href="{{ route('admin.online_sale.index') }}">Input Penjualan</a></li>
+                    <li class="{{ $sb == 'OnlineSaleHistory' ? 'active' : '' }}"><a class="nav-link" href="{{ route('admin.online_sale.history') }}">Riwayat Penjualan</a></li>
+                </ul>
+            </li>
+
+            <li class="nav-item dropdown {{ $sb == 'Settings' ? 'active' : '' }}">
+                <a href="#" class="nav-link has-dropdown"><i class="fas fa-cogs"></i><span>Pengaturan</span></a>
+                <ul class="dropdown-menu">
+                    <li class="{{ Request::is('admin/settings/channels') ? 'active' : '' }}"><a class="nav-link" href="{{ route('admin.settings.channels') }}">Saluran Penjualan</a></li>
+                    <li class="{{ Request::is('admin/settings/store') ? 'active' : '' }}"><a class="nav-link" href="{{ route('admin.settings.store') }}">Toko</a></li>
+                </ul>
+            </li>
+
+            <li class="menu-header">Master Data</li>
             <li {{ $sb == 'Voucher' ? 'class=active' : '' }}>
                 <a class="nav-link" href="{{ url('admin/manage-master/voucher') }}">
                     <i class="fas fa-ticket-alt"></i> <span>Voucher / Diskon</span>
-                </a>
-            </li>
-            <li {{ $sb == 'Product' ? 'class=active' : '' }}>
-                <a class="nav-link" href="{{ url('admin/manage-master/products') }}">
-                    <i class="fas fa-box"></i> <span>Produk</span>
                 </a>
             </li>
             <li {{ $sb == 'User' ? 'class=active' : '' }}>
@@ -69,10 +81,17 @@
                 </a>
             </li>
 
+            <li class="menu-header">Kasir</li>
+            <li {{ $sb == 'POS' ? 'class=active' : '' }}>
+                <a class="nav-link" href="{{ route('admin.pos.index') }}">
+                    <i class="fas fa-desktop"></i> <span>Tampilan Kasir</span>
+                </a>
+            </li>
+
             <li class="menu-header">Transaksi</li>
             <li {{ $sb == 'Transaction' ? 'class=active' : '' }}>
                 <a class="nav-link" href="{{ url('admin/transactions') }}">
-                    <i class="fas fa-cash-register"></i> <span>Transaksi</span>
+                    <i class="fas fa-cash-register"></i> <span>Riwayat Transaksi</span>
                 </a>
             </li>
         </ul>

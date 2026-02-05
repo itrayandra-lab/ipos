@@ -23,6 +23,7 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot()
     {
-        //
+        \App\Models\ProductBatch::observe(\App\Observers\ProductBatchObserver::class);
+        \App\Models\TransactionItem::observe(\App\Observers\TransactionItemObserver::class);
     }
 }

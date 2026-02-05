@@ -11,7 +11,12 @@ class Product extends Model
 
     protected $table = 'products';
 
-    protected $fillable = ['category_id', 'name', 'slug', 'price','price_real', 'stock', 'neto', 'pieces', 'status'];
+    protected $fillable = ['category_id', 'name', 'slug', 'price','price_real', 'stock', 'neto', 'pieces', 'status', 'min_stock_alert'];
+
+    public function batches()
+    {
+        return $this->hasMany(ProductBatch::class);
+    }
 
     public function category()
     {
@@ -31,5 +36,17 @@ class Product extends Model
     public function vouchers()
     {
         return $this->hasMany(Voucher::class);
+    }
+
+    /**
+     * Recalculate and sync the stock column.
+     * Formula: SUM(batches.incoming_qty) - SUM(transaction_items.qty)
+     */
+    public function syncStock()
+    {
+        $incoming = $this->batches()->sum('qty');
+        $outgoing = $this->transactionItems()->sum('qty');
+        
+        $this->update(['stock' => $incoming - $outgoing]);
     }
 }

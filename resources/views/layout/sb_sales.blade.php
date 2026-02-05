@@ -44,14 +44,16 @@
             </li>
 
             <li class="menu-header">Master Data</li>
-            <li {{ $sb == 'Category' ? 'class=active' : '' }}>
-                <a class="nav-link" href="{{ url('sales/manage-master/categories') }}">
-                    <i class="fas fa-tags"></i> <span>Merk / Kategori</span>
-                </a>
-            </li>
             <li {{ $sb == 'Product' ? 'class=active' : '' }}>
                 <a class="nav-link" href="{{ url('sales/manage-master/products') }}">
                     <i class="fas fa-box"></i> <span>Produk</span>
+                </a>
+            </li>
+
+            <li class="menu-header">Kasir</li>
+            <li {{ $sb == 'POS' ? 'class=active' : '' }}>
+                <a class="nav-link" href="{{ route('sales.pos.index') }}">
+                    <i class="fas fa-desktop"></i> <span>Tampilan Kasir</span>
                 </a>
             </li>
 

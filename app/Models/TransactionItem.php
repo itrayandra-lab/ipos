@@ -9,7 +9,7 @@ class TransactionItem extends Model
 {
     use HasFactory;
 
-    protected $fillable = ['transaction_id', 'product_id', 'qty', 'price', 'subtotal'];
+    protected $fillable = ['transaction_id', 'product_id', 'product_batch_id', 'buy_price', 'qty', 'price', 'subtotal'];
 
     public $timestamps = false; 
 
@@ -21,5 +21,10 @@ class TransactionItem extends Model
     public function product()
     {
         return $this->belongsTo(Product::class);
+    }
+
+    public function batch()
+    {
+        return $this->belongsTo(ProductBatch::class, 'product_batch_id');
     }
 }

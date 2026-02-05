@@ -114,6 +114,7 @@
                                 <tr>
                                     <th>#</th>
                                     <th>Produk</th>
+                                    <th>Batch</th>
                                     <th>Jumlah</th>
                                     <th>Harga Satuan</th>
                                     <th>Subtotal</th>
@@ -124,6 +125,7 @@
                                     <tr>
                                         <td>{{ $index + 1 }}</td>
                                         <td>{{ $item->product->name }}</td>
+                                        <td><span class="badge badge-light">{{ $item->batch ? $item->batch->batch_no : '-' }}</span></td>
                                         <td>{{ $item->qty }}</td>
                                         <td>Rp {{ number_format($item->price, 0, ',', '.') }}</td>
                                         <td>Rp {{ number_format($item->subtotal, 0, ',', '.') }}</td>

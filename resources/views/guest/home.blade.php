@@ -57,21 +57,21 @@
                                     </a>
                                 @empty
                                     <a href="{{ route('product.show', $product->slug) }}" class="aspect-h-4 aspect-w-3 bg-gray-200 sm:aspect-none sm:h-80">
-                                        <img src="{{ asset('assets/img/human.png') }}" alt="{{ $product->name }}" class="h-full w-full object-cover object-center transition-transform duration-500 group-hover:scale-105 sm:h-full sm:w-full" />
+                                        <img src="{{ asset('assets/img/Asset 3.png') }}" alt="{{ $product->name }}" class="h-full w-full object-cover object-center transition-transform duration-500 group-hover:scale-105 sm:h-full sm:w-full" />
                                     </a>
                                 @endforelse
                                 <div class="flex flex-1 flex-col space-y-2 p-4">
                                     <div class="flex-1">
                                         <h3 class="text-sm font-medium text-gray-900">
                                             <a href="{{ route('product.show', $product->slug) }}">
-                                               {{ $product->category->name }} {{ $product->name }}
+                                                {{ $product->name }}
                                             </a>
                                         </h3>
-                                        <p class="mt-1 text-xs text-gray-500">
+                                        {{-- <p class="mt-1 text-xs text-gray-500">
                                             <span class="inline-block bg-indigo-100 text-indigo-800 rounded-full px-2 py-0.5 font-semibold">
                                                 {{ $product->category->name }}
                                             </span>
-                                        </p>
+                                        </p> --}}
                                     </div>
                                     <div class="flex items-center justify-between">
                                         <div class="text-left">

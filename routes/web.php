@@ -11,6 +11,12 @@ use App\Http\Controllers\Admin\ManageMaster\CategoryController as CategoryAdmin;
 use App\Http\Controllers\Admin\ManageMaster\ProductController as ProductAdmin;
 use App\Http\Controllers\Admin\ManageMaster\VoucherController as VoucherAdmin;
 use App\Http\Controllers\Admin\TransactionController as TransactionAdmin;
+use App\Http\Controllers\Admin\BatchController as BatchAdmin;
+use App\Http\Controllers\Admin\OnlineSaleController as OnlineSaleAdmin;
+use App\Http\Controllers\Admin\ChannelSettingController as ChannelSettingAdmin;
+use App\Http\Controllers\Admin\StoreSettingController as StoreSettingAdmin;
+use App\Http\Controllers\Admin\PosController as PosAdmin;
+
 # Sales Controllers
 use App\Http\Controllers\Sales\DashboardController as DashboardSales;
 use App\Http\Controllers\Sales\ManageMaster\CategoryController as CategorySales;
@@ -72,11 +78,32 @@ Route::prefix('admin')->middleware(['auth', 'role:admin'])->group(function () {
         Route::prefix('products')->group(function () {
             Route::get('/', [ProductAdmin::class, 'index']);
             Route::post('/', [ProductAdmin::class, 'create']);
-            Route::get('all', [ProductAdmin::class, 'getall']);
-            Route::post('get', [ProductAdmin::class, 'get']);
+            Route::get('/all', [ProductAdmin::class, 'getall']);
+        Route::get('/get-pricing/{id}', [ProductAdmin::class, 'getPricing']);
+        Route::post('/sync-price', [ProductAdmin::class, 'syncPrice'])->name('admin.products.sync-price');
+        Route::post('/get', [ProductAdmin::class, 'get']);
             Route::post('update', [ProductAdmin::class, 'update']);
             Route::delete('/', [ProductAdmin::class, 'delete']);
         });
+        Route::prefix('batches')->group(function () {
+            Route::get('/{product_id}', [BatchAdmin::class, 'index'])->name('admin.batches.index');
+            Route::post('/', [BatchAdmin::class, 'store'])->name('admin.batches.store');
+            Route::post('update', [BatchAdmin::class, 'update'])->name('admin.batches.update');
+            Route::delete('/', [BatchAdmin::class, 'delete'])->name('admin.batches.delete');
+        });
+    });
+
+    Route::prefix('online-sale')->group(function () {
+        Route::get('/', [OnlineSaleAdmin::class, 'index'])->name('admin.online_sale.index');
+        Route::post('/', [OnlineSaleAdmin::class, 'store'])->name('admin.online_sale.store');
+        Route::get('/history', [OnlineSaleAdmin::class, 'history'])->name('admin.online_sale.history');
+    });
+
+    Route::prefix('settings')->group(function () {
+        Route::get('/store', [StoreSettingAdmin::class, 'index'])->name('admin.settings.store');
+        Route::post('/store', [StoreSettingAdmin::class, 'update'])->name('admin.settings.store.update');
+        Route::get('/channels', [ChannelSettingAdmin::class, 'index'])->name('admin.settings.channels');
+        Route::post('/channels/update', [ChannelSettingAdmin::class, 'update'])->name('admin.settings.channels.update');
     });
 
     Route::prefix('transactions')->group(function () {
@@ -84,6 +111,13 @@ Route::prefix('admin')->middleware(['auth', 'role:admin'])->group(function () {
         Route::get('all', [TransactionAdmin::class, 'getall']);
         Route::get('print', [TransactionAdmin::class, 'print']);
         Route::get('show/{id}', [TransactionAdmin::class, 'show']);
+    });
+
+    Route::prefix('pos')->group(function () {
+        Route::get('/', [PosAdmin::class, 'index'])->name('admin.pos.index');
+        Route::get('/products', [PosAdmin::class, 'fetchProducts'])->name('admin.pos.products');
+        Route::post('/', [PosAdmin::class, 'store'])->name('admin.pos.store');
+        Route::get('/receipt/{id}', [PosAdmin::class, 'printReceipt'])->name('admin.pos.receipt');
     });
 });
 
@@ -117,5 +151,12 @@ Route::prefix('sales')->middleware(['auth', 'role:sales'])->group(function () {
         Route::get('all', [TransactionSales::class, 'getall']);
         Route::get('print', [TransactionSales::class, 'print']);
         Route::get('show/{id}', [TransactionSales::class, 'show']);
+    });
+
+    Route::prefix('pos')->group(function () {
+        Route::get('/', [PosAdmin::class, 'index'])->name('sales.pos.index');
+        Route::get('/products', [PosAdmin::class, 'fetchProducts'])->name('sales.pos.products');
+        Route::post('/', [PosAdmin::class, 'store'])->name('sales.pos.store');
+        Route::get('/receipt/{id}', [PosAdmin::class, 'printReceipt'])->name('sales.pos.receipt');
     });
 });
