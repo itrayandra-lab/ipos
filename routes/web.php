@@ -10,12 +10,16 @@ use App\Http\Controllers\Admin\ManageMaster\UserController as UserAdmin;
 use App\Http\Controllers\Admin\ManageMaster\CategoryController as CategoryAdmin;
 use App\Http\Controllers\Admin\ManageMaster\ProductController as ProductAdmin;
 use App\Http\Controllers\Admin\ManageMaster\VoucherController as VoucherAdmin;
+use App\Http\Controllers\Admin\ManageMaster\AttributeGroupController as AttributeGroupAdmin;
+use App\Http\Controllers\Admin\ManageMaster\AttributeController as AttributeAdmin;
 use App\Http\Controllers\Admin\TransactionController as TransactionAdmin;
 use App\Http\Controllers\Admin\BatchController as BatchAdmin;
 use App\Http\Controllers\Admin\OnlineSaleController as OnlineSaleAdmin;
 use App\Http\Controllers\Admin\ChannelSettingController as ChannelSettingAdmin;
 use App\Http\Controllers\Admin\StoreSettingController as StoreSettingAdmin;
+
 use App\Http\Controllers\Admin\PosController as PosAdmin;
+use App\Http\Controllers\Admin\AffiliateController as AffiliateAdmin;
 
 # Sales Controllers
 use App\Http\Controllers\Sales\DashboardController as DashboardSales;
@@ -69,6 +73,7 @@ Route::prefix('admin')->middleware(['auth', 'role:admin'])->group(function () {
         });
         Route::prefix('voucher')->group(function () {
             Route::get('/', [VoucherAdmin::class, 'index']);
+            Route::get('/create', [VoucherAdmin::class, 'create_view']);
             Route::post('/', [VoucherAdmin::class, 'create']);
             Route::get('all', [VoucherAdmin::class, 'getall']);
             Route::post('get', [VoucherAdmin::class, 'get']);
@@ -91,6 +96,24 @@ Route::prefix('admin')->middleware(['auth', 'role:admin'])->group(function () {
             Route::post('update', [BatchAdmin::class, 'update'])->name('admin.batches.update');
             Route::delete('/', [BatchAdmin::class, 'delete'])->name('admin.batches.delete');
         });
+
+        Route::prefix('attribute-groups')->group(function () {
+            Route::get('/', [AttributeGroupAdmin::class, 'index'])->name('admin.manage_master.attribute_groups.index');
+            Route::get('/all', [AttributeGroupAdmin::class, 'getall'])->name('admin.manage_master.attribute_groups.all');
+            Route::post('/', [AttributeGroupAdmin::class, 'store'])->name('admin.manage_master.attribute_groups.store');
+            Route::post('/get', [AttributeGroupAdmin::class, 'get'])->name('admin.manage_master.attribute_groups.get');
+            Route::post('/update', [AttributeGroupAdmin::class, 'update'])->name('admin.manage_master.attribute_groups.update');
+            Route::delete('/', [AttributeGroupAdmin::class, 'delete'])->name('admin.manage_master.attribute_groups.delete');
+        });
+
+        Route::prefix('attributes')->group(function () {
+            Route::get('/', [AttributeAdmin::class, 'index'])->name('admin.manage_master.attributes.index');
+            Route::get('/all', [AttributeAdmin::class, 'getall'])->name('admin.manage_master.attributes.all');
+            Route::post('/', [AttributeAdmin::class, 'store'])->name('admin.manage_master.attributes.store');
+            Route::post('/get', [AttributeAdmin::class, 'get'])->name('admin.manage_master.attributes.get');
+            Route::post('/update', [AttributeAdmin::class, 'update'])->name('admin.manage_master.attributes.update');
+            Route::delete('/', [AttributeAdmin::class, 'delete'])->name('admin.manage_master.attributes.delete');
+        });
     });
 
     Route::prefix('online-sale')->group(function () {
@@ -103,8 +126,26 @@ Route::prefix('admin')->middleware(['auth', 'role:admin'])->group(function () {
         Route::get('/store', [StoreSettingAdmin::class, 'index'])->name('admin.settings.store');
         Route::post('/store', [StoreSettingAdmin::class, 'update'])->name('admin.settings.store.update');
         Route::get('/channels', [ChannelSettingAdmin::class, 'index'])->name('admin.settings.channels');
+        Route::post('/channels/store', [ChannelSettingAdmin::class, 'store'])->name('admin.settings.channels.store');
         Route::post('/channels/update', [ChannelSettingAdmin::class, 'update'])->name('admin.settings.channels.update');
+        Route::post('/channels/delete', [ChannelSettingAdmin::class, 'delete'])->name('admin.settings.channels.delete');
     });
+
+        Route::prefix('affiliate-users')->group(function () {
+            Route::get('/', [AffiliateAdmin::class, 'index'])->name('admin.affiliates.index');
+            Route::get('/all', [AffiliateAdmin::class, 'getall'])->name('admin.affiliates.all');
+            Route::post('/', [AffiliateAdmin::class, 'store'])->name('admin.affiliates.store');
+            Route::post('/get', [AffiliateAdmin::class, 'get'])->name('admin.affiliates.get');
+            Route::post('/update', [AffiliateAdmin::class, 'update'])->name('admin.affiliates.update');
+            Route::delete('/', [AffiliateAdmin::class, 'delete'])->name('admin.affiliates.delete');
+            
+            // Product Specific Commissions
+            Route::get('/commissions/{id}', [AffiliateAdmin::class, 'commissions'])->name('admin.affiliates.commissions');
+            Route::get('/commissions/{id}/data', [AffiliateAdmin::class, 'commissionsData'])->name('admin.affiliates.commissions.data');
+            Route::post('/commissions/store', [AffiliateAdmin::class, 'storeCommission'])->name('admin.affiliates.commissions.store');
+            Route::delete('/commissions/delete', [AffiliateAdmin::class, 'deleteCommission'])->name('admin.affiliates.commissions.delete');
+            Route::get('/rates/{id}', [AffiliateAdmin::class, 'getRates'])->name('admin.affiliates.rates');
+        });
 
     Route::prefix('transactions')->group(function () {
         Route::get('/', [TransactionAdmin::class, 'index']);

@@ -22,16 +22,19 @@ class OnlineSaleController extends Controller
             }])
             ->get();
 
+        $channels = \App\Models\ChannelSetting::all();
+
         $batchList = [];
         foreach ($products as $product) {
             foreach ($product->batches as $batch) {
                 if ($batch->qty > 0) {
                     $prices = [
-                        'shopee' => \App\Services\PricingService::calculate($batch, 'shopee'),
-                        'tokopedia' => \App\Services\PricingService::calculate($batch, 'tokopedia'),
-                        'tiktok' => \App\Services\PricingService::calculate($batch, 'tiktok'),
                         'offline' => \App\Services\PricingService::calculate($batch, 'offline'),
                     ];
+
+                    foreach ($channels as $channel) {
+                        $prices[$channel->slug] = \App\Services\PricingService::calculate($batch, $channel->slug);
+                    }
 
                     $batchList[] = (object)[
                         'id' => $batch->id,
@@ -44,13 +47,14 @@ class OnlineSaleController extends Controller
             }
         }
 
-        return view('admin.online_sale.index', compact('products', 'batchList'))->with('sb', 'OnlineSale');
+        return view('admin.online_sale.index', compact('products', 'batchList', 'channels'))->with('sb', 'OnlineSale');
     }
 
     public function store(Request $request)
     {
         $validator = Validator::make($request->all(), [
-            'source' => 'required|in:shopee,tokopedia,tiktok',
+            'source' => 'required|exists:channel_settings,slug',
+            'transaction_date' => 'nullable|date',
             'notes' => 'nullable|string',
             'items' => 'required|array|min:1',
             'items.*.product_batch_id' => 'required|exists:product_batches,id',
@@ -96,6 +100,7 @@ class OnlineSaleController extends Controller
                     'delivery_type' => 'delivery',
                     'delivery_desc' => 'Online Marketplace Sale',
                     'midtrans_order_id' => 'MARKET-' . strtoupper($request->source) . '-' . uniqid(),
+                    'created_at' => $request->transaction_date ?? now(),
                 ]);
 
                 foreach ($itemsToCreate as $itemData) {

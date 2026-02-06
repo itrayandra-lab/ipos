@@ -79,7 +79,20 @@ class GuestController extends Controller
         if ($request->has('voucher') && !empty($request->voucher)) {
             $voucher = Voucher::where('code', $request->voucher)->first();
             if ($voucher && $voucher->status === 'ACTIVE') {
-                $discount = $voucher->percent;
+                 // Check usage limit
+                 if (!is_null($voucher->usage_limit) && $voucher->usage_count >= $voucher->usage_limit) {
+                    return response()->json([
+                        'status' => 'error',
+                        'message' => 'Voucher sudah habis.'
+                    ], 400);
+                 }
+
+                if ($voucher->discount_type == 'NOMINAL') {
+                    $discount = $voucher->nominal; 
+                } else {
+                    $discount = $voucher->percent;
+                }
+                
                 $voucherCode = $voucher->code;
             } else {
                 return response()->json([
@@ -125,15 +138,31 @@ class GuestController extends Controller
             ];
         }
 
-        $discountAmount = $discount ? ($grossAmount * $discount / 100) : 0;
-        $finalAmount = $grossAmount - $discountAmount;
+        if ($voucherCode && isset($voucher)) {
+            if ($voucher->discount_type == 'NOMINAL') {
+                $discountAmount = $discount;
+            } else {
+                $discountAmount = ($grossAmount * $discount / 100);
+            }
+            
+            // Increment voucher usage
+            $voucher->increment('usage_count');
+        } else {
+            $discountAmount = 0;
+        }
+
+        $finalAmount = max(0, $grossAmount - $discountAmount);
 
         if ($discountAmount > 0) {
+            $discountName = ($voucher->discount_type == 'NOMINAL') 
+                ? 'Discount Rp ' . number_format($discount, 0, ',', '.') 
+                : 'Discount ' . $discount . '%';
+
             $itemDetails[] = [
                 'id' => 'DISCOUNT',
                 'price' => -(int)$discountAmount,
                 'quantity' => 1,
-                'name' => 'Discount ' . $discount . '%',
+                'name' => $discountName,
             ];
         }
 
@@ -261,7 +290,8 @@ class GuestController extends Controller
             'message' => 'Voucher valid.',
             'data' => [
                 'code' => $voucher->code,
-                'discount' => $voucher->percent,
+                'discount' => ($voucher->discount_type == 'NOMINAL') ? $voucher->nominal : $voucher->percent,
+                'type' => $voucher->discount_type,
                 'name' => $voucher->name,
             ]
         ]);

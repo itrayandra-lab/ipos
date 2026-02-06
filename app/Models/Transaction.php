@@ -25,6 +25,10 @@ class Transaction extends Model
         'discount',
         'midtrans_order_id',
         'midtrans_transaction_id',
+        'affiliate_id',
+        'affiliate_fee_total',
+        'affiliate_fee_mode',
+        'created_at',
     ];
 
     public function user()

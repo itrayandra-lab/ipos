@@ -392,53 +392,73 @@
                         $.LoadingOverlay("hide");
                     },
                     success: function(data) {
-                        $('#pricing-product-name').text(data.product.name);
-                        
-                        let html = `
-                            <div class="alert alert-info border-primary mb-4">
-                                <h6 class="alert-heading"><i class="fas fa-info-circle"></i> Rekomendasi Harga Resmi (Terbaru)</h6>
-                                <p class="mb-2">Berdasarkan HPP batch terbaru: <strong>Rp ${data.recommendations.offline.toLocaleString('id-ID')}</strong></p>
-                                <button class="btn btn-sm btn-primary sync-official-price" data-id="${data.product.id}" data-price="${data.recommendations.offline}">
-                                    Terapkan sebagai Harga Toko Resmi
-                                </button>
-                            </div>
-                            <div class="list-group">
-                        `;
-                        
-                        if (data.batches.length === 0) {
-                            html += '<div class="alert alert-warning">Belum ada batch/stok. Silakan masukkan batch di menu Batches (Stock).</div>';
-                        }
+                        try {
+                            $('#pricing-product-name').text(data.product.name);
+                            
+                            // Determine "Official" price (prefer 'offline' or 'offline-store', otherwise first available)
+                            let officialPrice = 0;
+                            if (data.recommendations['offline']) {
+                                officialPrice = data.recommendations['offline'];
+                            } else if (data.recommendations['offline-store']) {
+                                officialPrice = data.recommendations['offline-store'];
+                            } else {
+                                let keys = Object.keys(data.recommendations);
+                                if (keys.length > 0) officialPrice = data.recommendations[keys[0]];
+                            }
 
-                        data.batches.forEach(batch => {
-                            html += `
-                                <div class="list-group-item flex-column align-items-start mb-3 border">
-                                    <div class="d-flex w-100 justify-content-between">
-                                        <h5 class="mb-1 text-primary">Batch: ${batch.batch_no}</h5>
-                                        <small class="text-muted">Expired: ${batch.expiry_date}</small>
-                                    </div>
-                                    <div class="bg-light p-2 mb-2 rounded">
-                                        <strong>Harga Modal (HPP):</strong> <span class="text-danger">Rp ${batch.buy_price.toLocaleString('id-ID')}</span>
-                                    </div>
-                                    <table class="table table-sm table-bordered mt-2 mb-0">
-                                        <thead class="thead-dark">
-                                            <tr>
-                                                <th>Channel</th>
-                                                <th>Harga Jual (Saran)</th>
-                                            </tr>
-                                        </thead>
-                                        <tbody>
-                                            <tr><td>Shopee</td><td><strong>Rp ${batch.prices.shopee.toLocaleString('id-ID')}</strong></td></tr>
-                                            <tr><td>Tokopedia</td><td><strong>Rp ${batch.prices.tokopedia.toLocaleString('id-ID')}</strong></td></tr>
-                                            <tr><td>TikTok</td><td><strong>Rp ${batch.prices.tiktok.toLocaleString('id-ID')}</strong></td></tr>
-                                            <tr><td>Offline (Toko)</td><td><strong>Rp ${batch.prices.offline.toLocaleString('id-ID')}</strong></td></tr>
-                                        </tbody>
-                                    </table>
+                            let html = `
+                                <div class="alert alert-info border-primary mb-4">
+                                    <h6 class="alert-heading"><i class="fas fa-info-circle"></i> Rekomendasi Harga Resmi (Terbaru)</h6>
+                                    <p class="mb-2">Berdasarkan HPP batch terbaru: <strong>Rp ${officialPrice.toLocaleString('id-ID')}</strong></p>
+                                    <button class="btn btn-sm btn-primary sync-official-price" data-id="${data.product.id}" data-price="${officialPrice}">
+                                        Terapkan sebagai Harga Toko Resmi
+                                    </button>
                                 </div>
+                                <div class="list-group">
                             `;
-                        });
-                        html += '</div>';
-                        $('#pricing-content').html(html);
-                        $('#pricingModal').modal('show');
+                            
+                            if (data.batches.length === 0) {
+                                html += '<div class="alert alert-warning">Belum ada batch/stok. Silakan masukkan batch di menu Batches (Stock).</div>';
+                            }
+
+                            data.batches.forEach(batch => {
+                                let priceRows = '';
+                                
+                                data.channels.forEach(channel => {
+                                    let price = batch.prices[channel.slug] ? batch.prices[channel.slug].toLocaleString('id-ID') : 0;
+                                    priceRows += `<tr><td>${channel.name}</td><td><strong>Rp ${price}</strong></td></tr>`;
+                                });
+
+                                html += `
+                                    <div class="list-group-item flex-column align-items-start mb-3 border">
+                                        <div class="d-flex w-100 justify-content-between">
+                                            <h5 class="mb-1 text-primary">Batch: ${batch.batch_no}</h5>
+                                            <small class="text-muted">Expired: ${batch.expiry_date}</small>
+                                        </div>
+                                        <div class="bg-light p-2 mb-2 rounded">
+                                            <strong>Harga Modal (HPP):</strong> <span class="text-danger">Rp ${batch.buy_price.toLocaleString('id-ID')}</span>
+                                        </div>
+                                        <table class="table table-sm table-bordered mt-2 mb-0">
+                                            <thead class="thead-dark">
+                                                <tr>
+                                                    <th>Channel</th>
+                                                    <th>Harga Jual (Saran)</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                ${priceRows}
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                `;
+                            });
+                            html += '</div>';
+                            $('#pricing-content').html(html);
+                            $('#pricingModal').modal('show');
+                        } catch (e) {
+                            console.error(e);
+                            alert('Terjadi kesalahan saat menampilkan data: ' + e.message);
+                        }
                     }
                 });
             });

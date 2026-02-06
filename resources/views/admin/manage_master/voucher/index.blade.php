@@ -33,16 +33,9 @@
                     <div class="card-header">
                         <h4>Data Seluruh Voucher</h4>
                         <div class="card-header-form">
-                            <div class="dropdown d-inline dropleft">
-                                <button type="button" class="btn btn-primary btn-sm dropdown-toggle" aria-haspopup="true"
-                                    data-toggle="dropdown" aria-expanded="false">
-                                    Tambah
-                                </button>
-                                <ul class="dropdown-menu">
-                                    <li><a class="dropdown-item" data-toggle="modal" data-target="#addModal"
-                                            href="#">Input Manual</a></li>
-                                </ul>
-                            </div>
+                            <a href="{{ url('admin/manage-master/voucher/create') }}" class="btn btn-primary btn-sm">
+                                Tambah
+                            </a>
                         </div>
                     </div>
                     <div class="card-body">
@@ -53,7 +46,9 @@
                                     <th>Nama</th>
                                     <th>Produk</th>
                                     <th>Kode</th>
-                                    <th>Persentase</th>
+                                    <th>Nilai Diskon</th>
+                                    <th>Masa Berlaku</th>
+                                    <th>Terpakai / Limit</th>
                                     <th>Status</th>
                                     <th width="10px">Action</th>
                                 </tr>
@@ -65,70 +60,6 @@
                 </div>
             </div>
         </section>
-    </div>
-
-    <!-- Add Modal -->
-    <div class="modal fade" id="addModal" tabindex="-1" aria-labelledby="addModal" aria-hidden="true">
-        <div class="modal-dialog modal-lg">
-            <div class="modal-content">
-                <div class="modal-header">
-                    <h5 class="modal-title" id="addModal">Tambah Voucher</h5>
-                    <button type="button" class="close" data-dismiss="modal" aria-label="Close">
-                        <span aria-hidden="true">×</span>
-                    </button>
-                </div>
-                <form action="/admin/manage-master/voucher" method="POST" class="needs-validation" novalidate="">
-                    @csrf
-                    <div class="modal-body">
-                        <div class="form-group">
-                            <label>Nama</label>
-                            <input type="text" placeholder="Masukkan Nama Voucher" class="form-control" name="name" required="">
-                            <div class="invalid-feedback">
-                                Masukkan Nama Voucher
-                            </div>
-                        </div>
-                        <div class="form-group">
-                            <label>Kode</label>
-                            <input type="text" placeholder="Masukkan Kode Voucher" class="form-control" name="code" required="">
-                            <div class="invalid-feedback">
-                                Masukkan Kode Voucher
-                            </div>
-                        </div>
-                        <div class="form-group">
-                            <label>Persentase (%)</label>
-                            <input type="number" placeholder="Masukkan Persentase Diskon" class="form-control" name="percent" required="" min="0" max="100">
-                            <div class="invalid-feedback">
-                                Masukkan Persentase Diskon (0-100)
-                            </div>
-                        </div>
-                        <div class="form-group">
-                            <label>Status</label>
-                            <select class="form-control" name="status" required="">
-                                <option value="ACTIVE">ACTIVE</option>
-                                <option value="NON ACTIVE">NON ACTIVE</option>
-                            </select>
-                            <div class="invalid-feedback">
-                                Pilih Status Voucher
-                            </div>
-                        </div>
-                        <div class="form-group">
-                            <label>Products</label>
-                            <select class="form-control select2" name="products[]" multiple="multiple" >
-                                @foreach($products as $product)
-                                    <option value="{{ $product->id }}">{{ $product->name ?? $product->title }}</option>
-                                @endforeach
-                            </select>
-                            <div class="invalid-feedback">
-                                Pilih Products
-                            </div>
-                        </div>
-                    </div>
-                    <div class="modal-footer">
-                        <button type="submit" class="btn btn-primary">Simpan</button>
-                    </div>
-                </form>
-            </div>
-        </div>
     </div>
 
     <!-- Update Modal -->
@@ -160,10 +91,46 @@
                             </div>
                         </div>
                         <div class="form-group">
+                             <label>Masa Berlaku (Opsional)</label>
+                             <div class="row">
+                                 <div class="col-md-6">
+                                     <label><small>Mulai</small></label>
+                                     <input type="datetime-local" class="form-control" name="start_date" id="start_date">
+                                 </div>
+                                 <div class="col-md-6">
+                                     <label><small>Selesai</small></label>
+                                     <input type="datetime-local" class="form-control" name="end_date" id="end_date">
+                                 </div>
+                             </div>
+                        </div>
+                        <div class="form-group">
+                            <label>Batas Penggunaan (Opsional)</label>
+                            <input type="number" class="form-control" name="usage_limit" id="usage_limit" min="1">
+                            <small class="form-text text-muted">Kosongkan jika voucher dapat digunakan tanpa batas.</small>
+                        </div>
+                        <div class="form-group">
+                            <label class="d-block">Tipe Diskon</label>
+                            <div class="form-check form-check-inline">
+                                <input class="form-check-input" type="radio" name="discount_type" id="edit_type_percent" value="PERCENT">
+                                <label class="form-check-label" for="edit_type_percent">Persentase (%)</label>
+                            </div>
+                            <div class="form-check form-check-inline">
+                                <input class="form-check-input" type="radio" name="discount_type" id="edit_type_nominal" value="NOMINAL">
+                                <label class="form-check-label" for="edit_type_nominal">Nominal (Rp)</label>
+                            </div>
+                        </div>
+                        <div class="form-group" id="edit_percent_wrapper">
                             <label>Persentase (%)</label>
-                            <input type="number" placeholder="Masukkan Persentase Diskon" class="form-control" name="percent" required="" id="percent" min="0" max="100">
+                            <input type="number" placeholder="Masukkan Persentase Diskon" class="form-control" name="percent" id="percent" min="0" max="100">
                             <div class="invalid-feedback">
                                 Masukkan Persentase Diskon (0-100)
+                            </div>
+                        </div>
+                        <div class="form-group" id="edit_nominal_wrapper" style="display:none;">
+                            <label>Nominal (Rp)</label>
+                            <input type="number" placeholder="Masukkan Nominal Diskon" class="form-control" name="nominal" id="nominal" min="0">
+                            <div class="invalid-feedback">
+                                Masukkan Nominal Diskon
                             </div>
                         </div>
                         <div class="form-group">
@@ -219,6 +186,8 @@
                     { data: 'product_name', name: 'product_name' },
                     { data: 'code', name: 'code' },
                     { data: 'percent', name: 'percent' },
+                    { data: 'validity', name: 'validity' },
+                    { data: 'usage', name: 'usage' },
                     { data: 'status', name: 'status' },
                     { data: 'action', name: 'action', orderable: false, searchable: false }
                 ]
@@ -247,8 +216,26 @@
                         $('#id').val(data.id);
                         $('#name').val(data.name);
                         $('#code').val(data.code);
-                        $('#percent').val(data.percent);
+                        
+                        // Handle discount type population
+                        if (data.discount_type == 'NOMINAL') {
+                            $('#edit_type_nominal').prop('checked', true);
+                            $('#edit_percent_wrapper').hide();
+                            $('#edit_nominal_wrapper').show();
+                            $('#nominal').val(data.nominal);
+                            $('#percent').val('');
+                        } else {
+                            $('#edit_type_percent').prop('checked', true);
+                            $('#edit_percent_wrapper').show();
+                            $('#edit_nominal_wrapper').hide();
+                            $('#percent').val(data.percent);
+                            $('#nominal').val('');
+                        }
+
                         $('#status').val(data.status);
+                        $('#start_date').val(data.start_date ? data.start_date.replace(' ', 'T') : '');
+                        $('#end_date').val(data.end_date ? data.end_date.replace(' ', 'T') : '');
+                        $('#usage_limit').val(data.usage_limit);
                         // Set selected product untuk single select
                         $('#product_id').val(data.product_id || '').trigger('change');
                         $('#updateModal').modal('show');
@@ -258,6 +245,16 @@
                         console.log(err);
                     }
                 });
+            });
+
+            $('input[name="discount_type"]').change(function() {
+                if ($('#edit_type_nominal').is(':checked')) {
+                    $('#edit_percent_wrapper').hide();
+                    $('#edit_nominal_wrapper').show();
+                } else {
+                    $('#edit_percent_wrapper').show();
+                    $('#edit_nominal_wrapper').hide();
+                }
             });
 
             $('#voucherTable').on('click', '.hapus[data-id]', function(e) {

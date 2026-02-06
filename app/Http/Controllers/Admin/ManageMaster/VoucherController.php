@@ -26,6 +26,12 @@ class VoucherController extends Controller
                 'vouchers.code', 
                 'vouchers.percent', 
                 'vouchers.status',
+                'vouchers.discount_type',
+                'vouchers.nominal',
+                'vouchers.start_date',
+                'vouchers.end_date',
+                'vouchers.usage_limit',
+                'vouchers.usage_count',
                 'products.name as product_name'
             )
             ->leftJoin('products', 'vouchers.product_id', '=', 'products.id')
@@ -39,6 +45,22 @@ class VoucherController extends Controller
                 return '
                     <span class="code-display" data-full-code="' . $voucher->code . '">' . $maskedCode . '</span>
                 ';
+            })
+            ->editColumn('percent', function (Voucher $voucher) {
+                if ($voucher->discount_type == 'NOMINAL') {
+                    return 'Rp ' . number_format($voucher->nominal, 0, ',', '.');
+                }
+                return $voucher->percent . '%';
+            })
+            ->addColumn('validity', function (Voucher $voucher) {
+                if (!$voucher->start_date && !$voucher->end_date) return '-';
+                $start = $voucher->start_date ? $voucher->start_date->format('d M Y') : '∞';
+                $end = $voucher->end_date ? $voucher->end_date->format('d M Y') : '∞';
+                return $start . ' - ' . $end;
+            })
+            ->addColumn('usage', function (Voucher $voucher) {
+                $limit = $voucher->usage_limit ? $voucher->usage_limit : '∞';
+                return $voucher->usage_count . ' / ' . $limit;
             })
             ->addColumn('status', function (Voucher $voucher) {
                 $badgeClass = $voucher->status === 'ACTIVE' 
@@ -63,13 +85,24 @@ class VoucherController extends Controller
             ->make(true);
     }
 
+    public function create_view()
+    {
+        $products = Product::orderBy('id', 'desc')->get();
+        return view('admin.manage_master.voucher.create')->with('products', $products)->with('sb', 'Voucher');
+    }
+
     public function create(Request $request)
     {
         $validator = Validator::make($request->all(), [
             'name' => 'required|string|max:100',
             'code' => 'required|string|max:50',
-            'percent' => 'required|numeric|min:0|max:100',
             'status' => 'required|in:ACTIVE,NON ACTIVE',
+            'discount_type' => 'required|in:PERCENT,NOMINAL',
+            'percent' => 'nullable|numeric|min:0|max:100|required_if:discount_type,PERCENT',
+            'nominal' => 'nullable|numeric|min:0|required_if:discount_type,NOMINAL',
+            'start_date' => 'nullable|date',
+            'end_date' => 'nullable|date|after_or_equal:start_date',
+            'usage_limit' => 'nullable|integer|min:1',
             'products' => 'required|array|min:1',
             'products.*' => 'exists:products,id',
         ]);
@@ -89,15 +122,25 @@ class VoucherController extends Controller
             Voucher::create([
                 'name' => $request->name,
                 'code' => $uniqueCode,
-                'percent' => $request->percent,
+                'discount_type' => $request->discount_type,
+                'percent' => $request->percent ?? 0,
+                'nominal' => $request->nominal ?? 0,
                 'product_id' => $productId,
                 'status' => $request->status,
+                'start_date' => $request->start_date,
+                'end_date' => $request->end_date,
+                'usage_limit' => $request->usage_limit,
             ]);
 
             $product = Product::find($productId);
             if ($product) {
                 $originalPrice = $product->price_real ?? $product->price;
-                $discountedPrice = $originalPrice * (1 - ($request->percent / 100));
+                if ($request->discount_type == 'PERCENT') {
+                    $discountedPrice = $originalPrice * (1 - ($request->percent / 100));
+                } else {
+                    $discountedPrice = max(0, $originalPrice - $request->nominal);
+                }
+                
                 $product->update([
                     'price_real' => $originalPrice,
                     'price' => round($discountedPrice, 2),
@@ -108,7 +151,7 @@ class VoucherController extends Controller
         }
 
         if ($createdCount > 0) {
-            return redirect()->back()->with('message', "Data voucher berhasil disimpan untuk {$createdCount} produk dan harga produk telah diperbarui");
+            return redirect('admin/manage-master/voucher')->with('message', "Data voucher berhasil disimpan untuk {$createdCount} produk");
         } else {
             return redirect()->back()->with('error', 'Tidak ada voucher baru yang dibuat karena kode sudah ada');
         }
@@ -134,8 +177,13 @@ class VoucherController extends Controller
         $validator = Validator::make($request->all(), [
             'name' => 'required|string|max:100',
             'code' => 'required|string|max:50|unique:vouchers,code,' . $id,
-            'percent' => 'required|numeric|min:0|max:100',
             'status' => 'required|in:ACTIVE,NON ACTIVE',
+            'discount_type' => 'required|in:PERCENT,NOMINAL',
+            'percent' => 'nullable|numeric|min:0|max:100|required_if:discount_type,PERCENT',
+            'nominal' => 'nullable|numeric|min:0|required_if:discount_type,NOMINAL',
+            'start_date' => 'nullable|date',
+            'end_date' => 'nullable|date|after_or_equal:start_date',
+            'usage_limit' => 'nullable|integer|min:1',
         ]);
 
         if ($validator->fails()) {
@@ -145,8 +193,13 @@ class VoucherController extends Controller
         $voucher->update([
             'name' => $request->name,
             'code' => $request->code,
-            'percent' => $request->percent,
+            'discount_type' => $request->discount_type,
+            'percent' => $request->percent ?? 0,
+            'nominal' => $request->nominal ?? 0,
             'status' => $request->status,
+            'start_date' => $request->start_date,
+            'end_date' => $request->end_date,
+            'usage_limit' => $request->usage_limit,
         ]);
 
         return redirect()->back()->with('message', 'Data voucher berhasil diupdate');

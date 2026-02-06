@@ -15,25 +15,59 @@ class ChannelSettingController extends Controller
         return view('admin.settings.channels', compact('channels'))->with('sb', 'ChannelSettings');
     }
 
-    public function update(Request $request)
+    public function store(Request $request)
     {
-        $channel = ChannelSetting::findOrFail($request->id);
-
         $validator = Validator::make($request->all(), [
-            'margin_type' => 'required|in:fixed,percentage',
-            'margin_value' => 'required|numeric|min:0',
-            'fee_type' => 'required|in:fixed,percentage',
-            'fee_value' => 'required|numeric|min:0',
-            'fixed_cost' => 'required|numeric|min:0',
-            'shipping_subsidy' => 'required|numeric|min:0',
+            'name' => 'required|string|max:255|unique:channel_settings,name',
+            'factors' => 'nullable|array',
+            'factors.*.label' => 'required|string',
+            'factors.*.operator' => 'required|in:multiply,percentage,add',
+            'factors.*.value' => 'required|numeric',
         ]);
 
         if ($validator->fails()) {
             return redirect()->back()->withErrors($validator)->withInput();
         }
 
-        $channel->update($request->all());
+        ChannelSetting::create([
+            'name' => $request->name,
+            'slug' => \Illuminate\Support\Str::slug($request->name),
+            'factors' => $request->factors ? array_values($request->factors) : [],
+        ]);
+
+        return redirect()->back()->with('message', 'Channel baru berhasil ditambahkan');
+    }
+
+    public function update(Request $request)
+    {
+        $channel = ChannelSetting::findOrFail($request->id);
+
+        $validator = Validator::make($request->all(), [
+            'name' => 'required|string|max:255|unique:channel_settings,name,' . $channel->id,
+            'factors' => 'nullable|array',
+            'factors.*.label' => 'required|string',
+            'factors.*.operator' => 'required|in:multiply,percentage,add',
+            'factors.*.value' => 'required|numeric',
+        ]);
+
+        if ($validator->fails()) {
+            return redirect()->back()->withErrors($validator)->withInput();
+        }
+
+        $channel->update([
+            'name' => $request->name,
+            'slug' => \Illuminate\Support\Str::slug($request->name),
+            'factors' => $request->factors ? array_values($request->factors) : [],
+        ]);
 
         return redirect()->back()->with('message', "Pengaturan {$channel->name} berhasil diperbarui");
+    }
+
+    public function delete(Request $request)
+    {
+        $channel = ChannelSetting::findOrFail($request->id);
+        $channel->delete();
+
+        return redirect()->back()->with('message', 'Channel berhasil dihapus');
     }
 }

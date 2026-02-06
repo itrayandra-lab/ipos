@@ -19,7 +19,7 @@
 <meta property="og:url" content="{{ request()->fullUrl() }}">
 
 <meta name="twitter:card" content="summary_large_image">
-<meta name="twitter:title" content="IPOS - Beautylatory">
+<meta name="twitter:title" content="IPOS | Beautylatory">
 <meta name="twitter:description" content="IPOS dari Rayandra IT memudahkan penjualan, stok, dan laporan bisnis.">
 <meta name="twitter:image" content="{{ asset('assets/img/logo-black.png') }}">
 

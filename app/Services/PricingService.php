@@ -41,28 +41,11 @@ class PricingService
     /**
      * Shared calculation logic
      */
+    /**
+     * Shared calculation logic
+     */
     private static function calculateFinalPrice($hpp, $setting)
     {
-        // 1. Base Cost with Margin
-        $baseWithMargin = $hpp;
-        if ($setting->margin_type === 'percentage') {
-            $baseWithMargin += ($hpp * ($setting->margin_value / 100));
-        } else {
-            $baseWithMargin += $setting->margin_value;
-        }
-
-        // 2. Add Fixed Operational Cost
-        $price = $baseWithMargin + $setting->fixed_cost + $setting->shipping_subsidy;
-
-        // 3. Apply Fee/Commission
-        if ($setting->fee_type === 'percentage') {
-            if ($setting->fee_value < 100) {
-                $price = $price / (1 - ($setting->fee_value / 100));
-            }
-        } else {
-            $price += $setting->fee_value;
-        }
-
-        return round($price);
+        return $setting->calculatePrice($hpp);
     }
 }

@@ -37,10 +37,16 @@
                                     <label>Platform Sumber</label>
                                     <select name="source" class="form-control selectric" required>
                                         <option value="">Pilih Platform</option>
-                                        <option value="shopee" {{ old('source') == 'shopee' ? 'selected' : '' }}>Shopee</option>
-                                        <option value="tokopedia" {{ old('source') == 'tokopedia' ? 'selected' : '' }}>Tokopedia</option>
-                                        <option value="tiktok" {{ old('source') == 'tiktok' ? 'selected' : '' }}>TikTok</option>
+                                        @foreach($channels as $channel)
+                                            <option value="{{ $channel->slug }}" {{ old('source') == $channel->slug ? 'selected' : '' }}>{{ $channel->name }}</option>
+                                        @endforeach
                                     </select>
+                                </div>
+
+                                <div class="form-group">
+                                    <label>Tanggal Transaksi (Opsional)</label>
+                                    <input type="datetime-local" name="transaction_date" class="form-control" value="{{ old('transaction_date') }}">
+                                    <small class="text-muted">Kosongkan untuk menggunakan waktu sekarang.</small>
                                 </div>
 
                                 <div class="form-group">

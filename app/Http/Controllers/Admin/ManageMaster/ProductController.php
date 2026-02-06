@@ -207,13 +207,11 @@ class ProductController extends Controller
         ];
 
         if ($hasDiscount) {
-            $updateData['price'] = $newPrice;
-        } else {
-            $updateData['price'] = $newPrice;
-            if ($resetDiscount) {
-                $updateData['price_real'] = $newPrice;
-            }
-        }
+        $updateData['price'] = $newPrice;
+    } else {
+        $updateData['price'] = $newPrice;
+        $updateData['price_real'] = $newPrice;
+    }
 
         $product->update($updateData);
 
@@ -265,32 +263,34 @@ class ProductController extends Controller
     public function getPricing($id)
     {
         $product = Product::with('batches')->findOrFail($id);
+        $channels = \App\Models\ChannelSetting::all();
         
-        $recommendations = [
-            'shopee' => \App\Services\PricingService::calculateForProduct($product, 'shopee'),
-            'tokopedia' => \App\Services\PricingService::calculateForProduct($product, 'tokopedia'),
-            'tiktok' => \App\Services\PricingService::calculateForProduct($product, 'tiktok'),
-            'offline' => \App\Services\PricingService::calculateForProduct($product, 'offline'),
-        ];
+        $recommendations = [];
 
-        $batches = $product->batches->map(function($batch) {
+        foreach ($channels as $channel) {
+            $recommendations[$channel->slug] = \App\Services\PricingService::calculateForProduct($product, $channel->slug);
+        }
+
+        $batches = $product->batches->map(function($batch) use ($channels) {
+            $prices = [];
+
+            foreach ($channels as $channel) {
+                $prices[$channel->slug] = \App\Services\PricingService::calculate($batch, $channel->slug);
+            }
+
             return [
                 'batch_no' => $batch->batch_no,
                 'expiry_date' => $batch->expiry_date->format('d M Y'),
                 'buy_price' => $batch->buy_price,
-                'prices' => [
-                    'shopee' => \App\Services\PricingService::calculate($batch, 'shopee'),
-                    'tokopedia' => \App\Services\PricingService::calculate($batch, 'tokopedia'),
-                    'tiktok' => \App\Services\PricingService::calculate($batch, 'tiktok'),
-                    'offline' => \App\Services\PricingService::calculate($batch, 'offline'),
-                ]
+                'prices' => $prices
             ];
         });
 
         return response()->json([
             'product' => $product,
             'batches' => $batches,
-            'recommendations' => $recommendations
+            'recommendations' => $recommendations,
+            'channels' => $channels
         ]);
     }
 

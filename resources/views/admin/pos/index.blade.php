@@ -119,7 +119,33 @@
                                 </div>
                             </div>
 
-                            <div class="row mt-3">
+                            <div class="row mt-3 border-top pt-3">
+                                <div class="col-12 mb-2"><h6 style="font-size: 0.9rem;">Affiliate / Referal (Opsional)</h6></div>
+                                <div class="col-12">
+                                    <div class="form-group mb-2">
+                                        <select id="affiliate-select" class="form-control form-control-sm">
+                                            <option value="">-- Pilih Affiliate --</option>
+                                            @foreach($affiliates as $aff)
+                                                <option value="{{ $aff->id }}">{{ $aff->name }} ({{ $aff->type->name }})</option>
+                                            @endforeach
+                                        </select>
+                                    </div>
+                                </div>
+                                <div class="col-12" id="affiliate-options" style="display:none;">
+                                    <div class="form-group mb-2">
+                                        <label class="small text-muted">Mode Fee</label>
+                                        <select id="affiliate-mode" class="form-control form-control-sm">
+                                            <option value="ADD_TO_PRICE">Tambah ke Harga Customer (+)</option>
+                                            <option value="FROM_MARGIN">Potong dari Margin Toko</option>
+                                        </select>
+                                    </div>
+                                    <div class="alert alert-light p-2 small mb-0">
+                                        Estimasi Fee: <strong id="affiliate-fee-display" class="text-success">Rp 0</strong>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="row mt-3 border-top pt-3">
                                 <div class="col-6">
                                     <label class="small text-muted">Metode Bayar</label>
                                     <select id="payment-method" class="form-control form-control-sm">
@@ -223,6 +249,8 @@
 <script>
     let cart = JSON.parse(localStorage.getItem('pos_cart')) || [];
     let products = [];
+    let affiliates = @json($affiliates);
+    let affiliateProductRates = {};
 
     $(document).ready(function() {
         loadProducts();
@@ -234,6 +262,21 @@
         $('#btn-new-order').on('click', () => {
             location.reload();
         });
+
+        // Affiliate UI Logic
+        $('#affiliate-select').on('change', function() {
+            let val = $(this).val();
+            if (val) {
+                $('#affiliate-options').slideDown();
+                loadAffiliateRates(val);
+            } else {
+                $('#affiliate-options').slideUp();
+                affiliateProductRates = {};
+                renderCart();
+            }
+        });
+
+        $('#affiliate-mode').on('change', renderCart); // Refresh cart to update prices if needed
 
         // Instant quantity controls
         $(document).on('click', '.btn-qty', function() {
@@ -270,6 +313,8 @@
                 payment_status: $('#payment-status').val(),
                 discount_manual: $('#discount-manual').val(),
                 voucher_code: $('#voucher-code').val(),
+                affiliate_id: $('#affiliate-select').val(),
+                affiliate_fee_mode: $('#affiliate-mode').val(),
                 notes: ''
             };
 
@@ -297,6 +342,45 @@
             });
         });
     });
+
+    function loadAffiliateRates(affiliateId) {
+        $.ajax({
+            url: '{{ route("admin.affiliates.rates", ":id") }}'.replace(':id', affiliateId),
+            method: 'GET',
+            success: function(res) {
+                affiliateProductRates = res;
+                renderCart();
+            }
+        });
+    }
+
+    function getProductMarkup(productId, basePrice) {
+        let affiliateId = $('#affiliate-select').val();
+        let mode = $('#affiliate-mode').val();
+        
+        if (affiliateId && mode === 'ADD_TO_PRICE') {
+            let affiliate = affiliates.find(a => a.id == affiliateId);
+            if (!affiliate) return 0;
+
+            // Check specific rate
+            if (affiliateProductRates && affiliateProductRates[productId]) {
+                let rate = affiliateProductRates[productId];
+                if (rate.fee_method === 'percent') {
+                    return basePrice * (rate.fee_value / 100);
+                } else {
+                    return parseFloat(rate.fee_value);
+                }
+            } 
+            
+            // Global rate
+            if (affiliate.fee_method === 'percent') {
+                 return basePrice * (affiliate.fee_value / 100);
+            }
+            // Global Nominal is usually per transaction, doesn't affect item price markup usually?
+            // Unless we want to spread it? Standard: Global Nominal doesn't mark up items.
+        }
+        return 0;
+    }
 
     function loadProducts() {
         let search = $('#search-product').val();
@@ -336,7 +420,7 @@
                         <div class="card-body p-2">
                             <small class="text-muted d-block">${p.category ? p.category.name : '-'}</small>
                             <div class="font-weight-bold" style="font-size: 0.85rem; height: 2.5rem; overflow: hidden;">${p.name}</div>
-                            <div class="text-primary product-price mt-1 font-weight-bold">Rp ${p.offline_price.toLocaleString('id-ID')}</div>
+                            <div class="text-primary product-price mt-1 font-weight-bold">Rp ${p.offline_price}</div>
                             
                             <select class="form-control form-control-sm mt-2 batch-selector" id="batch-for-${p.id}">
                                 ${batchOptions}
@@ -373,6 +457,7 @@
                 return;
             }
             existing.qty++;
+            existing.price = product.offline_price; // Update price to latest
         } else {
             if (selectedBatch.qty <= 0) {
                 iziToast.warning({ title: 'Stok Habis', message: 'Batch ini tidak memiliki stok.', position: 'topRight' });
@@ -405,12 +490,16 @@
         }
 
         cart.forEach(item => {
+            let itemPrice = parseFloat(item.price);
+            let markup = getProductMarkup(item.product_id, itemPrice);
+            let displayPrice = itemPrice + markup;
+            
             let row = `
                 <tr>
                     <td>
                         <div class="font-weight-bold" style="font-size: 0.85rem;">${item.name}</div>
                         <div class="badge badge-light" style="font-size: 0.7rem;">${item.batch_no || 'No Batch'}</div>
-                        <div class="text-muted" style="font-size: 0.7rem;">Rp ${item.price.toLocaleString('id-ID')}</div>
+                        <div class="text-muted" style="font-size: 0.7rem;">${displayPrice}</div>
                     </td>
                     <td>
                         <div class="input-group input-group-sm" style="width: 100px;">
@@ -423,7 +512,7 @@
                             </div>
                         </div>
                     </td>
-                    <td class="font-weight-bold">Rp ${(item.price * item.qty).toLocaleString('id-ID')}</td>
+                    <td class="font-weight-bold">${displayPrice * item.qty}</td>
                     <td><button class="btn btn-link text-danger p-0 btn-remove-cart" data-id="${item.batch_id}"><i class="fas fa-times"></i></button></td>
                 </tr>
             `;
@@ -471,11 +560,57 @@
     }
 
     function updateTotals() {
-        let subtotal = cart.reduce((total, item) => total + (item.price * item.qty), 0);
         let discount = parseFloat($('#discount-manual').val()) || 0;
+        let affiliateId = $('#affiliate-select').val();
+        let mode = $('#affiliate-mode').val();
+        
+        let subtotal = 0;
+        let affiliateFee = 0;
+        
+        let affiliate = affiliateId ? affiliates.find(a => a.id == affiliateId) : null;
+
+        cart.forEach(item => {
+            let itemPrice = parseFloat(item.price);
+            let itemMarkup = getProductMarkup(item.product_id, itemPrice);
+            
+            // Subtotal includes markup if ADD_TO_PRICE
+            subtotal += (itemPrice + itemMarkup) * item.qty;
+            
+            let fee = 0;
+            if (affiliate) {
+                if (affiliateProductRates && affiliateProductRates[item.product_id]) {
+                    let rate = affiliateProductRates[item.product_id];
+                    if (rate.fee_method === 'percent') {
+                         fee = (itemPrice * (parseFloat(rate.fee_value)/100)) * item.qty;
+                    } else {
+                         fee = parseFloat(rate.fee_value) * item.qty;
+                    }
+                } else {
+                    if (affiliate.fee_method === 'percent') {
+                         fee = (itemPrice * (parseFloat(affiliate.fee_value)/100)) * item.qty;
+                    }
+                }
+            }
+            affiliateFee += fee;
+        });
+
+        // Add Global Nominal Fee if applicable (and no specific rates? match backend logic)
+        // Backend logic: if (global nominal AND affiliateRates is empty) -> add global.
+        // Let's match strictly for consistency.
+        let hasSpecificRates = Object.keys(affiliateProductRates).length > 0;
+        if (affiliate && affiliate.fee_method === 'nominal' && !hasSpecificRates) {
+             affiliateFee += parseFloat(affiliate.fee_value);
+             if (mode === 'ADD_TO_PRICE') {
+                 subtotal += parseFloat(affiliate.fee_value);
+             }
+        }
+        
+        $('#affiliate-fee-display').text('Rp ' + affiliateFee.toLocaleString('id-ID'));
+
+        let total = subtotal - discount;
         
         $('#cart-subtotal').text('Rp ' + subtotal.toLocaleString('id-ID'));
-        $('#cart-total').text('Rp ' + (subtotal - discount).toLocaleString('id-ID'));
+        $('#cart-total').text('Rp ' + total.toLocaleString('id-ID'));
     }
 </script>
 @endpush

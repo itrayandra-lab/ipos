@@ -70,6 +70,11 @@
             </li>
 
             <li class="menu-header">Master Data</li>
+            <li {{ $sb == 'Category' ? 'class=active' : '' }}>
+                <a class="nav-link" href="{{ url('admin/manage-master/categories') }}">
+                    <i class="fas fa-tags"></i> <span>Merek</span>
+                </a>
+            </li>
             <li {{ $sb == 'Voucher' ? 'class=active' : '' }}>
                 <a class="nav-link" href="{{ url('admin/manage-master/voucher') }}">
                     <i class="fas fa-ticket-alt"></i> <span>Voucher / Diskon</span>
@@ -78,6 +83,21 @@
             <li {{ $sb == 'User' ? 'class=active' : '' }}>
                 <a class="nav-link" href="{{ url('admin/manage-master/users') }}">
                     <i class="fas fa-users"></i> <span>User</span>
+                </a>
+            </li>
+            <li {{ $sb == 'Attribute Groups' ? 'class=active' : '' }}>
+                <a class="nav-link" href="{{ route('admin.manage_master.attribute_groups.index') }}">
+                    <i class="fas fa-layer-group"></i> <span>Grup Atribut</span>
+                </a>
+            </li>
+            <li {{ $sb == 'Attributes' ? 'class=active' : '' }}>
+                <a class="nav-link" href="{{ route('admin.manage_master.attributes.index') }}">
+                    <i class="fas fa-list-ul"></i> <span>Data Atribut</span>
+                </a>
+            </li>
+            <li {{ $sb == 'Affiliate Users' ? 'class=active' : '' }}>
+                <a class="nav-link" href="{{ route('admin.affiliates.index') }}">
+                    <i class="fas fa-handshake"></i> <span>Affiliate Users</span>
                 </a>
             </li>
 
