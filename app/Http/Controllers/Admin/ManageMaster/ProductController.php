@@ -17,9 +17,14 @@ class ProductController extends Controller
     public function index()
     {
         $categories = Category::select('id', 'name')->orderBy('name', 'ASC')->get();
+        $netto_attributes = \App\Models\Attribute::whereHas('group', function($q) {
+            $q->where('code', 'NETTO');
+        })->orderBy('name', 'ASC')->get();
+        
         return view('admin.manage_master.products.index')->with([
             'sb' => 'Product',
-            'categories' => $categories
+            'categories' => $categories,
+            'netto_attributes' => $netto_attributes
         ]);
     }
 

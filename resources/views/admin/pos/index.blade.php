@@ -65,6 +65,7 @@
                                     <thead>
                                         <tr>
                                             <th>Produk</th>
+                                            <th>Harga Satuan</th>
                                             <th width="100px">Qty</th>
                                             <th>Total</th>
                                             <th>#</th>
@@ -89,8 +90,20 @@
                                 <label class="small text-muted mb-1">Diskon (Voucher/Manual)</label>
                                 <div class="input-group input-group-sm">
                                     <input type="text" id="voucher-code" class="form-control" placeholder="Kode Voucher">
+                                    <div class="input-group-append">
+                                        <button class="btn btn-primary" type="button" id="btn-apply-voucher">Apply</button>
+                                    </div>
                                     <input type="number" id="discount-manual" class="form-control" placeholder="Nominal Rp">
                                 </div>
+                            </div>
+                            
+                            <div class="form-group mb-2">
+                                <textarea id="notes" class="form-control form-control-sm" rows="2" placeholder="Keterangan / Catatan Transaksi"></textarea>
+                            </div>
+
+                            <div class="row mb-2">
+                                <div class="col-6 text-muted">Total Diskon</div>
+                                <div class="col-6 text-right font-weight-bold text-danger" id="cart-discount">Rp 0</div>
                             </div>
 
                             <div class="row mb-3 border-top pt-2">
@@ -251,6 +264,7 @@
     let products = [];
     let affiliates = @json($affiliates);
     let affiliateProductRates = {};
+    let voucherDiscount = 0;
 
     $(document).ready(function() {
         loadProducts();
@@ -268,7 +282,8 @@
             let val = $(this).val();
             if (val) {
                 $('#affiliate-options').slideDown();
-                loadAffiliateRates(val);
+                renderCart(); // Initial render with global fee
+                loadAffiliateRates(val); // Then fetch specific rates
             } else {
                 $('#affiliate-options').slideUp();
                 affiliateProductRates = {};
@@ -290,7 +305,12 @@
             removeFromCart(id);
         });
 
-        $('#discount-manual, #voucher-code').on('input', updateTotals);
+        $('#btn-apply-voucher').on('click', applyVoucher);
+        $('#voucher-code').on('input', function() {
+            voucherDiscount = 0; // Reset if code changes
+            updateTotals();
+        });
+        $('#discount-manual').on('input', updateTotals);
 
         // Submit Order
         $('#btn-submit-order').on('click', function() {
@@ -315,7 +335,7 @@
                 voucher_code: $('#voucher-code').val(),
                 affiliate_id: $('#affiliate-select').val(),
                 affiliate_fee_mode: $('#affiliate-mode').val(),
-                notes: ''
+                notes: $('#notes').val()
             };
 
             $.ajax({
@@ -343,6 +363,56 @@
         });
     });
 
+    function applyVoucher() {
+        let code = $('#voucher-code').val();
+        if (!code) {
+            swal('Peringatan', 'Masukkan kode voucher terlebih dahulu', 'warning');
+            return;
+        }
+
+        if (cart.length === 0) {
+            swal('Peringatan', 'Keranjang masih kosong', 'warning');
+            return;
+        }
+
+        let items = cart.map(item => {
+            let itemPrice = parseFloat(item.price);
+            let markup = getProductMarkup(item.product_id, itemPrice);
+            return {
+                product_id: item.product_id,
+                subtotal: (itemPrice + markup) * item.qty
+            };
+        });
+
+        $.ajax({
+            url: '{{ route($isSales ? "sales.pos.verify-voucher" : "admin.pos.verify-voucher") }}',
+            method: 'POST',
+            data: {
+                _token: '{{ csrf_token() }}',
+                code: code,
+                items: items
+            },
+            beforeSend: function() {
+                $.LoadingOverlay("show");
+            },
+            complete: function() {
+                $.LoadingOverlay("hide");
+            },
+            success: function(res) {
+                if (res.success) {
+                    voucherDiscount = parseFloat(res.discount);
+                    updateTotals();
+                    swal('Berhasil', 'Voucher ' + res.name + ' berhasil diterapkan. Potongan: Rp ' + voucherDiscount.toLocaleString('id-ID'), 'success');
+                }
+            },
+            error: function(err) {
+                voucherDiscount = 0;
+                updateTotals();
+                swal('Gagal', err.responseJSON?.message || 'Gagal memverifikasi voucher', 'error');
+            }
+        });
+    }
+
     function loadAffiliateRates(affiliateId) {
         $.ajax({
             url: '{{ route("admin.affiliates.rates", ":id") }}'.replace(':id', affiliateId),
@@ -362,22 +432,26 @@
             let affiliate = affiliates.find(a => a.id == affiliateId);
             if (!affiliate) return 0;
 
-            // Check specific rate
-            if (affiliateProductRates && affiliateProductRates[productId]) {
-                let rate = affiliateProductRates[productId];
+            // Check specific rate - explicitly check both number and string keys
+            let rate = null;
+            if (affiliateProductRates) {
+                rate = affiliateProductRates[productId] || affiliateProductRates[productId.toString()];
+            }
+
+            if (rate) {
                 if (rate.fee_method === 'percent') {
-                    return basePrice * (rate.fee_value / 100);
+                    return basePrice * (parseFloat(rate.fee_value) / 100);
                 } else {
                     return parseFloat(rate.fee_value);
                 }
             } 
             
-            // Global rate
+            // Global rate fallback
             if (affiliate.fee_method === 'percent') {
-                 return basePrice * (affiliate.fee_value / 100);
+                 return basePrice * (parseFloat(affiliate.fee_value) / 100);
+            } else {
+                 return parseFloat(affiliate.fee_value);
             }
-            // Global Nominal is usually per transaction, doesn't affect item price markup usually?
-            // Unless we want to spread it? Standard: Global Nominal doesn't mark up items.
         }
         return 0;
     }
@@ -484,7 +558,7 @@
         container.empty();
 
         if (cart.length === 0) {
-            container.append('<tr><td colspan="4" class="text-center text-muted py-4">Keranjang kosong</td></tr>');
+            container.append('<tr><td colspan="5" class="text-center text-muted py-4">Keranjang kosong</td></tr>');
             updateTotals();
             return;
         }
@@ -498,8 +572,9 @@
                 <tr>
                     <td>
                         <div class="font-weight-bold" style="font-size: 0.85rem;">${item.name}</div>
-                        <div class="badge badge-light" style="font-size: 0.7rem;">${item.batch_no || 'No Batch'}</div>
-                        <div class="text-muted" style="font-size: 0.7rem;">${displayPrice}</div>
+                    </td>
+                    <td>
+                        <div class="text-muted" style="font-size: 0.75rem;">Rp ${displayPrice.toLocaleString('id-ID')}</div>
                     </td>
                     <td>
                         <div class="input-group input-group-sm" style="width: 100px;">
@@ -512,7 +587,7 @@
                             </div>
                         </div>
                     </td>
-                    <td class="font-weight-bold">${displayPrice * item.qty}</td>
+                    <td class="font-weight-bold">Rp ${(displayPrice * item.qty).toLocaleString('id-ID')}</td>
                     <td><button class="btn btn-link text-danger p-0 btn-remove-cart" data-id="${item.batch_id}"><i class="fas fa-times"></i></button></td>
                 </tr>
             `;
@@ -558,59 +633,31 @@
     function saveCart() {
         localStorage.setItem('pos_cart', JSON.stringify(cart));
     }
-
     function updateTotals() {
         let discount = parseFloat($('#discount-manual').val()) || 0;
         let affiliateId = $('#affiliate-select').val();
-        let mode = $('#affiliate-mode').val();
         
         let subtotal = 0;
         let affiliateFee = 0;
-        
-        let affiliate = affiliateId ? affiliates.find(a => a.id == affiliateId) : null;
 
         cart.forEach(item => {
             let itemPrice = parseFloat(item.price);
             let itemMarkup = getProductMarkup(item.product_id, itemPrice);
             
-            // Subtotal includes markup if ADD_TO_PRICE
             subtotal += (itemPrice + itemMarkup) * item.qty;
             
-            let fee = 0;
-            if (affiliate) {
-                if (affiliateProductRates && affiliateProductRates[item.product_id]) {
-                    let rate = affiliateProductRates[item.product_id];
-                    if (rate.fee_method === 'percent') {
-                         fee = (itemPrice * (parseFloat(rate.fee_value)/100)) * item.qty;
-                    } else {
-                         fee = parseFloat(rate.fee_value) * item.qty;
-                    }
-                } else {
-                    if (affiliate.fee_method === 'percent') {
-                         fee = (itemPrice * (parseFloat(affiliate.fee_value)/100)) * item.qty;
-                    }
-                }
+            if (affiliateId) {
+                affiliateFee += itemMarkup * item.qty;
             }
-            affiliateFee += fee;
         });
 
-        // Add Global Nominal Fee if applicable (and no specific rates? match backend logic)
-        // Backend logic: if (global nominal AND affiliateRates is empty) -> add global.
-        // Let's match strictly for consistency.
-        let hasSpecificRates = Object.keys(affiliateProductRates).length > 0;
-        if (affiliate && affiliate.fee_method === 'nominal' && !hasSpecificRates) {
-             affiliateFee += parseFloat(affiliate.fee_value);
-             if (mode === 'ADD_TO_PRICE') {
-                 subtotal += parseFloat(affiliate.fee_value);
-             }
-        }
+        let totalDiscount = discount + voucherDiscount;
+        let total = subtotal - totalDiscount;
         
         $('#affiliate-fee-display').text('Rp ' + affiliateFee.toLocaleString('id-ID'));
-
-        let total = subtotal - discount;
-        
         $('#cart-subtotal').text('Rp ' + subtotal.toLocaleString('id-ID'));
-        $('#cart-total').text('Rp ' + total.toLocaleString('id-ID'));
+        $('#cart-discount').text('Rp ' + totalDiscount.toLocaleString('id-ID'));
+        $('#cart-total').text('Rp ' + Math.max(0, total).toLocaleString('id-ID'));
     }
 </script>
 @endpush

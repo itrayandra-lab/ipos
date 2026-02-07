@@ -24,6 +24,9 @@
                         <div class="card-header">
                             <h4>Daftar Batch</h4>
                             <div class="card-header-action">
+                                <a href="{{ url('admin/manage-master/products') }}" class="btn btn-warning mr-2">
+                                    <i class="fas fa-arrow-left"></i> Kembali
+                                </a>
                                 <button type="button" class="btn btn-primary" data-toggle="modal" data-target="#addBatchModal">
                                     Tambah Batch Baru
                                 </button>

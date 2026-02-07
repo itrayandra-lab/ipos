@@ -20,6 +20,7 @@ use App\Http\Controllers\Admin\StoreSettingController as StoreSettingAdmin;
 
 use App\Http\Controllers\Admin\PosController as PosAdmin;
 use App\Http\Controllers\Admin\AffiliateController as AffiliateAdmin;
+use App\Http\Controllers\Admin\CustomerController as CustomerAdmin;
 
 # Sales Controllers
 use App\Http\Controllers\Sales\DashboardController as DashboardSales;
@@ -120,6 +121,9 @@ Route::prefix('admin')->middleware(['auth', 'role:admin'])->group(function () {
         Route::get('/', [OnlineSaleAdmin::class, 'index'])->name('admin.online_sale.index');
         Route::post('/', [OnlineSaleAdmin::class, 'store'])->name('admin.online_sale.store');
         Route::get('/history', [OnlineSaleAdmin::class, 'history'])->name('admin.online_sale.history');
+        Route::get('/edit/{id}', [OnlineSaleAdmin::class, 'edit'])->name('admin.online_sale.edit');
+        Route::post('/update/{id}', [OnlineSaleAdmin::class, 'update'])->name('admin.online_sale.update');
+        Route::delete('/{id}', [OnlineSaleAdmin::class, 'destroy'])->name('admin.online_sale.destroy');
     });
 
     Route::prefix('settings')->group(function () {
@@ -145,7 +149,14 @@ Route::prefix('admin')->middleware(['auth', 'role:admin'])->group(function () {
             Route::post('/commissions/store', [AffiliateAdmin::class, 'storeCommission'])->name('admin.affiliates.commissions.store');
             Route::delete('/commissions/delete', [AffiliateAdmin::class, 'deleteCommission'])->name('admin.affiliates.commissions.delete');
             Route::get('/rates/{id}', [AffiliateAdmin::class, 'getRates'])->name('admin.affiliates.rates');
+            Route::get('/show/{id}', [AffiliateAdmin::class, 'show'])->name('admin.affiliates.show');
         });
+
+    Route::prefix('customers')->group(function () {
+        Route::get('/', [CustomerAdmin::class, 'index'])->name('admin.customers.index');
+        Route::get('/all', [CustomerAdmin::class, 'getall'])->name('admin.customers.all');
+        Route::get('/show/{phone}', [CustomerAdmin::class, 'show'])->name('admin.customers.show');
+    });
 
     Route::prefix('transactions')->group(function () {
         Route::get('/', [TransactionAdmin::class, 'index']);
@@ -157,6 +168,7 @@ Route::prefix('admin')->middleware(['auth', 'role:admin'])->group(function () {
     Route::prefix('pos')->group(function () {
         Route::get('/', [PosAdmin::class, 'index'])->name('admin.pos.index');
         Route::get('/products', [PosAdmin::class, 'fetchProducts'])->name('admin.pos.products');
+        Route::post('/verify-voucher', [PosAdmin::class, 'verifyVoucher'])->name('admin.pos.verify-voucher');
         Route::post('/', [PosAdmin::class, 'store'])->name('admin.pos.store');
         Route::get('/receipt/{id}', [PosAdmin::class, 'printReceipt'])->name('admin.pos.receipt');
     });
@@ -197,6 +209,7 @@ Route::prefix('sales')->middleware(['auth', 'role:sales'])->group(function () {
     Route::prefix('pos')->group(function () {
         Route::get('/', [PosAdmin::class, 'index'])->name('sales.pos.index');
         Route::get('/products', [PosAdmin::class, 'fetchProducts'])->name('sales.pos.products');
+        Route::post('/verify-voucher', [PosAdmin::class, 'verifyVoucher'])->name('sales.pos.verify-voucher');
         Route::post('/', [PosAdmin::class, 'store'])->name('sales.pos.store');
         Route::get('/receipt/{id}', [PosAdmin::class, 'printReceipt'])->name('sales.pos.receipt');
     });

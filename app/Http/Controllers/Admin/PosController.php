@@ -27,7 +27,7 @@ class PosController extends Controller
             'receipt' => url($isSales ? 'sales/pos/receipt' : 'admin/pos/receipt'),
         ];
         $affiliates = \App\Models\Affiliate::where('is_active', true)->orderBy('name')->get();
-        return view('admin.pos.index', compact('categories', 'posRoutes', 'affiliates'))->with('sb', 'POS');
+        return view('admin.pos.index', compact('categories', 'posRoutes', 'affiliates', 'isSales'))->with('sb', 'POS');
     }
 
     private function getPosChannel()
@@ -107,13 +107,12 @@ class PosController extends Controller
             return DB::transaction(function() use ($request) {
                 $totalAmount = 0;
                 $itemsToCreate = [];
-                $channelSlug = $this->getPosChannel();
-
                 $affiliateFeeTotal = 0;
-            $affiliateFeeMode = $request->affiliate_fee_mode ?? 'ADD_TO_PRICE'; // Default to ADD_TO_PRICE
-            $affiliate = null;
-            $affiliateRates = collect([]);
-            $affiliateId = null;
+                $channelSlug = $this->getPosChannel();
+                
+                $affiliateFeeMode = $request->affiliate_fee_mode ?? 'ADD_TO_PRICE'; 
+                $affiliate = null;
+                $affiliateRates = collect([]);
 
             if ($request->affiliate_id) {
                 $affiliate = \App\Models\Affiliate::find($request->affiliate_id);
@@ -144,6 +143,7 @@ class PosController extends Controller
                 } else {
                     $basePrice = PricingService::calculate($batch, $channelSlug);
                 }
+                
                 $finalPrice = $basePrice;
 
                 // Calculate Affiliate Fee for this item
@@ -162,48 +162,22 @@ class PosController extends Controller
                         if ($affiliate->fee_method == 'percent') {
                             $itemFee = $basePrice * ($affiliate->fee_value / 100);
                         } else {
-                            // Nominal global fee is usually per transaction or per item? 
-                            // Standard interpretation: Nominal global is usually per transaction, but for per-item loop logic, it is ambiguous.
-                            // However, in previous implementation, nominal was just added once at the end?
-                            // Let's stick to previous logical interpretation or improve.
-                            // If Global Nominal is 5000, usually it means 5000 per transaction, not per item.
-                            // BUT specific product nominal (e.g. 5000 per unit sold) is clearly per unit.
-                            
-                            // Let's refine:
-                            // Specific Percent/Nominal -> Per Unit.
-                            // Global Percent -> Per Unit.
-                            // Global Nominal -> One time per transaction.
-                            
-                            // So inside loop:
-                            // If specific rate exists -> Calculate item fee * qty.
-                            // If specific rate NOT exists -> 
-                            //    If Global Percent -> Calculate item fee * qty.
-                            //    If Global Nominal -> Do nothing here (handled outside).
+                            // Global nominal per unit interpretation
+                            $itemFee = $affiliate->fee_value;
                         }
                     }
                 }
                 
                 // If ADD_TO_PRICE, increase final price
                 if ($affiliate && $affiliateFeeMode == 'ADD_TO_PRICE') {
-                    // Note: If Global Nominal, we usually add it to the TOTAL, not spread on items.
-                    // But for Specific/Global Percent, we increase item price.
-                    
-                    // Logic:
-                    // If rate was specific OR global percent:
-                    if (isset($rate) || ($affiliate->fee_method == 'percent' && !$rate)) { // Only apply global percent if no specific rate
-                         $finalPrice += $itemFee;
-                    }
+                    $finalPrice += $itemFee;
                 }
 
                 $subtotal = $finalPrice * $qty;
                 $totalAmount += $subtotal;
                 
-                // Track total fee
-                // If specific OR global percent: fee is per unit * qty
                 if ($affiliate) {
-                     if (isset($rate) || ($affiliate->fee_method == 'percent' && !$rate)) { // Only apply global percent if no specific rate
-                         $affiliateFeeTotal += ($itemFee * $qty);
-                     }
+                    $affiliateFeeTotal += ($itemFee * $qty);
                 }
 
                 $itemsToCreate[] = [
@@ -221,55 +195,54 @@ class PosController extends Controller
                 }
             }
             
-            // Handle Global Nominal Fee (Once per transaction)
-            if ($affiliate && $affiliate->fee_method == 'nominal' && $affiliateRates->isEmpty()) { // Only apply global nominal if no specific rates defined
-                // If using global nominal, we add it ONCE.
-                // But does it apply if we have specific items?
-                // Usually: Specific items get specific rules. Remaining items get global rule.
-                // If Global is Nominal (e.g. 5000 per transaction), it applies regardless of specific items?
-                // Providing simple logic: Global Nominal + Sum(Specific Fees).
-                
-                $affiliateFeeTotal += $affiliate->fee_value;
-                if ($affiliateFeeMode == 'ADD_TO_PRICE') {
-                     $totalAmount += $affiliate->fee_value;
-                }
-            }
 
             // Apply discounts
                 $finalDiscount = (float)($request->discount_manual ?? 0);
                 if ($request->voucher_code) {
-                    $voucher = Voucher::where('code', $request->voucher_code)->first();
-                    if ($voucher) {
-                        $voucherDiscount = ($totalAmount * $voucher->percent / 100);
-                        $finalDiscount += $voucherDiscount;
-                    }
-                }
-
-                // Affiliate Logic
-                $affiliateFee = 0;
-                $affiliateId = null;
-                $affiliateMode = null;
-                
-                if ($request->affiliate_id) {
-                    $affiliate = \App\Models\Affiliate::find($request->affiliate_id);
-                    if ($affiliate && $affiliate->is_active) {
-                        $affiliateId = $affiliate->id;
-                        $affiliateMode = $request->affiliate_fee_mode ?? 'ADD_TO_PRICE';
+                    $voucher = Voucher::where('code', $request->voucher_code)
+                        ->where('status', 'ACTIVE')
+                        ->first();
                         
-                        // Calculate Fee
-                        if ($affiliate->fee_method === 'percent') {
-                            $affiliateFee = ($totalAmount - $finalDiscount) * ($affiliate->fee_value / 100);
-                        } else {
-                            $affiliateFee = $affiliate->fee_value;
+                    if ($voucher) {
+                        // Check date range
+                        $now = now();
+                        if (($voucher->start_date && $now->lt($voucher->start_date)) || 
+                            ($voucher->end_date && $now->gt($voucher->end_date))) {
+                            throw new \Exception("Voucher tidak dapat digunakan saat ini.");
                         }
 
-                        // Apply Mode
-                        if ($affiliateMode === 'ADD_TO_PRICE') {
-                            // Fee is added on top of the customer's total (Customer pays)
-                            // $totalAmount += $affiliateFee;  <-- Logic: Base + Fee
+                        // Check usage limit
+                        if ($voucher->usage_limit && $voucher->usage_count >= $voucher->usage_limit) {
+                            throw new \Exception("Voucher telah mencapai batas penggunaan.");
+                        }
+
+                        $eligibleTotal = 0;
+                        if ($voucher->applies_to_all) {
+                            $eligibleTotal = $totalAmount;
                         } else {
-                            // FROM_MARGIN: Customer pays same amount, fee is just recorded (Seller pays)
-                            // Fee doesn't affect total_amount stored in transaction as 'total_amount' is usually what customer pays
+                            $voucherProductIds = $voucher->products()->pluck('products.id')->toArray();
+                            foreach ($itemsToCreate as $item) {
+                                if (in_array($item['product_id'], $voucherProductIds)) {
+                                    $eligibleTotal += $item['subtotal'];
+                                }
+                            }
+                        }
+
+                        if ($eligibleTotal > 0) {
+                            if ($voucher->discount_type == 'PERCENT') {
+                                $voucherDiscount = ($eligibleTotal * $voucher->percent / 100);
+                            } else {
+                                $voucherDiscount = min($eligibleTotal, $voucher->nominal);
+                            }
+                            $finalDiscount += $voucherDiscount;
+                            
+                            // Increment usage count
+                            $voucher->increment('usage_count');
+                        } else {
+                            // If user provided a code but no products are eligible, 
+                            // we can either throw exception or just not apply.
+                            // User request implies "if products determined, then only those".
+                            // So if none in cart match, discount is 0.
                         }
                     }
                 }
@@ -277,9 +250,6 @@ class PosController extends Controller
                 // Final Total Calculation
                 // Base - Discount + (Fee if ADD_TO_PRICE)
                 $finalTotal = $totalAmount - $finalDiscount;
-                if ($affiliateMode === 'ADD_TO_PRICE') {
-                    $finalTotal += $affiliateFee;
-                }
 
                 $transaction = Transaction::create([
                     'user_id' => auth()->id(),
@@ -288,7 +258,7 @@ class PosController extends Controller
                     'customer_email' => $request->customer_email,
                     'source' => $channelSlug,
                     'notes' => $request->notes,
-                    'total_amount' => $totalAmount - $finalDiscount,
+                    'total_amount' => $finalTotal,
                     'payment_status' => $request->payment_status,
                     'payment_method' => $request->payment_method,
                     'delivery_type' => 'pickup',
@@ -315,6 +285,71 @@ class PosController extends Controller
         } catch (\Exception $e) {
             return response()->json(['success' => false, 'message' => $e->getMessage()], 500);
         }
+    }
+
+    public function verifyVoucher(Request $request)
+    {
+        $validator = Validator::make($request->all(), [
+            'code' => 'required|string',
+            'items' => 'required|array',
+            'items.*.product_id' => 'required|exists:products,id'
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json(['success' => false, 'message' => 'Format tidak valid'], 422);
+        }
+
+        $voucher = Voucher::where('code', $request->code)
+            ->where('status', 'ACTIVE')
+            ->first();
+
+        if (!$voucher) {
+            return response()->json(['success' => false, 'message' => 'Voucher tidak ditemukan atau tidak aktif'], 404);
+        }
+
+        // Check date range
+        $now = now();
+        if (($voucher->start_date && $now->lt($voucher->start_date)) || 
+            ($voucher->end_date && $now->gt($voucher->end_date))) {
+            return response()->json(['success' => false, 'message' => 'Voucher tidak dapat digunakan saat ini'], 400);
+        }
+
+        // Check usage limit
+        if ($voucher->usage_limit && $voucher->usage_count >= $voucher->usage_limit) {
+            return response()->json(['success' => false, 'message' => 'Voucher telah mencapai batas penggunaan'], 400);
+        }
+
+        $eligibleTotal = 0;
+        if ($voucher->applies_to_all) {
+            foreach ($request->items as $item) {
+                $eligibleTotal += $item['subtotal'];
+            }
+        } else {
+            $voucherProductIds = $voucher->products()->pluck('products.id')->toArray();
+            foreach ($request->items as $item) {
+                if (in_array($item['product_id'], $voucherProductIds)) {
+                    $eligibleTotal += $item['subtotal'];
+                }
+            }
+        }
+
+        if ($eligibleTotal <= 0) {
+            return response()->json(['success' => false, 'message' => 'Voucher tidak berlaku untuk produk di keranjang anda'], 400);
+        }
+
+        $discount = 0;
+        if ($voucher->discount_type == 'PERCENT') {
+            $discount = ($eligibleTotal * $voucher->percent / 100);
+        } else {
+            $discount = min($eligibleTotal, $voucher->nominal);
+        }
+
+        return response()->json([
+            'success' => true,
+            'discount' => $discount,
+            'code' => $voucher->code,
+            'name' => $voucher->name
+        ]);
     }
 
     public function printReceipt($id)

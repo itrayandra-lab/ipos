@@ -54,7 +54,27 @@
                                             <td>{{ $trx->items->sum('qty') }} Item</td>
                                             <td>Rp{{ number_format($trx->total_amount, 0, ',', '.') }}</td>
                                             <td>
-                                                <button class="btn btn-primary btn-sm show-detail" data-items="{{ json_encode($trx->items) }}">Detail</button>
+                                                <div class="dropdown d-inline">
+                                                    <button class="btn btn-primary dropdown-toggle btn-sm" type="button" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+                                                        Aksi
+                                                    </button>
+                                                    <div class="dropdown-menu">
+                                                        <a class="dropdown-item has-icon show-detail" href="#" data-items="{{ json_encode($trx->items) }}">
+                                                            <i class="fas fa-eye text-info"></i> Detail
+                                                        </a>
+                                                        <a class="dropdown-item has-icon" href="{{ route('admin.online_sale.edit', $trx->id) }}">
+                                                            <i class="fas fa-edit text-primary"></i> Edit
+                                                        </a>
+                                                        <div class="dropdown-divider"></div>
+                                                        <form action="{{ route('admin.online_sale.destroy', $trx->id) }}" method="POST" id="delete-form-{{ $trx->id }}" class="d-none">
+                                                            @csrf
+                                                            @method('DELETE')
+                                                        </form>
+                                                        <a class="dropdown-item has-icon text-danger" href="#" onclick="if(confirm('Hapus transaksi ini dan kembalikan stok?')) document.getElementById('delete-form-{{ $trx->id }}').submit(); return false;">
+                                                            <i class="fas fa-trash"></i> Hapus
+                                                        </a>
+                                                    </div>
+                                                </div>
                                             </td>
                                         </tr>
                                         @endforeach

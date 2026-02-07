@@ -137,9 +137,14 @@
                         </div>
                         <div class="form-group">
                             <label>Satuan <small>(optional)</small></label>
-                            <input type="text" placeholder="Masukkan Satuan" class="form-control text-uppercase" name="pieces">
+                            <select class="form-control text-uppercase" name="pieces">
+                                <option value="">Pilih Satuan</option>
+                                @foreach ($netto_attributes as $attr)
+                                    <option value="{{ $attr->name }}">{{ $attr->name }}</option>
+                                @endforeach
+                            </select>
                             <div class="invalid-feedback">
-                                Masukkan Satuan
+                                Pilih Satuan
                             </div>
                         </div>
                         <div class="form-group">
@@ -229,9 +234,14 @@
                         </div>
                         <div class="form-group">
                             <label>Satuan <small>(optional)</small></label>
-                            <input type="text" placeholder="Masukkan Satuan" class="form-control text-uppercase" name="pieces" id="pieces">
+                            <select class="form-control text-uppercase" name="pieces" id="pieces">
+                                <option value="">Pilih Satuan</option>
+                                @foreach ($netto_attributes as $attr)
+                                    <option value="{{ $attr->name }}">{{ $attr->name }}</option>
+                                @endforeach
+                            </select>
                             <div class="invalid-feedback">
-                                Masukkan Satuan
+                                Pilih Satuan
                             </div>
                         </div>
                         <div class="form-group">

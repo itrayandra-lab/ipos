@@ -82,6 +82,23 @@ class AffiliateController extends Controller
         return response()->json($rates);
     }
 
+    public function show($id)
+    {
+        $affiliate = Affiliate::with('type')->findOrFail($id);
+        
+        // Stats
+        $totalCommissions = \App\Models\Transaction::where('affiliate_id', $id)->sum('affiliate_fee_total');
+        $totalTransactions = \App\Models\Transaction::where('affiliate_id', $id)->count();
+        
+        // Transaction History
+        $transactions = \App\Models\Transaction::where('affiliate_id', $id)
+            ->with(['items.product'])
+            ->orderBy('created_at', 'desc')
+            ->get();
+
+        return view('admin.affiliates.show', compact('affiliate', 'totalCommissions', 'totalTransactions', 'transactions'))->with('sb', 'Affiliate Users');
+    }
+
     public function index()
     {
         // Fetch affiliate types from attributes
@@ -112,9 +129,18 @@ class AffiliateController extends Controller
             })
             ->addColumn('action', function($row){
                 return '
-                    <a href="'.route('admin.affiliates.commissions', $row->id).'" class="btn btn-sm btn-info mb-1">Set Komisi Produk</a>
-                    <button class="btn btn-sm btn-warning edit mb-1" data-id="'.$row->id.'">Edit</button>
-                    <button class="btn btn-sm btn-danger delete mb-1" data-id="'.$row->id.'">Hapus</button>
+                    <div class="dropdown d-inline">
+                        <button class="btn btn-primary dropdown-toggle btn-sm" type="button" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+                            Aksi
+                        </button>
+                        <div class="dropdown-menu">
+                            <a class="dropdown-item has-icon" href="'.route('admin.affiliates.show', $row->id).'"><i class="fas fa-eye"></i> Detail</a>
+                            <a class="dropdown-item has-icon" href="'.route('admin.affiliates.commissions', $row->id).'"><i class="fas fa-percentage"></i> Set Komisi Produk</a>
+                            <a class="dropdown-item has-icon edit" href="#" data-id="'.$row->id.'"><i class="fas fa-edit"></i> Edit</a>
+                            <div class="dropdown-divider"></div>
+                            <a class="dropdown-item has-icon text-danger delete" href="#" data-id="'.$row->id.'"><i class="fas fa-trash"></i> Hapus</a>
+                        </div>
+                    </div>
                 ';
             })
             ->rawColumns(['status', 'action'])

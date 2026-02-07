@@ -140,14 +140,14 @@
                         </div>
 
                         <div class="form-group">
-                            <label>Pilih Produk (Multiple)</label>
-                            <select class="form-control select2 @error('products') is-invalid @enderror" name="products[]" multiple="multiple" required>
+                            <label>Pilih Produk (Multiple) <small class="text-info">(Opsional - Kosongkan jika untuk semua produk)</small></label>
+                            <select class="form-control select2 @error('products') is-invalid @enderror" name="products[]" multiple="multiple">
                                 @foreach($products as $product)
                                     <option value="{{ $product->id }}" {{ (collect(old('products'))->contains($product->id)) ? 'selected' : '' }}>{{ $product->name ?? $product->title }} ({{ $product->sku ?? 'No SKU' }})</option>
                                 @endforeach
                             </select>
                             @error('products')
-                                <div class="invalid-feedback">{{ $message }}</div>
+                                <div class="invalid-feedback d-block">{{ $message }}</div>
                             @enderror
                         </div>
 
@@ -164,6 +164,18 @@
 
 <script>
     $(document).ready(function() {
+        // Bootstrap validation
+        var forms = document.getElementsByClassName('needs-validation');
+        var validation = Array.prototype.filter.call(forms, function(form) {
+            form.addEventListener('submit', function(event) {
+                if (form.checkValidity() === false) {
+                    event.preventDefault();
+                    event.stopPropagation();
+                }
+                form.classList.add('was-validated');
+            }, false);
+        });
+
         $('.select2').select2({
             placeholder: "Pilih Produk yang akan diberikan voucher",
             allowClear: true

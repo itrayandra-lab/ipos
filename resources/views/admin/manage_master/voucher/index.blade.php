@@ -44,7 +44,6 @@
                                 <tr>
                                     <th width="10px">#</th>
                                     <th>Nama</th>
-                                    <th>Produk</th>
                                     <th>Kode</th>
                                     <th>Nilai Diskon</th>
                                     <th>Masa Berlaku</th>
@@ -144,15 +143,14 @@
                             </div>
                         </div>
                         <div class="form-group">
-                            <label>Product</label>
-                            <select class="form-control select2" name="product_id"  id="product_id">
-                                <option value="">-- Pilih Product --</option>
+                            <label>Produk <small class="text-info">(Opsional - Kosongkan jika untuk semua produk)</small></label>
+                            <select class="form-control select2" name="products[]" id="product_id" multiple="multiple">
                                 @foreach($products as $product)
                                     <option value="{{ $product->id }}">{{ $product->name ?? $product->title }}</option>
                                 @endforeach
                             </select>
                             <div class="invalid-feedback">
-                                Pilih Product
+                                Pilih Produk
                             </div>
                         </div>
                     </div>
@@ -183,7 +181,6 @@
                 columns: [
                     { data: 'DT_RowIndex', name: 'DT_RowIndex' },
                     { data: 'name', name: 'name' },
-                    { data: 'product_name', name: 'product_name' },
                     { data: 'code', name: 'code' },
                     { data: 'percent', name: 'percent' },
                     { data: 'validity', name: 'validity' },
@@ -236,8 +233,11 @@
                         $('#start_date').val(data.start_date ? data.start_date.replace(' ', 'T') : '');
                         $('#end_date').val(data.end_date ? data.end_date.replace(' ', 'T') : '');
                         $('#usage_limit').val(data.usage_limit);
-                        // Set selected product untuk single select
-                        $('#product_id').val(data.product_id || '').trigger('change');
+                        
+                        // Populate multiple products
+                        var productIds = data.products.map(p => p.id);
+                        $('#product_id').val(productIds).trigger('change');
+                        
                         $('#updateModal').modal('show');
                     },
                     error: function(err) {

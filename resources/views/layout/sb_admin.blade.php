@@ -61,6 +61,13 @@
                 </ul>
             </li>
 
+            <li class="menu-header">Laporan & Analisis</li>
+            <li {{ $sb == 'Customers' ? 'class=active' : '' }}>
+                <a class="nav-link" href="{{ route('admin.customers.index') }}">
+                    <i class="fas fa-address-book"></i> <span>Data Customer</span>
+                </a>
+            </li>
+
             <li class="nav-item dropdown {{ $sb == 'Settings' ? 'active' : '' }}">
                 <a href="#" class="nav-link has-dropdown"><i class="fas fa-cogs"></i><span>Pengaturan</span></a>
                 <ul class="dropdown-menu">

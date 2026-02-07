@@ -8,7 +8,7 @@ use Illuminate\Database\Eloquent\Model;
 class Voucher extends Model
 {
     use HasFactory;
-    protected $fillable = ['name', 'code', 'percent', 'nominal', 'discount_type', 'product_id', 'status', 'start_date', 'end_date', 'usage_limit', 'usage_count'];
+    protected $fillable = ['name', 'code', 'percent', 'nominal', 'discount_type', 'product_id', 'status', 'start_date', 'end_date', 'usage_limit', 'usage_count', 'applies_to_all'];
     
     protected $casts = [
         'start_date' => 'datetime',
@@ -27,8 +27,8 @@ class Voucher extends Model
         return '0';
     }
 
-    public function product()
+    public function products()
     {
-        return $this->belongsTo(Product::class);
+        return $this->belongsToMany(Product::class, 'voucher_product');
     }
 }

@@ -128,4 +128,135 @@ class OnlineSaleController extends Controller
             ->get();
         return view('admin.online_sale.history', compact('transactions'))->with('sb', 'OnlineSaleHistory');
     }
+
+    public function edit($id)
+    {
+        $transaction = Transaction::where('source', '!=', 'offline')->with('items.product', 'items.batch')->findOrFail($id);
+        
+        // Reuse product list logic from index
+        $products = Product::where('status', 'Y')
+            ->orderBy('name', 'asc')
+            ->with(['batches' => function($q) {
+                $q->orderBy('batch_no', 'asc');
+            }])
+            ->get();
+
+        $channels = \App\Models\ChannelSetting::all();
+
+        $batchList = [];
+        foreach ($products as $product) {
+            foreach ($product->batches as $batch) {
+                // For edit, we include the batch even if qty is 0 because the current transaction might have it
+                $prices = [
+                    'offline' => \App\Services\PricingService::calculate($batch, 'offline'),
+                ];
+
+                foreach ($channels as $channel) {
+                    $prices[$channel->slug] = \App\Services\PricingService::calculate($batch, $channel->slug);
+                }
+
+                $batchList[] = (object)[
+                    'id' => $batch->id,
+                    'product_id' => $product->id,
+                    'text' => "{$product->name} (Batch: {$batch->batch_no}) (Stok: {$batch->qty})",
+                    'stock' => $batch->qty,
+                    'prices' => $prices
+                ];
+            }
+        }
+
+        return view('admin.online_sale.edit', compact('transaction', 'products', 'batchList', 'channels'))->with('sb', 'OnlineSaleHistory');
+    }
+
+    public function update(Request $request, $id)
+    {
+        $validator = Validator::make($request->all(), [
+            'source' => 'required|exists:channel_settings,slug',
+            'transaction_date' => 'required|date',
+            'notes' => 'nullable|string',
+            'items' => 'required|array|min:1',
+            'items.*.product_batch_id' => 'required|exists:product_batches,id',
+            'items.*.qty' => 'required|integer|min:1',
+        ]);
+
+        if ($validator->fails()) {
+            return redirect()->back()->withErrors($validator)->withInput();
+        }
+
+        $transaction = Transaction::where('source', '!=', 'offline')->with('items')->findOrFail($id);
+
+        try {
+            DB::transaction(function() use ($request, $transaction) {
+                // 1. Revert Stock
+                foreach ($transaction->items as $oldItem) {
+                    ProductBatch::where('id', $oldItem->product_batch_id)->increment('qty', $oldItem->qty);
+                    Product::where('id', $oldItem->product_id)->increment('stock', $oldItem->qty);
+                }
+
+                // 2. Clear old items
+                $transaction->items()->delete();
+
+                // 3. Process new items
+                $totalAmount = 0;
+                foreach ($request->items as $item) {
+                    $batch = ProductBatch::with('product')->findOrFail($item['product_batch_id']);
+                    $product = $batch->product;
+
+                    if ($batch->qty < $item['qty']) {
+                        throw new \Exception('Stok batch ' . $batch->batch_no . ' untuk produk ' . $product->name . ' tidak mencukupi (Tersisa: ' . $batch->qty . ')');
+                    }
+
+                    $subtotal = $product->price * $item['qty'];
+                    $totalAmount += $subtotal;
+
+                    $transaction->items()->create([
+                        'product_id' => $product->id,
+                        'product_batch_id' => $batch->id,
+                        'buy_price' => $batch->buy_price,
+                        'qty' => $item['qty'],
+                        'price' => $product->price,
+                        'subtotal' => $subtotal,
+                    ]);
+
+                    // Deduct stock
+                    $batch->decrement('qty', $item['qty']);
+                    $product->decrement('stock', $item['qty']);
+                }
+
+                // 4. Update Transaction
+                $transaction->update([
+                    'source' => $request->source,
+                    'notes' => $request->notes,
+                    'total_amount' => $totalAmount,
+                    'created_at' => $request->transaction_date,
+                ]);
+            });
+
+            return redirect()->route('admin.online_sale.history')->with('message', 'Transaksi online berhasil diperbarui');
+        } catch (\Exception $e) {
+            return redirect()->back()->with('error', $e->getMessage())->withInput();
+        }
+    }
+
+    public function destroy($id)
+    {
+        $transaction = Transaction::where('source', '!=', 'offline')->with('items')->findOrFail($id);
+
+        try {
+            DB::transaction(function() use ($transaction) {
+                // Revert stock
+                foreach ($transaction->items as $item) {
+                    ProductBatch::where('id', $item->product_batch_id)->increment('qty', $item->qty);
+                    Product::where('id', $item->product_id)->increment('stock', $item->qty);
+                }
+                
+                $transaction->items()->delete();
+                $transaction->delete();
+            });
+
+            return redirect()->route('admin.online_sale.history')->with('message', 'Transaksi berhasil dihapus dan stok dikembalikan');
+        } catch (\Exception $e) {
+            return redirect()->back()->with('error', 'Gagal menghapus transaksi: ' . $e->getMessage());
+        }
+    }
 }
