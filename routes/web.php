@@ -154,8 +154,14 @@ Route::prefix('admin')->middleware(['auth', 'role:admin'])->group(function () {
 
     Route::prefix('customers')->group(function () {
         Route::get('/', [CustomerAdmin::class, 'index'])->name('admin.customers.index');
+        Route::post('/', [CustomerAdmin::class, 'store'])->name('admin.customers.store');
         Route::get('/all', [CustomerAdmin::class, 'getall'])->name('admin.customers.all');
-        Route::get('/show/{phone}', [CustomerAdmin::class, 'show'])->name('admin.customers.show');
+        Route::post('/get', [CustomerAdmin::class, 'get'])->name('admin.customers.get');
+        Route::post('/update', [CustomerAdmin::class, 'update'])->name('admin.customers.update');
+        Route::delete('/', [CustomerAdmin::class, 'delete'])->name('admin.customers.delete');
+        Route::get('/check', [CustomerAdmin::class, 'checkAjax'])->name('admin.customers.check');
+        Route::post('/store-ajax', [CustomerAdmin::class, 'storeAjax'])->name('admin.customers.store_ajax');
+        Route::get('/show/{id}', [CustomerAdmin::class, 'show'])->name('admin.customers.show');
     });
 
     Route::prefix('transactions')->group(function () {

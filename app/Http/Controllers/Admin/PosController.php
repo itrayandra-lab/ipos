@@ -25,6 +25,7 @@ class PosController extends Controller
             'products' => route($isSales ? 'sales.pos.products' : 'admin.pos.products'),
             'store' => route($isSales ? 'sales.pos.store' : 'admin.pos.store'),
             'receipt' => url($isSales ? 'sales/pos/receipt' : 'admin/pos/receipt'),
+            'verify_voucher' => route($isSales ? 'sales.pos.verify-voucher' : 'admin.pos.verify-voucher'),
         ];
         $affiliates = \App\Models\Affiliate::where('is_active', true)->orderBy('name')->get();
         return view('admin.pos.index', compact('categories', 'posRoutes', 'affiliates', 'isSales'))->with('sb', 'POS');
@@ -91,7 +92,7 @@ class PosController extends Controller
             'items.*.qty' => 'required|integer|min:1',
             'customer_name' => 'nullable|string|max:100',
             'customer_phone' => 'nullable|string|max:20',
-            'customer_email' => 'nullable|email|max:100',
+            'customer_id' => 'nullable|exists:customers,id',
             'payment_method' => 'required|in:cash,qris,transfer,debit',
             'payment_status' => 'required|in:draft,unpaid,paid,canceled',
             'notes' => 'nullable|string',
@@ -253,9 +254,9 @@ class PosController extends Controller
 
                 $transaction = Transaction::create([
                     'user_id' => auth()->id(),
+                    'customer_id' => $request->customer_id,
                     'customer_name' => $request->customer_name,
                     'customer_phone' => $request->customer_phone,
-                    'customer_email' => $request->customer_email,
                     'source' => $channelSlug,
                     'notes' => $request->notes,
                     'total_amount' => $finalTotal,

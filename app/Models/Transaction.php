@@ -11,9 +11,9 @@ class Transaction extends Model
 
     protected $fillable = [
         'user_id',
+        'customer_id',
         'customer_name',
         'customer_phone',
-        'customer_email',
         'source',
         'notes',
         'total_amount',
@@ -34,6 +34,11 @@ class Transaction extends Model
     public function user()
     {
         return $this->belongsTo(User::class);
+    }
+
+    public function customer()
+    {
+        return $this->belongsTo(Customer::class);
     }
 
     public function items()

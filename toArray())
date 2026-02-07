@@ -15,7 +15,7 @@
     895▕     /**
 
   1   C:\Users\IT LUNARAY\Herd\ipos\vendor\psy\psysh\src\Shell.php:1394
-      Psy\Shell::setCode("print_r(App\Models\AttributeGroup::with('attributes')-")
+      Psy\Shell::setCode("print_r(App\Models\Customer::all()-")
 
   2   C:\Users\IT LUNARAY\Herd\ipos\vendor\laravel\tinker\src\Console\TinkerCommand.php:76
-      Psy\Shell::execute("print_r(App\Models\AttributeGroup::with('attributes')-")
+      Psy\Shell::execute("print_r(App\Models\Customer::all()-")
