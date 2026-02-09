@@ -22,12 +22,15 @@ class CustomerController extends Controller
     {
         $query = Customer::leftJoin('transactions', 'customers.id', '=', 'transactions.customer_id')
             ->select(
-                'customers.*',
+                'customers.id',
+                'customers.name',
+                'customers.phone',
+                'customers.email',
                 DB::raw('COUNT(transactions.id) as total_transactions'),
                 DB::raw('SUM(transactions.total_amount) as total_spending'),
                 DB::raw('MAX(transactions.created_at) as last_transaction')
             )
-            ->groupBy('customers.id');
+            ->groupBy('customers.id', 'customers.name', 'customers.phone', 'customers.email');
 
         // Apply filters
         if ($request->filter == 'frequent') {
