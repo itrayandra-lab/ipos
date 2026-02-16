@@ -102,10 +102,10 @@
                         </div>
                         <div class="form-group">
                             <label>Merk</label>
-                            <select class="form-control" name="category_id" required>
+                            <select class="form-control" name="merek_id" required>
                                 <option value="">Pilih Merk</option>
-                                @foreach ($categories as $category)
-                                    <option value="{{ $category->id }}">{{ $category->name }}</option>
+                                @foreach ($merek as $m)
+                                    <option value="{{ $m->id }}">{{ $m->name }}</option>
                                 @endforeach
                             </select>
                             <div class="invalid-feedback">
@@ -183,10 +183,10 @@
                         </div>
                         <div class="form-group">
                             <label>Merk</label>
-                            <select class="form-control" name="category_id" required id="category_id">
+                            <select class="form-control" name="merek_id" required id="merek_id">
                                 <option value="">Pilih Merk</option>
-                                @foreach ($categories as $category)
-                                    <option value="{{ $category->id }}">{{ $category->name }}</option>
+                                @foreach ($merek as $m)
+                                    <option value="{{ $m->id }}">{{ $m->name }}</option>
                                 @endforeach
                             </select>
                             <div class="invalid-feedback">
@@ -324,7 +324,7 @@
                 columns: [
                     { data: 'DT_RowIndex', name: 'DT_RowIndex' },
                     { data: 'name', name: 'name' },
-                    { data: 'category_name', name: 'category_name' },
+                    { data: 'merek_name', name: 'merek_name' },
                     { 
                         data: 'price_display', 
                         name: 'price_display',
@@ -359,7 +359,7 @@
                     success: function(data) {
                         $('#id').val(data.id);
                         $('#name').val(data.name);
-                        $('#category_id').val(data.category_id);
+                        $('#merek_id').val(data.merek_id);
                         $('#price').val(formatRupiah(data.price));
                         $('#raw_price_update').val(data.price);
                         $('#stock').val(data.stock);

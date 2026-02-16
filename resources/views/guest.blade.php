@@ -50,10 +50,10 @@
                                         <a href="{{ route('home') }}"
                                             class="block rounded-md px-2 py-3 transition-colors">SEMUANYA</a>
                                     </li>
-                                    @foreach ($categories as $category)
+                                    @foreach ($merek as $m)
                                         <li>
-                                            <a href="{{ route('home', ['category' => $category->slug]) }}"
-                                                class="block rounded-md px-2 py-3 transition-colors {{ request('category') == $category->slug ? 'bg-indigo-50 text-indigo-600' : 'hover:bg-gray-50' }}">{{ $category->name }}</a>
+                                            <a href="{{ route('home', ['merek' => $m->slug]) }}"
+                                                class="block rounded-md px-2 py-3 transition-colors {{ request('merek') == $m->slug ? 'bg-indigo-50 text-indigo-600' : 'hover:bg-gray-50' }}">{{ $m->name }}</a>
                                         </li>
                                     @endforeach
                                     <li>

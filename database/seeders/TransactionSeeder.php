@@ -18,6 +18,7 @@ class TransactionSeeder extends Seeder
                 'delivery_desc' => 'Picked up at store',
                 'midtrans_order_id' => 'ORDER-001',
                 'midtrans_transaction_id' => 'TXN-001',
+                'source' => 'web',
             ],
             [
                 'user_id' => 2,
@@ -27,6 +28,7 @@ class TransactionSeeder extends Seeder
                 'delivery_desc' => 'Sent to customer address',
                 'midtrans_order_id' => 'ORDER-002',
                 'midtrans_transaction_id' => 'TXN-002',
+                'source' => 'web',
             ],
         ];
 

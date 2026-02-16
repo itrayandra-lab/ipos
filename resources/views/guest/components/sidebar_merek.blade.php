@@ -10,14 +10,14 @@
                 Semua Produk
             </a>
         </li>
-        {{-- @foreach ($categories as $category)
+        @foreach ($merek as $m)
             <li>
-                <a href="{{ route('home', ['category' => $category->slug]) }}"
-                    class="block rounded-md px-3 py-2 transition-colors {{ request('category') == $category->slug ? 'bg-indigo-50 text-indigo-700 font-bold' : 'hover:bg-gray-100 hover:text-gray-900' }}">
-                    {{ $category->name }}
+                <a href="{{ route('home', ['merek' => $m->slug]) }}"
+                    class="block rounded-md px-3 py-2 transition-colors {{ request('merek') == $m->slug ? 'bg-indigo-50 text-indigo-700 font-bold' : 'hover:bg-gray-100 hover:text-gray-900' }}">
+                    {{ $m->name }}
                 </a>
             </li>
-        @endforeach --}}
+        @endforeach
     </ul>
 
     <div class="mt-6 border-t pt-4">

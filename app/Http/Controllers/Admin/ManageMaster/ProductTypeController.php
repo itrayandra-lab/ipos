@@ -5,19 +5,21 @@ namespace App\Http\Controllers\Admin\ManageMaster;
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use App\Models\Category;
-use App\Models\SubCategory;
+use App\Models\ProductType;
 use Yajra\DataTables\Facades\DataTables;
 
-class CategoryController extends Controller
+class ProductTypeController extends Controller
 {
     public function index()
     {
-        return view('admin.manage_master.categories.index')->with(['sb' => 'Categories']);
+        return view('admin.manage_master.product_types.index')->with([
+            'sb' => 'ProductTypes'
+        ]);
     }
 
     public function getall(Request $request)
     {
-        $data = Category::orderBy('name', 'ASC')->get();
+        $data = ProductType::orderBy('id', 'desc')->get();
         return DataTables::of($data)
             ->addIndexColumn()
             ->addColumn('action', function ($row) {
@@ -39,25 +41,24 @@ class CategoryController extends Controller
 
     public function create(Request $request)
     {
-        Category::create($request->all());
-        return redirect()->back()->with('message', 'Kategori berhasil ditambahkan');
+        ProductType::create($request->all());
+        return redirect()->back()->with('message', 'Tipe Produk berhasil ditambahkan');
     }
 
     public function get(Request $request)
     {
-        return response()->json(Category::find($request->id));
+        return response()->json(ProductType::find($request->id));
     }
 
     public function update(Request $request)
     {
-        Category::find($request->id)->update($request->all());
-        return redirect()->back()->with('message', 'Kategori berhasil diperbarui');
+        ProductType::find($request->id)->update($request->all());
+        return redirect()->back()->with('message', 'Tipe Produk berhasil diperbarui');
     }
 
     public function delete(Request $request)
     {
-        Category::find($request->id)->delete();
-        return response()->json(['message' => 'Kategori berhasil dihapus']);
+        ProductType::find($request->id)->delete();
+        return response()->json(['message' => 'Tipe Produk berhasil dihapus']);
     }
-
 }

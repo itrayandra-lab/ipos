@@ -3,7 +3,7 @@
 namespace Database\Seeders;
 
 use Illuminate\Database\Seeder;
-use App\Models\Category;
+use App\Models\Merek;
 use App\Models\Product;
 use Illuminate\Support\Str;
 
@@ -93,21 +93,25 @@ class CategoryProductSeeder extends Seeder
             ],
         ];
 
-        foreach ($data as $category => $products) {
-            $cat = Category::create([
-                'name' => $category,
-                'slug' => Str::slug($category),
-                'description' => $category . ' products'
-            ]);
+        foreach ($data as $merek => $products) {
+            $mrk = Merek::updateOrCreate(
+            ['slug' => Str::slug($merek)],
+            [
+                'name' => $merek,
+                'description' => $merek . ' products'
+            ]
+            );
 
             foreach ($products as $p) {
-                Product::create([
-                    'category_id' => $cat->id,
+                Product::updateOrCreate(
+                ['slug' => Str::slug($p['name'])],
+                [
+                    'merek_id' => $mrk->id,
                     'name' => $p['name'],
-                    'slug' => Str::slug($p['name']),
                     'price' => $p['price'] ?? 0,
                     'stock' => $p['qty'] ?? 0,
-                ]);
+                ]
+                );
             }
         }
     }

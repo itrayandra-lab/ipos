@@ -27,10 +27,10 @@
                                     <input type="text" id="search-product" class="form-control" placeholder="Cari produk...">
                                 </div>
                                 <div class="col-12 col-md-6">
-                                    <select id="filter-category" class="form-control selectric">
+                                    <select id="filter-merek" class="form-control selectric">
                                         <option value="">Semua Merk</option>
-                                        @foreach($categories as $category)
-                                            <option value="{{ $category->id }}">{{ $category->name }}</option>
+                                        @foreach($merek as $m)
+                                            <option value="{{ $m->id }}">{{ $m->name }}</option>
                                         @endforeach
                                     </select>
                                 </div>
@@ -422,7 +422,7 @@
         renderCart();
 
         $('#search-product').on('input', loadProducts);
-        $('#filter-category').on('change', loadProducts);
+        $('#filter-merek').on('change', loadProducts);
         $('#btn-clear-cart').on('click', clearCart);
         $('#btn-new-order').on('click', () => {
             location.reload();
@@ -612,10 +612,10 @@
 
     function loadProducts() {
         let search = $('#search-product').val();
-        let catId = $('#filter-category').val();
+        let mrkId = $('#filter-merek').val();
         $.ajax({
             url: '{{ $posRoutes["products"] }}',
-            data: { search: search, category_id: catId },
+            data: { search: search, merek_id: mrkId },
             success: function(res) {
                 products = res;
                 renderProducts();

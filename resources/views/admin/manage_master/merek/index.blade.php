@@ -1,18 +1,18 @@
 @extends('master')
-@section('title', 'Data Merk / Kategori')
+@section('title', 'Data Merek')
 @section('content')
     <div class="main-content">
         <section class="section">
             <div class="section-header">
-                <h1>Data Merk / Kategori</h1>
+                <h1>Data Merek</h1>
                 <div class="section-header-breadcrumb">
-                    <div class="breadcrumb-item">Data Merk / Kategori</div>
+                    <div class="breadcrumb-item">Data Merek</div>
                 </div>
             </div>
 
             <div class="section-body">
-                <h2 class="section-title">Data Merk / Kategori</h2>
-                <p class="section-lead">Berikut adalah Data Merk / Kategori.</p>
+                <h2 class="section-title">Data Merek</h2>
+                <p class="section-lead">Berikut adalah Data Merek.</p>
                 @if (session()->has('message'))
                     <div class="alert alert-success alert-dismissible fade show" role="alert">
                         {{ session()->get('message') }}
@@ -31,7 +31,7 @@
                 @endif
                 <div class="card">
                     <div class="card-header">
-                        <h4>Data Seluruh Kategori</h4>
+                        <h4>Data Seluruh Merek</h4>
                         <div class="card-header-form">
                             <div class="dropdown d-inline dropleft">
                                 <button type="button" class="btn btn-primary btn-sm dropdown-toggle" aria-haspopup="true"
@@ -69,19 +69,19 @@
         <div class="modal-dialog modal-lg">
             <div class="modal-content">
                 <div class="modal-header">
-                    <h5 class="modal-title" id="addModal">Tambah Kategori</h5>
+                    <h5 class="modal-title" id="addModal">Tambah Merek</h5>
                     <button type="button" class="close" data-dismiss="modal" aria-label="Close">
                         <span aria-hidden="true">×</span>
                     </button>
                 </div>
-                <form action="{{ url('sales/manage-master/categories') }}" method="POST" class="needs-validation" novalidate="">
+                <form action="{{ url('admin/manage-master/merek') }}" method="POST" class="needs-validation" novalidate="">
                     @csrf
                     <div class="modal-body">
                         <div class="form-group">
                             <label>Nama</label>
-                            <input type="text" placeholder="Masukkan Nama Kategori / Merk" class="form-control" name="name" required="">
+                            <input type="text" placeholder="Masukkan Nama Merek" class="form-control" name="name" required="">
                             <div class="invalid-feedback">
-                                Masukkan Nama Kategori / Merk
+                                Masukkan Nama Merek
                             </div>
                         </div>
                         <div class="form-group">
@@ -102,20 +102,20 @@
         <div class="modal-dialog modal-lg">
             <div class="modal-content">
                 <div class="modal-header">
-                    <h5 class="modal-title" id="updateModal">Update Kategori</h5>
+                    <h5 class="modal-title" id="updateModal">Update Merek</h5>
                     <button type="button" class="close" data-dismiss="modal" aria-label="Close">
                         <span aria-hidden="true">×</span>
                     </button>
                 </div>
-                <form action="{{ url('sales/manage-master/categories/update') }}" method="POST" class="needs-validation" novalidate="">
+                <form action="{{ url('admin/manage-master/merek/update') }}" method="POST" class="needs-validation" novalidate="">
                     @csrf
                     <input type="hidden" name="id" id="id">
                     <div class="modal-body">
                         <div class="form-group">
                             <label>Nama</label>
-                            <input type="text" placeholder="Masukkan Nama Kategori / Merk" class="form-control" name="name" required="" id="name">
+                            <input type="text" placeholder="Masukkan Nama Merek" class="form-control" name="name" required="" id="name">
                             <div class="invalid-feedback">
-                                Masukkan Nama Kategori / Merk
+                                Masukkan Nama Merek
                             </div>
                         </div>
                         <div class="form-group">
@@ -139,7 +139,7 @@
                 processing: true,
                 serverSide: true,
                 ajax: {
-                    url: "{{ url('sales/manage-master/categories/all') }}",
+                    url: "{{ url('admin/manage-master/merek/all') }}",
                     type: "GET"
                 },
                 columns: [
@@ -159,7 +159,7 @@
                         '_token': "{{ csrf_token() }}"
                     },
                     type: 'POST',
-                    url: "{{ url('sales/manage-master/categories/get') }}",
+                    url: "{{ url('admin/manage-master/merek/get') }}",
                     beforeSend: function() {
                         $.LoadingOverlay("show", {
                             image: "",
@@ -186,8 +186,8 @@
             $('.table').on('click', '.hapus[data-id]', function(e) {
                 e.preventDefault();
                 swal({
-                    title: "Hapus Kategori?",
-                    text: "Data Merk / Kategori ini akan dihapus secara permanen!",
+                    title: "Hapus Merek?",
+                    text: "Data Merek ini akan dihapus secara permanen!",
                     icon: "warning",
                     buttons: true,
                     dangerMode: true,
@@ -199,7 +199,7 @@
                                 '_token': "{{ csrf_token() }}"
                             },
                             type: 'DELETE',
-                            url: "{{ url('sales/manage-master/categories') }}",
+                            url: "{{ url('admin/manage-master/merek') }}",
                             beforeSend: function() {
                                 $.LoadingOverlay("show", {
                                     image: "",

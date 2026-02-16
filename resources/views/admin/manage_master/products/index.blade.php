@@ -94,69 +94,91 @@
                 <form action="{{ url('admin/manage-master/products') }}" method="POST" class="needs-validation" novalidate="" enctype="multipart/form-data">
                     @csrf
                     <div class="modal-body">
-                        <div class="form-group">
-                            <label>Nama</label>
-                            <input type="text" placeholder="Masukkan Nama Produk" class="form-control" name="name" required>
-                            <div class="invalid-feedback">
-                                Masukkan Nama Produk
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="form-group">
+                                    <label>Nama Produk</label>
+                                    <input type="text" placeholder="Masukkan Nama Produk" class="form-control" name="name" required>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="form-group">
+                                    <label>Merk</label>
+                                    <select class="form-control" name="merek_id" required>
+                                        <option value="">Pilih Merk</option>
+                                        @foreach ($merek as $m)
+                                            <option value="{{ $m->id }}">{{ $m->name }}</option>
+                                        @endforeach
+                                    </select>
+                                </div>
                             </div>
                         </div>
-                        <div class="form-group">
-                            <label>Merk</label>
-                            <select class="form-control" name="category_id" required>
-                                <option value="">Pilih Merk</option>
-                                @foreach ($categories as $category)
-                                    <option value="{{ $category->id }}">{{ $category->name }}</option>
-                                @endforeach
-                            </select>
-                            <div class="invalid-feedback">
-                                Pilih Merk
+
+                        <div class="row">
+                            <div class="col-md-4">
+                                <div class="form-group">
+                                    <label>Kategori</label>
+                                    <select class="form-control select-category" name="category_id" id="add-category" required>
+                                        <option value="">Pilih Kategori</option>
+                                        @foreach ($categories as $c)
+                                            <option value="{{ $c->id }}">{{ $c->name }}</option>
+                                        @endforeach
+                                    </select>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="form-group">
+                                    <label>Tipe Produk</label>
+                                    <select class="form-control" name="product_type_id" id="add-product-type" required>
+                                        <option value="">Pilih Tipe Produk</option>
+                                        @foreach($productTypes as $pt)
+                                            <option value="{{ $pt->id }}">{{ $pt->name }}</option>
+                                        @endforeach
+                                    </select>
+                                </div>
                             </div>
                         </div>
-                        <div class="form-group">
-                            <label>Harga</label>
-                            <input type="text" placeholder="Masukkan Harga (Rp)" class="form-control rupiah" name="price" required>
-                            <input type="hidden" name="raw_price" id="raw_price">
-                            <div class="invalid-feedback">
-                                Masukkan Harga
-                            </div>
-                        </div>
+
                         <div class="form-group">
                             <label>Min. Stock Alert</label>
                             <input type="number" placeholder="Batas stok minimum untuk alert" class="form-control" name="min_stock_alert" required min="0" value="0">
-                            <div class="invalid-feedback">
-                                Masukkan Batas Stok Minimum
-                            </div>
                         </div>
+
                         <div class="form-group">
-                            <label>Neto <small>(optional)</small></label>
-                            <input type="number" placeholder="Masukkan Neto" class="form-control" name="neto" min="0">
-                            <div class="invalid-feedback">
-                                Masukkan Neto
+                            <label class="d-block">Varian Produk (SKU) <button type="button" class="btn btn-sm btn-success float-right mb-2" id="btn-add-variant"><i class="fas fa-plus"></i> Tambah Varian</button></label>
+                            <div class="table-responsive">
+                                <table class="table table-sm table-bordered" id="table-variants">
+                                    <thead>
+                                        <tr>
+                                            <th>Netto</th>
+                                            <th>Nama Varian</th>
+                                            <th>SKU Code</th>
+                                            <th>Harga Jual (Rp)</th>
+                                            <th width="50px"></th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <tr>
+                                            <td><input type="text" name="variants[0][netto]" class="form-control form-control-sm" placeholder="100ml" required></td>
+                                            <td><input type="text" name="variants[0][name]" class="form-control form-control-sm" placeholder="Original" required></td>
+                                            <td><input type="text" name="variants[0][sku]" class="form-control form-control-sm" placeholder="SKU001" required></td>
+                                            <td>
+                                                <input type="text" class="form-control form-control-sm rupiah-variant" placeholder="Rp 0" required>
+                                                <input type="hidden" name="variants[0][price]" class="raw-price-variant">
+                                            </td>
+                                            <td></td>
+                                        </tr>
+                                    </tbody>
+                                </table>
                             </div>
                         </div>
-                        <div class="form-group">
-                            <label>Satuan <small>(optional)</small></label>
-                            <select class="form-control text-uppercase" name="pieces">
-                                <option value="">Pilih Satuan</option>
-                                @foreach ($netto_attributes as $attr)
-                                    <option value="{{ $attr->name }}">{{ $attr->name }}</option>
-                                @endforeach
-                            </select>
-                            <div class="invalid-feedback">
-                                Pilih Satuan
-                            </div>
-                        </div>
+
                         <div class="form-group">
                             <label>Status</label>
                             <select class="form-control" name="status" required>
-                                <option value="">Pilih Status</option>
                                 <option value="Y">Aktif</option>
                                 <option value="N">Non Aktif</option>
                             </select>
-                            <div class="invalid-feedback">
-                                Pilih Merk
-                            </div>
                         </div>
                         <div class="form-group">
                             <label>Gambar Produk <small>(optional, multiple)</small></label>
@@ -169,7 +191,7 @@
                     </div>
                     <div class="modal-footer">
                         <button type="button" class="btn btn-secondary" data-dismiss="modal">Batal</button>
-                        <button type="submit" class="btn btn-primary">Simpan</button>
+                        <button type="button" class="btn btn-primary" id="btn-save-product">Simpan</button>
                     </div>
                 </form>
             </div>
@@ -191,69 +213,82 @@
                     <input type="hidden" name="id" id="id">
                     <input type="hidden" name="deleted_photos" id="deleted_photos">
                     <div class="modal-body">
-                        <div class="form-group">
-                            <label>Nama</label>
-                            <input type="text" placeholder="Masukkan Nama Produk" class="form-control" name="name" required id="name">
-                            <div class="invalid-feedback">
-                                Masukkan Nama Produk
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="form-group">
+                                    <label>Nama Produk</label>
+                                    <input type="text" placeholder="Masukkan Nama Produk" class="form-control" name="name" id="name" required>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="form-group">
+                                    <label>Merk</label>
+                                    <select class="form-control" name="merek_id" id="merek_id" required>
+                                        <option value="">Pilih Merk</option>
+                                        @foreach ($merek as $m)
+                                            <option value="{{ $m->id }}">{{ $m->name }}</option>
+                                        @endforeach
+                                    </select>
+                                </div>
                             </div>
                         </div>
-                        <div class="form-group">
-                            <label>Merk</label>
-                            <select class="form-control" name="category_id" required id="category_id">
-                                <option value="">Pilih Merk</option>
-                                @foreach ($categories as $category)
-                                    <option value="{{ $category->id }}">{{ $category->name }}</option>
-                                @endforeach
-                            </select>
-                            <div class="invalid-feedback">
-                                Pilih Merk
+
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="form-group">
+                                    <label>Kategori</label>
+                                    <select class="form-control select-category" id="edit-category" required>
+                                        <option value="">Pilih Kategori</option>
+                                        @foreach ($categories as $c)
+                                            <option value="{{ $c->id }}">{{ $c->name }}</option>
+                                        @endforeach
+                                    </select>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="form-group">
+                                    <label>Tipe Produk</label>
+                                    <select class="form-control" name="product_type_id" id="edit-product-type" required>
+                                        <option value="">Pilih Tipe Produk</option>
+                                        @foreach($productTypes as $pt)
+                                            <option value="{{ $pt->id }}">{{ $pt->name }}</option>
+                                        @endforeach
+                                    </select>
+                                </div>
                             </div>
                         </div>
-                        <div class="form-group">
-                            <label>Harga</label>
-                            <input type="text" placeholder="Masukkan Harga (Rp)" class="form-control rupiah" name="price" required id="price">
-                            <input type="hidden" name="raw_price" id="raw_price_update">
-                            <div class="invalid-feedback">
-                                Masukkan Harga
-                            </div>
-                        </div>
+
                         <div class="form-group">
                             <label>Min. Stock Alert</label>
-                            <input type="number" placeholder="Batas stok minimum untuk alert" class="form-control" name="min_stock_alert" required id="min_stock_alert" min="0">
-                            <div class="invalid-feedback">
-                                Masukkan Batas Stok Minimum
-                            </div>
+                            <input type="number" placeholder="Batas stok minimum untuk alert" class="form-control" name="min_stock_alert" id="min_stock_alert" required min="0">
                         </div>
+
                         <div class="form-group">
-                            <label>Neto <small>(optional)</small></label>
-                            <input type="number" placeholder="Masukkan Neto" class="form-control" name="neto" id="neto" min="0">
-                            <div class="invalid-feedback">
-                                Masukkan Neto
+                            <label class="d-block">Varian Produk (SKU) <button type="button" class="btn btn-sm btn-success float-right mb-2" id="btn-add-variant-edit"><i class="fas fa-plus"></i> Tambah Varian</button></label>
+                            <div class="table-responsive">
+                                <table class="table table-sm table-bordered" id="table-variants-edit">
+                                    <thead>
+                                        <tr>
+                                            <th>Netto</th>
+                                            <th>Nama Varian</th>
+                                            <th>SKU Code</th>
+                                            <th>Harga Jual (Rp)</th>
+                                            <th width="50px"></th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <!-- Populated via JS -->
+                                    </tbody>
+                                </table>
                             </div>
                         </div>
-                        <div class="form-group">
-                            <label>Satuan <small>(optional)</small></label>
-                            <select class="form-control text-uppercase" name="pieces" id="pieces">
-                                <option value="">Pilih Satuan</option>
-                                @foreach ($netto_attributes as $attr)
-                                    <option value="{{ $attr->name }}">{{ $attr->name }}</option>
-                                @endforeach
-                            </select>
-                            <div class="invalid-feedback">
-                                Pilih Satuan
-                            </div>
-                        </div>
+
                         <div class="form-group">
                             <label>Status</label>
                             <select class="form-control" name="status" id="status" required>
-                                <option value="">Pilih Status</option>
                                 <option value="Y">Aktif</option>
                                 <option value="N">Non Aktif</option>
                             </select>
-                            <div class="invalid-feedback">
-                                Pilih Merk
-                            </div>
                         </div>
                         <div class="form-group">
                             <label>Gambar Produk <small>(optional, multiple)</small></label>
@@ -266,7 +301,7 @@
                     </div>
                     <div class="modal-footer">
                         <button type="button" class="btn btn-secondary" data-dismiss="modal">Batal</button>
-                        <button type="submit" class="btn btn-primary">Update</button>
+                        <button type="button" class="btn btn-primary" id="btn-update-product">Update</button>
                     </div>
                 </form>
             </div>
@@ -362,7 +397,6 @@
                 }
             });
 
-            // DataTable initialization
             $('.table').DataTable({
                 responsive: true,
                 processing: true,
@@ -374,125 +408,79 @@
                 columns: [
                     { data: 'DT_RowIndex', name: 'DT_RowIndex' },
                     { data: 'name', name: 'name' },
-                    { data: 'category_name', name: 'category_name' },
-                    { 
-                        data: 'price_display', 
-                        name: 'price_display',
-                        orderable: false,
-                        searchable: false
-                    },
-                    { data: 'stock', name: 'stock' },
+                    { data: 'hierarchy', name: 'hierarchy' },
+                    { data: 'merek_name', name: 'merek_name' },
+                    { data: 'variant_count', name: 'variant_count' },
                     { data: 'status', name: 'status' },
                     { data: 'photos_preview', name: 'photos_preview' },
                     { data: 'action', name: 'action' }
                 ]
             });
 
-            // Pricing details handler
-            $('.table').on('click', '.view-pricing', function(e) {
-                e.preventDefault();
-                let id = $(this).data('id');
+            // Cascading selects removed as hierarchy is now flat/standalone
+
+            // Variant Grid Management
+            let variantIndex = 1;
+            $('#btn-add-variant').on('click', function() {
+                let html = `
+                    <tr>
+                        <td><input type="text" name="variants[${variantIndex}][netto]" class="form-control form-control-sm" placeholder="100ml" required></td>
+                        <td><input type="text" name="variants[${variantIndex}][name]" class="form-control form-control-sm" placeholder="Original" required></td>
+                        <td><input type="text" name="variants[${variantIndex}][sku]" class="form-control form-control-sm" placeholder="SKU${variantIndex+1}" required></td>
+                        <td>
+                            <input type="text" class="form-control form-control-sm rupiah-variant" placeholder="Rp 0" required>
+                            <input type="hidden" name="variants[${variantIndex}][price]" class="raw-price-variant">
+                        </td>
+                        <td><button type="button" class="btn btn-sm btn-danger btn-remove-variant"><i class="fas fa-times"></i></button></td>
+                    </tr>
+                `;
+                $('#table-variants tbody').append(html);
+                variantIndex++;
+            });
+
+            $(document).on('click', '.btn-remove-variant', function() {
+                $(this).closest('tr').remove();
+            });
+
+            $(document).on('input', '.rupiah-variant', function() {
+                let rawValue = $(this).val().replace(/[^0-9]/g, '');
+                $(this).val(formatRupiah(rawValue));
+                $(this).siblings('.raw-price-variant').val(rawValue);
+            });
+
+            // AJAX Form Submission for Create
+            $('#btn-save-product').on('click', function() {
+                let form = $('#addModal form')[0];
+                if (form.checkValidity() === false) {
+                    form.classList.add('was-validated');
+                    return;
+                }
+                
+                let formData = new FormData(form);
                 $.ajax({
-                    url: "{{ url('admin/manage-master/products/get-pricing') }}/" + id,
-                    type: 'GET',
+                    url: "{{ url('admin/manage-master/products') }}",
+                    type: "POST",
+                    data: formData,
+                    processData: false,
+                    contentType: false,
                     beforeSend: function() {
-                        $.LoadingOverlay("show", { image: "", fontawesome: "fa fa-cog fa-spin" });
+                        $.LoadingOverlay("show");
                     },
-                    complete: function() {
+                    success: function(res) {
                         $.LoadingOverlay("hide");
+                        swal(res.message, { icon: "success" }).then(() => {
+                            location.reload();
+                        });
                     },
-                    success: function(data) {
-                        try {
-                            $('#pricing-product-name').text(data.product.name);
-                            
-                            // Determine "Official" price (prefer 'offline' or 'offline-store', otherwise first available)
-                            let officialPrice = 0;
-                            if (data.recommendations['offline']) {
-                                officialPrice = data.recommendations['offline'];
-                            } else if (data.recommendations['offline-store']) {
-                                officialPrice = data.recommendations['offline-store'];
-                            } else {
-                                let keys = Object.keys(data.recommendations);
-                                if (keys.length > 0) officialPrice = data.recommendations[keys[0]];
-                            }
-
-                            let html = `
-                                <div class="alert alert-info border-primary mb-4">
-                                    <h6 class="alert-heading"><i class="fas fa-info-circle"></i> Rekomendasi Harga Resmi (Terbaru)</h6>
-                                    <p class="mb-2">Berdasarkan HPP batch terbaru: <strong>Rp ${officialPrice.toLocaleString('id-ID')}</strong></p>
-                                    <button class="btn btn-sm btn-primary sync-official-price" data-id="${data.product.id}" data-price="${officialPrice}">
-                                        Terapkan sebagai Harga Toko Resmi
-                                    </button>
-                                </div>
-                                <div class="list-group">
-                            `;
-                            
-                            if (data.batches.length === 0) {
-                                html += '<div class="alert alert-warning">Belum ada batch/stok. Silakan masukkan batch di menu Batches (Stock).</div>';
-                            }
-
-                            data.batches.forEach(batch => {
-                                let priceRows = '';
-                                
-                                data.channels.forEach(channel => {
-                                    let price = batch.prices[channel.slug] ? batch.prices[channel.slug].toLocaleString('id-ID') : 0;
-                                    priceRows += `<tr><td>${channel.name}</td><td><strong>Rp ${price}</strong></td></tr>`;
-                                });
-
-                                html += `
-                                    <div class="list-group-item flex-column align-items-start mb-3 border">
-                                        <div class="d-flex w-100 justify-content-between">
-                                            <h5 class="mb-1 text-primary">Batch: ${batch.batch_no}</h5>
-                                            <small class="text-muted">Expired: ${batch.expiry_date}</small>
-                                        </div>
-                                        <div class="bg-light p-2 mb-2 rounded">
-                                            <strong>Harga Modal (HPP):</strong> <span class="text-danger">Rp ${batch.buy_price.toLocaleString('id-ID')}</span>
-                                        </div>
-                                        <table class="table table-sm table-bordered mt-2 mb-0">
-                                            <thead class="thead-dark">
-                                                <tr>
-                                                    <th>Channel</th>
-                                                    <th>Harga Jual (Saran)</th>
-                                                </tr>
-                                            </thead>
-                                            <tbody>
-                                                ${priceRows}
-                                            </tbody>
-                                        </table>
-                                    </div>
-                                `;
-                            });
-                            html += '</div>';
-                            $('#pricing-content').html(html);
-                            $('#pricingModal').modal('show');
-                        } catch (e) {
-                            console.error(e);
-                            alert('Terjadi kesalahan saat menampilkan data: ' + e.message);
-                        }
+                    error: function(err) {
+                        $.LoadingOverlay("hide");
+                        swal(err.responseJSON.message || "Something went wrong", { icon: "error" });
                     }
                 });
             });
 
-            // Handle Sync Official Price
-            $(document).on('click', '.sync-official-price', function() {
-                let id = $(this).data('id');
-                let price = $(this).data('price');
-                
-                if(confirm('Update harga resmi produk ini menjadi Rp ' + price.toLocaleString('id-ID') + '?')) {
-                    $.ajax({
-                        url: "{{ route('admin.products.sync-price') }}",
-                        type: 'POST',
-                        data: { _token: '{{ csrf_token() }}', id: id, price: price },
-                        success: function(res) {
-                            swal(res.message).then(() => {
-                                location.reload();
-                            });
-                        }
-                    });
-                }
-            });
-
             // Edit button handler
+            let variantIndexEdit = 0;
             $('.table').on('click', '.edit[data-id]', function(e) {
                 e.preventDefault();
                 $.ajax({
@@ -503,10 +491,7 @@
                     type: 'POST',
                     url: "{{ url('admin/manage-master/products/get') }}",
                     beforeSend: function() {
-                        $.LoadingOverlay("show", {
-                            image: "",
-                            fontawesome: "fa fa-cog fa-spin"
-                        });
+                        $.LoadingOverlay("show");
                     },
                     complete: function() {
                         $.LoadingOverlay("hide");
@@ -514,13 +499,35 @@
                     success: function(data) {
                         $('#id').val(data.id);
                         $('#name').val(data.name);
-                        $('#category_id').val(data.category_id);
-                        $('#price').val(formatRupiah(data.price));
-                        $('#raw_price_update').val(data.price);
+                        $('#merek_id').val(data.merek_id);
                         $('#min_stock_alert').val(data.min_stock_alert);
-                        $('#neto').val(data.neto);
                         $('#status').val(data.status);
-                        $('#pieces').val(data.pieces);
+                        
+                        // Populate Hierarchy
+                        $('#edit-category').val(data.category_id);
+                        $('#edit-product-type').val(data.product_type_id);
+
+                        // Populate Variants
+                        $('#table-variants-edit tbody').empty();
+                        variantIndexEdit = 0;
+                        data.variants.forEach((v, index) => {
+                            let netVal = v.product_netto ? v.product_netto.netto_value : '';
+                            let html = `
+                                <tr>
+                                    <td><input type="text" name="variants[${index}][netto]" value="${netVal}" class="form-control form-control-sm" required></td>
+                                    <td><input type="text" name="variants[${index}][name]" value="${v.variant_name}" class="form-control form-control-sm" required></td>
+                                    <td><input type="text" name="variants[${index}][sku]" value="${v.sku_code}" class="form-control form-control-sm" required></td>
+                                    <td>
+                                        <input type="text" value="${formatRupiah(v.price)}" class="form-control form-control-sm rupiah-variant" required>
+                                        <input type="hidden" name="variants[${index}][price]" value="${v.price}" class="raw-price-variant">
+                                    </td>
+                                    <td>${index > 0 ? '<button type="button" class="btn btn-sm btn-danger btn-remove-variant"><i class="fas fa-times"></i></button>' : ''}</td>
+                                </tr>
+                            `;
+                            $('#table-variants-edit tbody').append(html);
+                            variantIndexEdit = index + 1;
+                        });
+
                         $('#deleted_photos').val('');
                         let preview = $('#image-preview-update');
                         preview.empty();
@@ -534,15 +541,60 @@
                         });
                         $('#foto_update + .custom-file-label').text('Pilih gambar...');
                         $('#updateModal').modal('show');
-                    },
-                    error: function(err) {
-                        alert('Error: ' + err.responseText);
-                        console.log(err);
                     }
                 });
             });
 
-            // Delete button handler
+            // Add Variant in Edit Modal
+            $('#btn-add-variant-edit').on('click', function() {
+                let html = `
+                    <tr>
+                        <td><input type="text" name="variants[${variantIndexEdit}][netto]" class="form-control form-control-sm" required></td>
+                        <td><input type="text" name="variants[${variantIndexEdit}][name]" class="form-control form-control-sm" required></td>
+                        <td><input type="text" name="variants[${variantIndexEdit}][sku]" class="form-control form-control-sm" required></td>
+                        <td>
+                            <input type="text" class="form-control form-control-sm rupiah-variant" placeholder="Rp 0" required>
+                            <input type="hidden" name="variants[${variantIndexEdit}][price]" class="raw-price-variant">
+                        </td>
+                        <td><button type="button" class="btn btn-sm btn-danger btn-remove-variant"><i class="fas fa-times"></i></button></td>
+                    </tr>
+                `;
+                $('#table-variants-edit tbody').append(html);
+                variantIndexEdit++;
+            });
+
+            // AJAX Form Submission for Update
+            $('#btn-update-product').on('click', function() {
+                let form = $('#updateModal form')[0];
+                if (form.checkValidity() === false) {
+                    form.classList.add('was-validated');
+                    return;
+                }
+                
+                let formData = new FormData(form);
+                $.ajax({
+                    url: "{{ url('admin/manage-master/products/update') }}",
+                    type: "POST",
+                    data: formData,
+                    processData: false,
+                    contentType: false,
+                    beforeSend: function() {
+                        $.LoadingOverlay("show");
+                    },
+                    success: function(res) {
+                        $.LoadingOverlay("hide");
+                        swal(res.message, { icon: "success" }).then(() => {
+                            location.reload();
+                        });
+                    },
+                    error: function(err) {
+                        $.LoadingOverlay("hide");
+                        swal(err.responseJSON.message || "Something went wrong", { icon: "error" });
+                    }
+                });
+            });
+
+            // Cascading selects for edit removed as hierarchy is flat
             $('.table').on('click', '.hapus[data-id]', function(e) {
                 e.preventDefault();
                 swal({

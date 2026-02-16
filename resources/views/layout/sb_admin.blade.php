@@ -50,7 +50,7 @@
             <li class="menu-header">Inventory</li>
             <li {{ $sb == 'Product' ? 'class=active' : '' }}>
                 <a class="nav-link" href="{{ url('admin/manage-master/products') }}">
-                    <i class="fas fa-boxes"></i> <span>Managemen Stok</span>
+                    <i class="fas fa-boxes"></i> <span>PRODUK & STOK</span>
                 </a>
             </li>
             <li class="nav-item dropdown {{ ($sb == 'OnlineSale' || $sb == 'OnlineSaleHistory') ? 'active' : '' }}">
@@ -77,8 +77,18 @@
             </li>
 
             <li class="menu-header">Master Data</li>
-            <li {{ $sb == 'Category' ? 'class=active' : '' }}>
+            <li {{ $sb == 'Categories' ? 'class=active' : '' }}>
                 <a class="nav-link" href="{{ url('admin/manage-master/categories') }}">
+                    <i class="fas fa-layer-group"></i> <span>Kategori</span>
+                </a>
+            </li>
+            <li {{ $sb == 'ProductTypes' ? 'class=active' : '' }}>
+                <a class="nav-link" href="{{ url('admin/manage-master/product-types') }}">
+                    <i class="fas fa-shapes"></i> <span>Tipe Produk</span>
+                </a>
+            </li>
+            <li {{ $sb == 'Merek' ? 'class=active' : '' }}>
+                <a class="nav-link" href="{{ url('admin/manage-master/merek') }}">
                     <i class="fas fa-tags"></i> <span>Merek</span>
                 </a>
             </li>

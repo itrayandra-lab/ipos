@@ -13,7 +13,7 @@
                 <h2 id="products-heading" class="sr-only">Produk</h2>
                 <div class="grid grid-cols-1 gap-x-8 gap-y-10 lg:grid-cols-4 lg:items-start">
                     <div class="no-print">
-                        @include('guest.components.sidebar_categories')
+                        @include('guest.components.sidebar_merek')
                     </div>
 
                     <div class="lg:col-span-3">

@@ -11,21 +11,54 @@ class Product extends Model
 
     protected $table = 'products';
 
-    protected $fillable = ['category_id', 'name', 'slug', 'price','price_real', 'stock', 'neto', 'pieces', 'status', 'min_stock_alert'];
-
-    public function batches()
-    {
-        return $this->hasMany(ProductBatch::class);
-    }
+    protected $fillable = [
+        'merek_id',
+        'category_id',
+        'product_type_id',
+        'name',
+        'slug',
+        'price',
+        'status',
+        'price_real',
+        'stock',
+        'min_stock_alert',
+        'neto',
+        'pieces'
+    ];
 
     public function category()
     {
         return $this->belongsTo(Category::class);
     }
 
+    public function productType()
+    {
+        return $this->belongsTo(ProductType::class);
+    }
+
+    public function nettos()
+    {
+        return $this->hasMany(ProductNetto::class);
+    }
+
+    public function variants()
+    {
+        return $this->hasManyThrough(ProductVariant::class , ProductNetto::class , 'product_id', 'product_netto_id');
+    }
+
+    public function batches()
+    {
+        return $this->hasMany(ProductBatch::class);
+    }
+
+    public function merek()
+    {
+        return $this->belongsTo(Merek::class , 'merek_id');
+    }
+
     public function photos()
     {
-        return $this->hasMany(PhotoProduct::class, 'id_product');
+        return $this->hasMany(PhotoProduct::class , 'id_product');
     }
 
     public function transactionItems()
@@ -46,7 +79,7 @@ class Product extends Model
     {
         $incoming = $this->batches()->sum('qty');
         $outgoing = $this->transactionItems()->sum('qty');
-        
+
         $this->update(['stock' => $incoming - $outgoing]);
     }
 }

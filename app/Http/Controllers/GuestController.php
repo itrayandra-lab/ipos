@@ -6,7 +6,7 @@ use Midtrans\Snap;
 use Midtrans\Config;
 use App\Models\Product;
 use App\Models\Voucher;
-// use App\Models\Category;
+use App\Models\Merek;
 use Midtrans\Notification;
 use App\Models\Transaction;
 use Illuminate\Http\Request;
@@ -20,29 +20,29 @@ class GuestController extends Controller
      */
     public function home(Request $request)
     {
-        $categories = [];
+        $merek = Merek::select(['id', 'name', 'slug'])->get();
 
-        $query = Product::where('status', 'Y')->where('price', '>', 0)->select(['id', 'category_id', 'name', 'slug', 'price', 'price_real', 'stock'])->with([
-            'photos' 
+        $query = Product::where('status', 'Y')->where('price', '>', 0)->select(['id', 'merek_id', 'name', 'slug', 'price', 'price_real', 'stock'])->with([
+            'photos'
         ]);
 
         if ($request->has('search') && !empty($request->search)) {
             $query->where('name', 'like', '%' . $request->search . '%');
         }
 
-        if ($request->has('category')) {
-            $query->whereHas('category', fn($q) => $q->where('slug', $request->category));
+        if ($request->has('merek')) {
+            $query->whereHas('merek', fn($q) => $q->where('slug', $request->merek));
         }
 
         $products = $query->inRandomOrder()->paginate(12);
 
-        return view('guest.home', compact('categories', 'products'));
+        return view('guest.home', compact('merek', 'products'));
     }
 
     public function showCart()
     {
-        $categories = [];
-        return view('guest.cart', compact('categories'));
+        $merek = Merek::select(['id', 'name', 'slug'])->get();
+        return view('guest.cart', compact('merek'));
     }
 
     public function fetchCart(Request $request)
@@ -58,15 +58,15 @@ class GuestController extends Controller
      */
     public function showProduct($slug)
     {
-        $product = Product::where('status', 'Y')->select(['id', 'category_id', 'name', 'slug', 'price', 'stock', 'price_real', 'neto', 'pieces'])
+        $product = Product::where('status', 'Y')->select(['id', 'merek_id', 'name', 'slug', 'price', 'stock', 'price_real', 'neto', 'pieces'])
             ->with([
-                'photos' => fn($query) => $query->select(['id', 'id_product', 'foto']),
-            ])
+            'photos' => fn($query) => $query->select(['id', 'id_product', 'foto']),
+        ])
             ->where('slug', $slug)
             ->firstOrFail();
-        $categories = [];
+        $merek = Merek::select(['id', 'name', 'slug'])->get();
 
-        return view('guest.detail-product', compact('product', 'categories'));
+        return view('guest.detail-product', compact('product', 'merek'));
     }
 
     public function checkout(Request $request)
@@ -79,22 +79,24 @@ class GuestController extends Controller
         if ($request->has('voucher') && !empty($request->voucher)) {
             $voucher = Voucher::where('code', $request->voucher)->first();
             if ($voucher && $voucher->status === 'ACTIVE') {
-                 // Check usage limit
-                 if (!is_null($voucher->usage_limit) && $voucher->usage_count >= $voucher->usage_limit) {
+                // Check usage limit
+                if (!is_null($voucher->usage_limit) && $voucher->usage_count >= $voucher->usage_limit) {
                     return response()->json([
                         'status' => 'error',
                         'message' => 'Voucher sudah habis.'
                     ], 400);
-                 }
+                }
 
                 if ($voucher->discount_type == 'NOMINAL') {
-                    $discount = $voucher->nominal; 
-                } else {
+                    $discount = $voucher->nominal;
+                }
+                else {
                     $discount = $voucher->percent;
                 }
-                
+
                 $voucherCode = $voucher->code;
-            } else {
+            }
+            else {
                 return response()->json([
                     'status' => 'error',
                     'message' => $voucher ? 'Voucher tidak aktif.' : 'Voucher tidak ditemukan.'
@@ -107,25 +109,26 @@ class GuestController extends Controller
 
             foreach ($items as $item) {
                 $product = Product::where('status', 'Y')->findOrFail($item['id']);
-                $quantity = (int) $item['quantity'];
+                $quantity = (int)$item['quantity'];
                 $subtotal = $product->price * $quantity;
                 $grossAmount += $subtotal;
 
                 $itemDetails[] = [
-                    'id' => (string) $product->id,
-                    'price' => (int) $product->price,
+                    'id' => (string)$product->id,
+                    'price' => (int)$product->price,
                     'quantity' => $quantity,
                     'name' => substr($product->name, 0, 50),
                 ];
             }
-        } else {
+        }
+        else {
             $product = Product::where('status', 'Y')->findOrFail($request->product_id);
-            $quantity = (int) $request->quantity;
+            $quantity = (int)$request->quantity;
             $grossAmount = $product->price * $quantity;
 
             $itemDetails[] = [
-                'id' => (string) $product->id,
-                'price' => (int) $product->price,
+                'id' => (string)$product->id,
+                'price' => (int)$product->price,
                 'quantity' => $quantity,
                 'name' => substr($product->name, 0, 50),
             ];
@@ -141,21 +144,23 @@ class GuestController extends Controller
         if ($voucherCode && isset($voucher)) {
             if ($voucher->discount_type == 'NOMINAL') {
                 $discountAmount = $discount;
-            } else {
+            }
+            else {
                 $discountAmount = ($grossAmount * $discount / 100);
             }
-            
+
             // Increment voucher usage
             $voucher->increment('usage_count');
-        } else {
+        }
+        else {
             $discountAmount = 0;
         }
 
         $finalAmount = max(0, $grossAmount - $discountAmount);
 
         if ($discountAmount > 0) {
-            $discountName = ($voucher->discount_type == 'NOMINAL') 
-                ? 'Discount Rp ' . number_format($discount, 0, ',', '.') 
+            $discountName = ($voucher->discount_type == 'NOMINAL')
+                ? 'Discount Rp ' . number_format($discount, 0, ',', '.')
                 : 'Discount ' . $discount . '%';
 
             $itemDetails[] = [
@@ -179,7 +184,7 @@ class GuestController extends Controller
 
         foreach ($items as $item) {
             $product = Product::where('status', 'Y')->findOrFail($item['id']);
-            $quantity = (int) $item['quantity'];
+            $quantity = (int)$item['quantity'];
             $subtotal = $product->price * $quantity;
 
             TransactionItem::create([
@@ -199,7 +204,7 @@ class GuestController extends Controller
         $params = [
             'transaction_details' => [
                 'order_id' => $transaction->midtrans_order_id,
-                'gross_amount' => (int) $finalAmount,
+                'gross_amount' => (int)$finalAmount,
             ],
             'item_details' => $itemDetails,
             'customer_details' => [
@@ -229,9 +234,11 @@ class GuestController extends Controller
         if ($transaction) {
             if (in_array($transactionStatus, ['capture', 'settlement'])) {
                 $transaction->update(['payment_status' => 'paid']);
-            } elseif ($transactionStatus == 'pending') {
+            }
+            elseif ($transactionStatus == 'pending') {
                 $transaction->update(['payment_status' => 'pending']);
-            } elseif (in_array($transactionStatus, ['deny', 'expire', 'cancel'])) {
+            }
+            elseif (in_array($transactionStatus, ['deny', 'expire', 'cancel'])) {
                 $transaction->update(['payment_status' => 'failed']);
             }
 
@@ -248,15 +255,15 @@ class GuestController extends Controller
     public function success(Request $request)
     {
         $orderId = $request->input('order');
-        if(!$orderId) {
+        if (!$orderId) {
             abort(404);
         }
         $transaction = Transaction::where('midtrans_order_id', $orderId)->with(['items'])->first();
-        if(!$transaction) {
+        if (!$transaction) {
             abort(404);
         }
-        $categories = [];
-        return view('guest.checkout-success', compact('categories', 'transaction'));
+        $merek = Merek::select(['id', 'name', 'slug'])->get();
+        return view('guest.checkout-success', compact('merek', 'transaction'));
     }
 
 
@@ -284,7 +291,7 @@ class GuestController extends Controller
                 'message' => 'Voucher sudah tidak aktif.'
             ], 400);
         }
-      
+
         return response()->json([
             'status' => 'success',
             'message' => 'Voucher valid.',
