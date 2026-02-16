@@ -15,7 +15,6 @@ class SuperAdminSeeder extends Seeder
      */
     public function run()
     {
-        // Check if user already exists to avoid duplicate entry error
         if (!User::where('email', 'it.rayandra@gmail.com')->exists()) {
             User::create([
                 'name' => 'Super Admin',

@@ -59,14 +59,14 @@
                         </div>
                     </div>
                     <div class="card-body">
-                        <table class="table table-striped mt-5">
+                        <table class="table table-striped mt-5" id="products-table">
                             <thead>
                                 <tr>
                                     <th width="10px">#</th>
                                     <th>Nama</th>
+                                    <th>Hierarki</th>
                                     <th>Merk</th>
-                                    <th>Harga</th>
-                                    <th>Stok</th>
+                                    <th>Jumlah Varian</th>
                                     <th>Status</th>
                                     <th>Foto</th>
                                     <th width="10px">Action</th>
@@ -397,7 +397,7 @@
                 }
             });
 
-            $('.table').DataTable({
+            $('#products-table').DataTable({
                 responsive: true,
                 processing: true,
                 serverSide: true,
@@ -481,7 +481,7 @@
 
             // Edit button handler
             let variantIndexEdit = 0;
-            $('.table').on('click', '.edit[data-id]', function(e) {
+            $('#products-table').on('click', '.edit[data-id]', function(e) {
                 e.preventDefault();
                 $.ajax({
                     data: {
@@ -595,7 +595,7 @@
             });
 
             // Cascading selects for edit removed as hierarchy is flat
-            $('.table').on('click', '.hapus[data-id]', function(e) {
+            $('#products-table').on('click', '.hapus[data-id]', function(e) {
                 e.preventDefault();
                 swal({
                     title: "Hapus Produk?",
