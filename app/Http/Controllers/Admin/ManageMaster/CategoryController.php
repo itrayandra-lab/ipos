@@ -60,4 +60,10 @@ class CategoryController extends Controller
         return response()->json(['message' => 'Kategori berhasil dihapus']);
     }
 
+    public function getSubCategories(Request $request)
+    {
+        $id = $request->id;
+        $subs = SubCategory::where('category_id', $id)->orderBy('name', 'ASC')->get();
+        return response()->json($subs);
+    }
 }

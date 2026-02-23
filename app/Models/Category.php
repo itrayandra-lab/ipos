@@ -11,7 +11,6 @@ class Category extends Model
 
     protected $fillable = ['name', 'slug', 'description'];
 
-
     protected static function boot()
     {
         parent::boot();
@@ -20,5 +19,10 @@ class Category extends Model
                 $category->slug = \Illuminate\Support\Str::slug($category->name);
             }
         });
+    }
+
+    public function subCategories()
+    {
+        return $this->hasMany(SubCategory::class);
     }
 }

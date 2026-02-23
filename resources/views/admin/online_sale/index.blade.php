@@ -17,7 +17,7 @@
             <h2 class="section-title">Rekam Penjualan Marketplace</h2>
             <p class="section-lead">Pilih platform, lalu ketik untuk mencari produk dan batch spesifik.</p>
 
-            <form action="{{ route('admin.online_sale.store') }}" method="POST">
+            <form action="{{ route('admin.online_sale.store') }}" method="POST" enctype="multipart/form-data">
                 @csrf
                 <div class="row">
                     <div class="col-12 col-md-4">
@@ -52,6 +52,12 @@
                                 <div class="form-group">
                                     <label>Nomor Pesanan / Catatan</label>
                                     <textarea name="notes" class="form-control" placeholder="Contoh: No Pesanan platform" style="height: 100px;">{{ old('notes') }}</textarea>
+                                </div>
+
+                                <div class="form-group">
+                                    <label>Bukti Pembayaran (Gambar/PDF)</label>
+                                    <input type="file" name="payment_receipt" class="form-control">
+                                    <small class="text-muted">Maksimal 2MB (JPG, PNG, PDF)</small>
                                 </div>
                             </div>
                         </div>

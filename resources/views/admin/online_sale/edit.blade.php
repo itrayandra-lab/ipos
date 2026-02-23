@@ -19,7 +19,7 @@
             <h2 class="section-title">Edit Rekam Penjualan Marketplace</h2>
             <p class="section-lead">Lakukan perubahan pada data transaksi. Stok akan otomatis disesuaikan.</p>
 
-            <form action="{{ route('admin.online_sale.update', $transaction->id) }}" method="POST">
+            <form action="{{ route('admin.online_sale.update', $transaction->id) }}" method="POST" enctype="multipart/form-data">
                 @csrf
                 <div class="row">
                     <div class="col-12 col-md-4">
@@ -50,6 +50,18 @@
                                 <div class="form-group">
                                     <label>Nomor Pesanan / Catatan</label>
                                     <textarea name="notes" class="form-control" placeholder="Contoh: No Pesanan platform" style="height: 100px;">{{ $transaction->notes }}</textarea>
+                                </div>
+                                <div class="form-group">
+                                    <label>Bukti Pembayaran (Gambar/PDF)</label>
+                                    @if($transaction->payment_receipt)
+                                        <div class="mb-2">
+                                            <a href="{{ asset($transaction->payment_receipt) }}" target="_blank" class="btn btn-sm btn-info">
+                                                <i class="fas fa-file-image"></i> Lihat Bukti Saat Ini
+                                            </a>
+                                        </div>
+                                    @endif
+                                    <input type="file" name="payment_receipt" class="form-control">
+                                    <small class="text-muted">Pilih file baru untuk mengganti. Maksimal 2MB (JPG, PNG, PDF)</small>
                                 </div>
                             </div>
                         </div>

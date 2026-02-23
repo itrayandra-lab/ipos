@@ -41,7 +41,7 @@ class StoreSettingController extends Controller
             $file = $request->file('logo');
             $filename = 'logo-' . time() . '.' . $file->getClientOriginalExtension();
             $file->move(public_path('assets/img/store'), $filename);
-            
+
             // Delete old logo if exists and not default
             if ($setting->logo_path && file_exists(public_path($setting->logo_path)) && strpos($setting->logo_path, 'logo-black.png') === false) {
                 unlink(public_path($setting->logo_path));

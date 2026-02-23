@@ -7,6 +7,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Product;
 use App\Models\ProductBatch;
 use App\Models\Category;
+use App\Models\Merek;
 use App\Models\Transaction;
 use App\Models\TransactionItem;
 use App\Models\Voucher;
@@ -20,6 +21,7 @@ class PosController extends Controller
     public function index()
     {
         $categories = Category::orderBy('name', 'asc')->get();
+        $merek = Merek::orderBy('name', 'asc')->get();
         $isSales = auth()->user()->isSales();
         $posRoutes = [
             'products' => route($isSales ? 'sales.pos.products' : 'admin.pos.products'),
@@ -28,7 +30,7 @@ class PosController extends Controller
             'verify_voucher' => route($isSales ? 'sales.pos.verify-voucher' : 'admin.pos.verify-voucher'),
         ];
         $affiliates = \App\Models\Affiliate::where('is_active', true)->orderBy('name')->get();
-        return view('admin.pos.index', compact('categories', 'posRoutes', 'affiliates', 'isSales'))->with('sb', 'POS');
+        return view('admin.pos.index', compact('categories', 'merek', 'posRoutes', 'affiliates', 'isSales'))->with('sb', 'POS');
     }
 
     private function getPosChannel()
@@ -43,7 +45,6 @@ class PosController extends Controller
         $channel = \App\Models\ChannelSetting::first();
         return $channel ? $channel->slug : 'offline';
     }
-
     public function fetchProducts(Request $request)
     {
         $channelSlug = $this->getPosChannel();
@@ -58,6 +59,10 @@ class PosController extends Controller
 
         if ($request->category_id) {
             $query->where('category_id', $request->category_id);
+        }
+
+        if ($request->merek_id) {
+            $query->where('merek_id', $request->merek_id);
         }
 
         $products = $query->where('status', 'Y')
@@ -82,7 +87,6 @@ class PosController extends Controller
 
         return response()->json($products);
     }
-
     public function store(Request $request)
     {
         $validator = Validator::make($request->all(), [
@@ -195,8 +199,6 @@ class PosController extends Controller
                     $product->decrement('stock', $qty);
                 }
             }
-            
-
             // Apply discounts
                 $finalDiscount = (float)($request->discount_manual ?? 0);
                 if ($request->voucher_code) {
@@ -239,17 +241,10 @@ class PosController extends Controller
                             
                             // Increment usage count
                             $voucher->increment('usage_count');
-                        } else {
-                            // If user provided a code but no products are eligible, 
-                            // we can either throw exception or just not apply.
-                            // User request implies "if products determined, then only those".
-                            // So if none in cart match, discount is 0.
                         }
                     }
                 }
 
-                // Final Total Calculation
-                // Base - Discount + (Fee if ADD_TO_PRICE)
                 $finalTotal = $totalAmount - $finalDiscount;
 
                 $transaction = Transaction::create([
@@ -287,7 +282,6 @@ class PosController extends Controller
             return response()->json(['success' => false, 'message' => $e->getMessage()], 500);
         }
     }
-
     public function verifyVoucher(Request $request)
     {
         $validator = Validator::make($request->all(), [
@@ -308,14 +302,12 @@ class PosController extends Controller
             return response()->json(['success' => false, 'message' => 'Voucher tidak ditemukan atau tidak aktif'], 404);
         }
 
-        // Check date range
         $now = now();
         if (($voucher->start_date && $now->lt($voucher->start_date)) || 
             ($voucher->end_date && $now->gt($voucher->end_date))) {
             return response()->json(['success' => false, 'message' => 'Voucher tidak dapat digunakan saat ini'], 400);
         }
 
-        // Check usage limit
         if ($voucher->usage_limit && $voucher->usage_count >= $voucher->usage_limit) {
             return response()->json(['success' => false, 'message' => 'Voucher telah mencapai batas penggunaan'], 400);
         }

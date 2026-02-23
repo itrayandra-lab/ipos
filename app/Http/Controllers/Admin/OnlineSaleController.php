@@ -10,16 +10,18 @@ use App\Models\Transaction;
 use App\Models\TransactionItem;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Validator;
+use Illuminate\Support\Facades\File;
+use App\Services\InvoiceService;
 
 class OnlineSaleController extends Controller
 {
-    public function index()
+    public function create()
     {
         $products = Product::where('status', 'Y')
             ->orderBy('name', 'asc')
-            ->with(['batches' => function($q) {
-                $q->orderBy('batch_no', 'asc');
-            }])
+            ->with(['batches' => function ($q) {
+            $q->orderBy('batch_no', 'asc');
+        }])
             ->get();
 
         $channels = \App\Models\ChannelSetting::all();
@@ -59,6 +61,7 @@ class OnlineSaleController extends Controller
             'items' => 'required|array|min:1',
             'items.*.product_batch_id' => 'required|exists:product_batches,id',
             'items.*.qty' => 'required|integer|min:1',
+            'payment_receipt' => 'nullable|file|mimes:jpg,jpeg,png,pdf|max:2048',
         ]);
 
         if ($validator->fails()) {
@@ -66,7 +69,15 @@ class OnlineSaleController extends Controller
         }
 
         try {
-            DB::transaction(function() use ($request) {
+            $receiptPath = null;
+            if ($request->hasFile('payment_receipt')) {
+                $file = $request->file('payment_receipt');
+                $filename = time() . '_' . $file->getClientOriginalName();
+                $file->move(public_path('uploads/receipts'), $filename);
+                $receiptPath = 'uploads/receipts/' . $filename;
+            }
+
+            DB::transaction(function () use ($request, $receiptPath) {
                 $totalAmount = 0;
                 $itemsToCreate = [];
 
@@ -100,45 +111,54 @@ class OnlineSaleController extends Controller
                     'delivery_type' => 'delivery',
                     'delivery_desc' => 'Online Marketplace Sale',
                     'midtrans_order_id' => 'MARKET-' . strtoupper($request->source) . '-' . uniqid(),
+                    'payment_receipt' => $receiptPath,
                     'created_at' => $request->transaction_date ?? now(),
+                ]);
+
+                // Generate invoice number
+                $transaction->update([
+                    'invoice_number' => InvoiceService::generate(
+                    \Carbon\Carbon::parse($transaction->created_at)
+                ),
                 ]);
 
                 foreach ($itemsToCreate as $itemData) {
                     $itemData['transaction_id'] = $transaction->id;
                     TransactionItem::create($itemData);
-                    
+
                     // Deduct batch stock
                     ProductBatch::where('id', $itemData['product_batch_id'])->decrement('qty', $itemData['qty']);
-                    
+
                     // Deduct global stock
                     Product::where('id', $itemData['product_id'])->decrement('stock', $itemData['qty']);
                 }
             });
 
-            return redirect()->route('admin.online_sale.history')->with('message', 'Transaksi online berhasil dicatat');
-        } catch (\Exception $e) {
+            return redirect()->route('admin.online_sale.index')->with('message', 'Transaksi online berhasil dicatat');
+        }
+        catch (\Exception $e) {
             return redirect()->back()->with('error', $e->getMessage())->withInput();
         }
     }
-    public function history()
+    public function index()
     {
         $transactions = Transaction::where('source', '!=', 'offline')
             ->with(['items.product', 'items.batch'])
             ->latest()
             ->get();
-        return view('admin.online_sale.history', compact('transactions'))->with('sb', 'OnlineSaleHistory');
+        return view('admin.online_sale.history', compact('transactions'))->with('sb', 'OnlineSale');
     }
 
     public function edit($id)
     {
         $transaction = Transaction::where('source', '!=', 'offline')->with('items.product', 'items.batch')->findOrFail($id);
-        
+
         // Reuse product list logic from index
         $products = Product::where('status', 'Y')
             ->orderBy('name', 'asc')
-            ->with(['batches' => function($q) {
-                $q->orderBy('batch_no', 'asc');
-            }])
+            ->with(['batches' => function ($q) {
+            $q->orderBy('batch_no', 'asc');
+        }])
             ->get();
 
         $channels = \App\Models\ChannelSetting::all();
@@ -165,7 +185,7 @@ class OnlineSaleController extends Controller
             }
         }
 
-        return view('admin.online_sale.edit', compact('transaction', 'products', 'batchList', 'channels'))->with('sb', 'OnlineSaleHistory');
+        return view('admin.online_sale.edit', compact('transaction', 'products', 'batchList', 'channels'))->with('sb', 'OnlineSale');
     }
 
     public function update(Request $request, $id)
@@ -177,6 +197,7 @@ class OnlineSaleController extends Controller
             'items' => 'required|array|min:1',
             'items.*.product_batch_id' => 'required|exists:product_batches,id',
             'items.*.qty' => 'required|integer|min:1',
+            'payment_receipt' => 'nullable|file|mimes:jpg,jpeg,png,pdf|max:2048',
         ]);
 
         if ($validator->fails()) {
@@ -186,7 +207,20 @@ class OnlineSaleController extends Controller
         $transaction = Transaction::where('source', '!=', 'offline')->with('items')->findOrFail($id);
 
         try {
-            DB::transaction(function() use ($request, $transaction) {
+            $receiptPath = $transaction->payment_receipt;
+            if ($request->hasFile('payment_receipt')) {
+                // Delete old file
+                if ($receiptPath && File::exists(public_path($receiptPath))) {
+                    File::delete(public_path($receiptPath));
+                }
+
+                $file = $request->file('payment_receipt');
+                $filename = time() . '_' . $file->getClientOriginalName();
+                $file->move(public_path('uploads/receipts'), $filename);
+                $receiptPath = 'uploads/receipts/' . $filename;
+            }
+
+            DB::transaction(function () use ($request, $transaction, $receiptPath) {
                 // 1. Revert Stock
                 foreach ($transaction->items as $oldItem) {
                     ProductBatch::where('id', $oldItem->product_batch_id)->increment('qty', $oldItem->qty);
@@ -228,12 +262,14 @@ class OnlineSaleController extends Controller
                     'source' => $request->source,
                     'notes' => $request->notes,
                     'total_amount' => $totalAmount,
+                    'payment_receipt' => $receiptPath,
                     'created_at' => $request->transaction_date,
                 ]);
             });
 
-            return redirect()->route('admin.online_sale.history')->with('message', 'Transaksi online berhasil diperbarui');
-        } catch (\Exception $e) {
+            return redirect()->route('admin.online_sale.index')->with('message', 'Transaksi online berhasil diperbarui');
+        }
+        catch (\Exception $e) {
             return redirect()->back()->with('error', $e->getMessage())->withInput();
         }
     }
@@ -243,19 +279,20 @@ class OnlineSaleController extends Controller
         $transaction = Transaction::where('source', '!=', 'offline')->with('items')->findOrFail($id);
 
         try {
-            DB::transaction(function() use ($transaction) {
+            DB::transaction(function () use ($transaction) {
                 // Revert stock
                 foreach ($transaction->items as $item) {
                     ProductBatch::where('id', $item->product_batch_id)->increment('qty', $item->qty);
                     Product::where('id', $item->product_id)->increment('stock', $item->qty);
                 }
-                
+
                 $transaction->items()->delete();
                 $transaction->delete();
             });
 
-            return redirect()->route('admin.online_sale.history')->with('message', 'Transaksi berhasil dihapus dan stok dikembalikan');
-        } catch (\Exception $e) {
+            return redirect()->route('admin.online_sale.index')->with('message', 'Transaksi berhasil dihapus dan stok dikembalikan');
+        }
+        catch (\Exception $e) {
             return redirect()->back()->with('error', 'Gagal menghapus transaksi: ' . $e->getMessage());
         }
     }

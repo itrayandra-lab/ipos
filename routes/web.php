@@ -9,6 +9,7 @@ use App\Http\Controllers\Admin\DashboardController as DashboardAdmin;
 use App\Http\Controllers\Admin\ManageMaster\UserController as UserAdmin;
 use App\Http\Controllers\Admin\ManageMaster\MerekController as MerekAdmin;
 use App\Http\Controllers\Admin\ManageMaster\CategoryController as CategoryAdmin;
+use App\Http\Controllers\Admin\ManageMaster\SubCategoryController as SubCategoryAdmin;
 use App\Http\Controllers\Admin\ManageMaster\ProductTypeController as ProductTypeAdmin;
 use App\Http\Controllers\Admin\ManageMaster\ProductController as ProductAdmin;
 use App\Http\Controllers\Admin\ManageMaster\VoucherController as VoucherAdmin;
@@ -23,6 +24,7 @@ use App\Http\Controllers\Admin\StoreSettingController as StoreSettingAdmin;
 use App\Http\Controllers\Admin\PosController as PosAdmin;
 use App\Http\Controllers\Admin\AffiliateController as AffiliateAdmin;
 use App\Http\Controllers\Admin\CustomerController as CustomerAdmin;
+use App\Http\Controllers\Admin\SalesDocumentController as SalesDocumentAdmin;
 
 # Sales Controllers
 use App\Http\Controllers\Sales\DashboardController as DashboardSales;
@@ -82,6 +84,15 @@ Route::prefix('admin')->middleware(['auth', 'role:admin'])->group(function () {
                     Route::get('get-subs', [CategoryAdmin::class , 'getSubCategories'])->name('admin.categories.get-subs');
                 }
                 );
+                Route::prefix('sub-categories')->group(function () {
+                    Route::get('/', [SubCategoryAdmin::class , 'index']);
+                    Route::post('/', [SubCategoryAdmin::class , 'create']);
+                    Route::get('all', [SubCategoryAdmin::class , 'getall']);
+                    Route::post('get', [SubCategoryAdmin::class , 'get']);
+                    Route::post('update', [SubCategoryAdmin::class , 'update']);
+                    Route::delete('/', [SubCategoryAdmin::class , 'delete']);
+                }
+                );
                 Route::prefix('product-types')->group(function () {
                     Route::get('/', [ProductTypeAdmin::class , 'index']);
                     Route::post('/', [ProductTypeAdmin::class , 'create']);
@@ -119,6 +130,16 @@ Route::prefix('admin')->middleware(['auth', 'role:admin'])->group(function () {
                     Route::delete('/', [BatchAdmin::class , 'delete'])->name('admin.batches.delete');
                 }
                 );
+                Route::prefix('stock')->group(function () {
+                    Route::get('/', [\App\Http\Controllers\Admin\ManageMaster\StockController::class , 'index']);
+                    Route::get('/all', [\App\Http\Controllers\Admin\ManageMaster\StockController::class , 'getall']);
+                    Route::post('/', [\App\Http\Controllers\Admin\ManageMaster\StockController::class , 'create']);
+                    Route::post('/get', [\App\Http\Controllers\Admin\ManageMaster\StockController::class , 'get']);
+                    Route::post('/update', [\App\Http\Controllers\Admin\ManageMaster\StockController::class , 'update']);
+                    Route::delete('/', [\App\Http\Controllers\Admin\ManageMaster\StockController::class , 'delete']);
+                    Route::get('/variants/{product_id}', [\App\Http\Controllers\Admin\ManageMaster\StockController::class , 'getVariants']);
+                }
+                );
 
                 Route::prefix('attribute-groups')->group(function () {
                     Route::get('/', [AttributeGroupAdmin::class , 'index'])->name('admin.manage_master.attribute_groups.index');
@@ -144,8 +165,9 @@ Route::prefix('admin')->middleware(['auth', 'role:admin'])->group(function () {
 
             Route::prefix('online-sale')->group(function () {
             Route::get('/', [OnlineSaleAdmin::class , 'index'])->name('admin.online_sale.index');
+            Route::get('/history', [OnlineSaleAdmin::class , 'index']); // Legacy compatibility
             Route::post('/', [OnlineSaleAdmin::class , 'store'])->name('admin.online_sale.store');
-            Route::get('/history', [OnlineSaleAdmin::class , 'history'])->name('admin.online_sale.history');
+            Route::get('/create', [OnlineSaleAdmin::class , 'create'])->name('admin.online_sale.create');
             Route::get('/edit/{id}', [OnlineSaleAdmin::class , 'edit'])->name('admin.online_sale.edit');
             Route::post('/update/{id}', [OnlineSaleAdmin::class , 'update'])->name('admin.online_sale.update');
             Route::delete('/{id}', [OnlineSaleAdmin::class , 'destroy'])->name('admin.online_sale.destroy');
@@ -201,7 +223,42 @@ Route::prefix('admin')->middleware(['auth', 'role:admin'])->group(function () {
         }
         );
 
-        Route::prefix('pos')->group(function () {
+        // Sales Documents (Penjualan)
+        Route::prefix('sales')->group(function () {
+            Route::prefix('invoices')->group(function () {
+                    Route::get('/', [SalesDocumentAdmin::class , 'invoices'])->name('admin.sales.invoices.index');
+                    Route::get('/all', [SalesDocumentAdmin::class , 'getInvoices'])->name('admin.sales.invoices.all');
+                    Route::get('/create', [SalesDocumentAdmin::class , 'createInvoice'])->name('admin.sales.invoices.create');
+                    Route::post('/', [SalesDocumentAdmin::class , 'storeInvoice'])->name('admin.sales.invoices.store');
+                    Route::get('/show/{id}', [SalesDocumentAdmin::class , 'showInvoice'])->name('admin.sales.invoices.show');
+                    Route::delete('/{id}', [SalesDocumentAdmin::class , 'destroyInvoice'])->name('admin.sales.invoices.destroy');
+                    Route::get('/print/{id}', [SalesDocumentAdmin::class , 'printInvoice'])->name('admin.sales.invoices.print');
+                }
+                );
+                Route::prefix('delivery-notes')->group(function () {
+                    Route::get('/', [SalesDocumentAdmin::class , 'deliveryNotes'])->name('admin.sales.delivery_notes.index');
+                    Route::get('/all', [SalesDocumentAdmin::class , 'getDeliveryNotes'])->name('admin.sales.delivery_notes.all');
+                    Route::get('/print/{id}', [SalesDocumentAdmin::class , 'printDeliveryNote'])->name('admin.sales.delivery_notes.print');
+                }
+                );
+                Route::prefix('receipts')->group(function () {
+                    Route::get('/', [SalesDocumentAdmin::class , 'receipts'])->name('admin.sales.receipts.index');
+                    Route::get('/all', [SalesDocumentAdmin::class , 'getReceipts'])->name('admin.sales.receipts.all');
+                    Route::get('/print/{id}', [SalesDocumentAdmin::class , 'printReceipt'])->name('admin.sales.receipts.print');
+                }
+                );
+                Route::prefix('lab-invoices')->group(function () {
+                    Route::get('/', [SalesDocumentAdmin::class , 'labInvoices'])->name('admin.sales.lab_invoices.index');
+                    Route::get('/all', [SalesDocumentAdmin::class , 'getLabInvoices'])->name('admin.sales.lab_invoices.all');
+                    Route::get('/create', [SalesDocumentAdmin::class , 'createLabInvoice'])->name('admin.sales.lab_invoices.create');
+                    Route::post('/store', [SalesDocumentAdmin::class , 'storeLabInvoice'])->name('admin.sales.lab_invoices.store');
+                    Route::get('/print/{id}', [SalesDocumentAdmin::class , 'printLabInvoice'])->name('admin.sales.lab_invoices.print');
+                }
+                );
+            }
+            );
+
+            Route::prefix('pos')->group(function () {
             Route::get('/', [PosAdmin::class , 'index'])->name('admin.pos.index');
             Route::get('/products', [PosAdmin::class , 'fetchProducts'])->name('admin.pos.products');
             Route::post('/verify-voucher', [PosAdmin::class , 'verifyVoucher'])->name('admin.pos.verify-voucher');
@@ -209,7 +266,45 @@ Route::prefix('admin')->middleware(['auth', 'role:admin'])->group(function () {
             Route::get('/receipt/{id}', [PosAdmin::class , 'printReceipt'])->name('admin.pos.receipt');
         }
         );
-    });
+
+        // Purchasing Module
+        Route::prefix('purchasing')->group(function () {
+            // Suppliers
+            Route::controller(\App\Http\Controllers\Admin\Purchasing\SupplierController::class)->group(function () {
+                    Route::get('/suppliers', 'index')->name('admin.purchasing.suppliers.index');
+                    Route::get('/suppliers/all', 'getall')->name('admin.purchasing.suppliers.getall');
+                    Route::post('/suppliers', 'create')->name('admin.purchasing.suppliers.create');
+                    Route::post('/suppliers/get', 'get')->name('admin.purchasing.suppliers.get');
+                    Route::post('/suppliers/update', 'update')->name('admin.purchasing.suppliers.update');
+                    Route::post('/suppliers/delete', 'delete')->name('admin.purchasing.suppliers.delete');
+                }
+                );
+
+                // Purchase Orders
+                Route::controller(\App\Http\Controllers\Admin\Purchasing\PurchaseOrderController::class)->group(function () {
+                    Route::get('/purchase-orders', 'index')->name('admin.purchasing.purchase_orders.index');
+                    Route::get('/purchase-orders/create', 'create')->name('admin.purchasing.purchase_orders.create');
+                    Route::get('/purchase-orders/all', 'getall')->name('admin.purchasing.purchase_orders.getall');
+                    Route::get('/purchase-orders/products', 'getProducts')->name('admin.purchasing.purchase_orders.get_products');
+                    Route::post('/purchase-orders', 'store')->name('admin.purchasing.purchase_orders.store');
+                    Route::post('/purchase-orders/delete', 'delete')->name('admin.purchasing.purchase_orders.delete');
+                    Route::get('/purchase-orders/{id}', 'show')->name('admin.purchasing.purchase_orders.show');
+                }
+                );
+
+                // Goods Receipts
+                Route::controller(\App\Http\Controllers\Admin\Purchasing\GoodsReceiptController::class)->group(function () {
+                    Route::get('/goods-receipts', 'index')->name('admin.purchasing.goods_receipts.index');
+                    Route::get('/goods-receipts/create', 'create')->name('admin.purchasing.goods_receipts.create');
+                    Route::get('/goods-receipts/all', 'getall')->name('admin.purchasing.goods_receipts.getall');
+                    Route::get('/goods-receipts/po-items', 'getPoItems')->name('admin.purchasing.goods_receipts.get_po_items');
+                    Route::post('/goods-receipts', 'store')->name('admin.purchasing.goods_receipts.store');
+                    Route::get('/goods-receipts/{id}', 'show')->name('admin.purchasing.goods_receipts.show');
+                }
+                );
+            }
+            );
+        });
 
 # -------------------- SALES --------------------
 Route::prefix('sales')->middleware(['auth', 'role:sales'])->group(function () {

@@ -9,7 +9,7 @@ class ProductNetto extends Model
 {
     use HasFactory;
 
-    protected $fillable = ['product_id', 'netto_value'];
+    protected $fillable = ['product_id', 'netto_value', 'satuan'];
 
     public function product()
     {

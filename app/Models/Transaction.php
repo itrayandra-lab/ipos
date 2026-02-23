@@ -10,6 +10,14 @@ class Transaction extends Model
     use HasFactory;
 
     protected $fillable = [
+        'invoice_number',
+        'due_date',
+        'transaction_type',
+        'down_payment',
+        'is_dp',
+        'tax_type',
+        'tax_amount',
+        'discount_type',
         'user_id',
         'customer_id',
         'customer_name',
@@ -25,6 +33,7 @@ class Transaction extends Model
         'discount',
         'midtrans_order_id',
         'midtrans_transaction_id',
+        'payment_receipt',
         'affiliate_id',
         'affiliate_fee_total',
         'affiliate_fee_mode',

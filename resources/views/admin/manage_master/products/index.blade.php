@@ -126,7 +126,15 @@
                                     </select>
                                 </div>
                             </div>
-                            <div class="col-md-6">
+                            <div class="col-md-4">
+                                <div class="form-group">
+                                    <label>Sub Kategori</label>
+                                    <select class="form-control" name="sub_category_id" id="add-sub-category">
+                                        <option value="">Pilih Sub Kategori</option>
+                                    </select>
+                                </div>
+                            </div>
+                            <div class="col-md-4">
                                 <div class="form-group">
                                     <label>Tipe Produk</label>
                                     <select class="form-control" name="product_type_id" id="add-product-type" required>
@@ -151,7 +159,7 @@
                                     <thead>
                                         <tr>
                                             <th>Netto</th>
-                                            <th>Nama Varian</th>
+                                            <th>Satuan</th>
                                             <th>SKU Code</th>
                                             <th>Harga Jual (Rp)</th>
                                             <th width="50px"></th>
@@ -159,8 +167,15 @@
                                     </thead>
                                     <tbody>
                                         <tr>
-                                            <td><input type="text" name="variants[0][netto]" class="form-control form-control-sm" placeholder="100ml" required></td>
-                                            <td><input type="text" name="variants[0][name]" class="form-control form-control-sm" placeholder="Original" required></td>
+                                            <td><input type="text" name="variants[0][netto]" class="form-control form-control-sm" placeholder="100" required></td>
+                                            <td>
+                                                <select name="variants[0][satuan]" class="form-control form-control-sm" style="height: calc(1.5em + 0.5rem + 2px);" required>
+                                                    <option value="">Pilih Satuan</option>
+                                                    @foreach($netto_attributes as $attr)
+                                                        <option value="{{ $attr->name }}">{{ $attr->name }}</option>
+                                                    @endforeach
+                                                </select>
+                                            </td>
                                             <td><input type="text" name="variants[0][sku]" class="form-control form-control-sm" placeholder="SKU001" required></td>
                                             <td>
                                                 <input type="text" class="form-control form-control-sm rupiah-variant" placeholder="Rp 0" required>
@@ -234,10 +249,10 @@
                         </div>
 
                         <div class="row">
-                            <div class="col-md-6">
+                            <div class="col-md-4">
                                 <div class="form-group">
                                     <label>Kategori</label>
-                                    <select class="form-control select-category" id="edit-category" required>
+                                    <select class="form-control select-category" name="category_id" id="edit-category" required>
                                         <option value="">Pilih Kategori</option>
                                         @foreach ($categories as $c)
                                             <option value="{{ $c->id }}">{{ $c->name }}</option>
@@ -245,7 +260,15 @@
                                     </select>
                                 </div>
                             </div>
-                            <div class="col-md-6">
+                            <div class="col-md-4">
+                                <div class="form-group">
+                                    <label>Sub Kategori</label>
+                                    <select class="form-control" name="sub_category_id" id="edit-sub-category">
+                                        <option value="">Pilih Sub Kategori</option>
+                                    </select>
+                                </div>
+                            </div>
+                            <div class="col-md-4">
                                 <div class="form-group">
                                     <label>Tipe Produk</label>
                                     <select class="form-control" name="product_type_id" id="edit-product-type" required>
@@ -270,7 +293,7 @@
                                     <thead>
                                         <tr>
                                             <th>Netto</th>
-                                            <th>Nama Varian</th>
+                                            <th>Satuan</th>
                                             <th>SKU Code</th>
                                             <th>Harga Jual (Rp)</th>
                                             <th width="50px"></th>
@@ -417,15 +440,44 @@
                 ]
             });
 
-            // Cascading selects removed as hierarchy is now flat/standalone
+            // Cascading selects for hierarchy
+            function loadSubCategories(categoryId, targetSelect, selectedId = null) {
+                if (!categoryId) {
+                    $(targetSelect).html('<option value="">Pilih Sub Kategori</option>');
+                    return;
+                }
+                
+                $.get("{{ url('admin/manage-master/categories/get-subs') }}", { id: categoryId }, function(data) {
+                    let options = '<option value="">Pilih Sub Kategori</option>';
+                    data.forEach(sub => {
+                        options += `<option value="${sub.id}" ${selectedId == sub.id ? 'selected' : ''}>${sub.name}</option>`;
+                    });
+                    $(targetSelect).html(options);
+                });
+            }
+
+            $('#add-category').on('change', function() {
+                loadSubCategories($(this).val(), '#add-sub-category');
+            });
+
+            $('#edit-category').on('change', function() {
+                loadSubCategories($(this).val(), '#edit-sub-category');
+            });
 
             // Variant Grid Management
             let variantIndex = 1;
             $('#btn-add-variant').on('click', function() {
                 let html = `
                     <tr>
-                        <td><input type="text" name="variants[${variantIndex}][netto]" class="form-control form-control-sm" placeholder="100ml" required></td>
-                        <td><input type="text" name="variants[${variantIndex}][name]" class="form-control form-control-sm" placeholder="Original" required></td>
+                        <td><input type="text" name="variants[${variantIndex}][netto]" class="form-control form-control-sm" placeholder="100" required></td>
+                        <td>
+                            <select name="variants[${variantIndex}][satuan]" class="form-control form-control-sm" style="height: calc(1.5em + 0.5rem + 2px);" required>
+                                <option value="">Pilih Satuan</option>
+                                @foreach($netto_attributes as $attr)
+                                    <option value="{{ $attr->name }}">{{ $attr->name }}</option>
+                                @endforeach
+                            </select>
+                        </td>
                         <td><input type="text" name="variants[${variantIndex}][sku]" class="form-control form-control-sm" placeholder="SKU${variantIndex+1}" required></td>
                         <td>
                             <input type="text" class="form-control form-control-sm rupiah-variant" placeholder="Rp 0" required>
@@ -505,17 +557,26 @@
                         
                         // Populate Hierarchy
                         $('#edit-category').val(data.category_id);
+                        loadSubCategories(data.category_id, '#edit-sub-category', data.sub_category_id);
                         $('#edit-product-type').val(data.product_type_id);
 
                         // Populate Variants
                         $('#table-variants-edit tbody').empty();
                         variantIndexEdit = 0;
                         data.variants.forEach((v, index) => {
-                            let netVal = v.product_netto ? v.product_netto.netto_value : '';
+                            let netVal = v.netto ? v.netto.netto_value : '';
+                            let satuanVal = v.netto ? v.netto.satuan : '';
                             let html = `
                                 <tr>
                                     <td><input type="text" name="variants[${index}][netto]" value="${netVal}" class="form-control form-control-sm" required></td>
-                                    <td><input type="text" name="variants[${index}][name]" value="${v.variant_name}" class="form-control form-control-sm" required></td>
+                                    <td>
+                                        <select name="variants[${index}][satuan]" class="form-control form-control-sm satuan-select-edit" style="height: calc(1.5em + 0.5rem + 2px);" data-satuan="${satuanVal}" required>
+                                            <option value="">Pilih Satuan</option>
+                                            @foreach($netto_attributes as $attr)
+                                                <option value="{{ $attr->name }}">{{ $attr->name }}</option>
+                                            @endforeach
+                                        </select>
+                                    </td>
                                     <td><input type="text" name="variants[${index}][sku]" value="${v.sku_code}" class="form-control form-control-sm" required></td>
                                     <td>
                                         <input type="text" value="${formatRupiah(v.price)}" class="form-control form-control-sm rupiah-variant" required>
@@ -526,6 +587,14 @@
                             `;
                             $('#table-variants-edit tbody').append(html);
                             variantIndexEdit = index + 1;
+                        });
+                        
+                        // Set satuan dropdown values
+                        $('.satuan-select-edit').each(function() {
+                            let satuan = $(this).data('satuan');
+                            if (satuan) {
+                                $(this).val(satuan);
+                            }
                         });
 
                         $('#deleted_photos').val('');
@@ -549,8 +618,15 @@
             $('#btn-add-variant-edit').on('click', function() {
                 let html = `
                     <tr>
-                        <td><input type="text" name="variants[${variantIndexEdit}][netto]" class="form-control form-control-sm" required></td>
-                        <td><input type="text" name="variants[${variantIndexEdit}][name]" class="form-control form-control-sm" required></td>
+                        <td><input type="text" name="variants[${variantIndexEdit}][netto]" class="form-control form-control-sm" placeholder="100" required></td>
+                        <td>
+                            <select name="variants[${variantIndexEdit}][satuan]" class="form-control form-control-sm" style="height: calc(1.5em + 0.5rem + 2px);" required>
+                                <option value="">Pilih Satuan</option>
+                                @foreach($netto_attributes as $attr)
+                                    <option value="{{ $attr->name }}">{{ $attr->name }}</option>
+                                @endforeach
+                            </select>
+                        </td>
                         <td><input type="text" name="variants[${variantIndexEdit}][sku]" class="form-control form-control-sm" required></td>
                         <td>
                             <input type="text" class="form-control form-control-sm rupiah-variant" placeholder="Rp 0" required>
