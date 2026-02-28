@@ -77,7 +77,6 @@
                 <ul class="dropdown-menu">
                     <li class="{{ $sb == 'Transaction' ? 'active' : '' }}"><a class="nav-link" href="{{ url('admin/transactions') }}">Data Transaksi</a></li>
                     <li class="{{ $sb == 'SalesInvoices' ? 'active' : '' }}"><a class="nav-link" href="{{ route('admin.sales.invoices.index') }}">Invoice Penjualan</a></li>
-                    <li class="{{ $sb == 'SalesLabInvoices' ? 'active' : '' }}"><a class="nav-link" href="{{ route('admin.sales.lab_invoices.index') }}">Invoice Lab Formulasi</a></li>
                     <li class="{{ $sb == 'SalesDeliveryNotes' ? 'active' : '' }}"><a class="nav-link" href="{{ route('admin.sales.delivery_notes.index') }}">Surat Jalan</a></li>
                     <li class="{{ $sb == 'SalesReceipts' ? 'active' : '' }}"><a class="nav-link" href="{{ route('admin.sales.receipts.index') }}">Kuitansi</a></li>
                     <li class="{{ $sb == 'Voucher' ? 'active' : '' }}"><a class="nav-link" href="{{ url('admin/manage-master/voucher') }}">Voucher / Diskon</a></li>

@@ -1,5 +1,24 @@
 @extends('master')
 
+@push('styles')
+<style>
+    /* Fix Select2 text wrapping */
+    .select2-container .select2-selection--single {
+        height: auto !important;
+        min-height: 38px !important;
+    }
+    .select2-container--default .select2-selection--single .select2-selection__rendered {
+        white-space: normal !important;
+        word-wrap: break-word !important;
+        line-height: 1.4 !important;
+        padding: 8px 12px !important;
+    }
+    #items-table th, #items-table td {
+        vertical-align: middle !important;
+    }
+</style>
+@endpush
+
 @section('content')
 <div class="main-content">
     <section class="section">
@@ -156,11 +175,11 @@
                             <table class="table table-bordered" id="items-table">
                                 <thead class="bg-light">
                                     <tr>
-                                        <th>Produk & Varian</th>
-                                        <th style="width:100px">Qty</th>
-                                        <th style="width:180px">Harga Satuan (Rp)</th>
-                                        <th style="width:180px">Total</th>
-                                        <th style="width:50px"></th>
+                                        <th style="width: 40%">Produk & Varian</th>
+                                        <th style="width:15%">Qty</th>
+                                        <th style="width:20%">Harga Satuan (Rp)</th>
+                                        <th style="width:20%">Total</th>
+                                        <th style="width:5%"></th>
                                     </tr>
                                 </thead>
                                 <tbody id="item-rows">
@@ -211,6 +230,10 @@
                                 <div id="dp-summary-row" class="d-flex justify-content-between mt-2 text-info" style="display:none !important;">
                                     <span>Bayar DP</span>
                                     <span id="label-dp-paid">Rp 0</span>
+                                </div>
+                                <div id="sisa-summary-row" class="d-flex justify-content-between mt-1 text-warning font-weight-bold" style="display:none !important;">
+                                    <span>Sisa Pelunasan</span>
+                                    <span id="label-sisa-balance">Rp 0</span>
                                 </div>
                             </div>
                         </div>
@@ -325,11 +348,17 @@ const batchData = @json($batchList);
         if ($('#payment_status').val() === 'credit') {
             $('#dp-section').slideDown();
             $('#dp-summary-row').attr('style', 'display: flex !important;');
+            $('#sisa-summary-row').attr('style', 'display: flex !important;');
             let dp = parseFloat($('#down_payment_amount').val()) || 0;
+            let sisa = grand - dp;
+            if (sisa < 0) sisa = 0;
+
             $('#label-dp-paid').text('Rp ' + formatNumber(dp));
+            $('#label-sisa-balance').text('Rp ' + formatNumber(sisa));
         } else {
             $('#dp-section').slideUp();
             $('#dp-summary-row').attr('style', 'display: none !important;');
+            $('#sisa-summary-row').attr('style', 'display: none !important;');
         }
     }
 
@@ -354,7 +383,9 @@ const batchData = @json($batchList);
             </td>
         </tr>`;
         $('#item-rows').append(row);
-        $('.select2-items').select2();
+        $('.select2-items').last().select2({
+            width: '100%'
+        });
         recalc();
     }
 
@@ -380,10 +411,10 @@ const batchData = @json($batchList);
 
         // DP Percent logic
         $('#dp_percent').on('input', function() {
-            let p = parseFloat($(this).val()) || 0;
-            let sub = parseFloat($('#label-subtotal').text().replace(/[^\d]/g, '')) || 0;
-            $('#down_payment_amount').val(sub * (p/100));
-            recalc();
+        let p = parseFloat($(this).val()) || 0;
+        let grand = parseFloat($('#label-grand-total').text().replace(/[^\d]/g, '')) || 0;
+        $('#down_payment_amount').val(Math.round(grand * (p / 100)));
+        recalc();
         });
 
         $('#calc-dp-50').on('click', function() {

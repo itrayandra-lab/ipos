@@ -8,6 +8,7 @@ use App\Models\Product;
 use App\Models\ProductBatch;
 use App\Models\Category;
 use App\Models\Merek;
+use App\Models\Customer;
 use App\Models\Transaction;
 use App\Models\TransactionItem;
 use App\Models\Voucher;
@@ -20,6 +21,47 @@ class PosController extends Controller
 {
     public function index()
     {
+        $customers = Customer::orderBy('name')->get();
+        
+        $batches = ProductBatch::with(['product.merek', 'variant'])
+            ->where('qty', '>', 0)
+            ->whereHas('product', fn($q) => $q->where('status', 'Y'))
+            ->get()
+            ->sortBy(fn($batch) => ($batch->product->merek->name ?? '') . ' ' . ($batch->product->name ?? ''));
+
+        $batchList = [];
+        foreach ($batches as $batch) {
+            $product     = $batch->product;
+            $merekName   = ($product && $product->merek) ? trim($product->merek->name) : '';
+            $productName = trim($product->name ?? '');
+            $variantName = $batch->variant ? trim($batch->variant->variant_name) : '';
+            
+            $originalParts = array_filter([$merekName, $productName, $variantName]);
+            $finalParts = [];
+            foreach ($originalParts as $p1) {
+                $isSubPart = false;
+                foreach ($originalParts as $p2) {
+                    if ($p1 !== $p2 && stripos($p2, $p1) !== false && strlen($p2) > strlen($p1)) {
+                        $isSubPart = true;
+                        break;
+                    }
+                }
+                if (!$isSubPart) {
+                    $finalParts[] = $p1;
+                }
+            }
+            $labelText = implode(' ', array_unique($finalParts));
+            $batchList[] = [
+                'id'        => $batch->id,
+                'text'      => $labelText . ' (' . $batch->batch_no . ' - ' . $batch->qty . ')',
+                'price'     => $batch->variant->price ?? ($product->price_real > 0 ? $product->price_real : $product->price),
+                'stock'     => $batch->qty,
+                'buy_price' => $batch->buy_price ?? 0,
+                'product_id' => $product->id,
+                'batch_no'  => $batch->batch_no,
+            ];
+        }
+
         $categories = Category::orderBy('name', 'asc')->get();
         $merek = Merek::orderBy('name', 'asc')->get();
         $isSales = auth()->user()->isSales();
@@ -30,7 +72,7 @@ class PosController extends Controller
             'verify_voucher' => route($isSales ? 'sales.pos.verify-voucher' : 'admin.pos.verify-voucher'),
         ];
         $affiliates = \App\Models\Affiliate::where('is_active', true)->orderBy('name')->get();
-        return view('admin.pos.index', compact('categories', 'merek', 'posRoutes', 'affiliates', 'isSales'))->with('sb', 'POS');
+        return view('admin.pos.index', compact('customers', 'batchList', 'categories', 'merek', 'posRoutes', 'affiliates', 'isSales'))->with('sb', 'POS');
     }
 
     private function getPosChannel()

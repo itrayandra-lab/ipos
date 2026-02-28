@@ -231,6 +231,8 @@ Route::prefix('admin')->middleware(['auth', 'role:admin'])->group(function () {
                     Route::get('/create', [SalesDocumentAdmin::class , 'createInvoice'])->name('admin.sales.invoices.create');
                     Route::post('/', [SalesDocumentAdmin::class , 'storeInvoice'])->name('admin.sales.invoices.store');
                     Route::get('/show/{id}', [SalesDocumentAdmin::class , 'showInvoice'])->name('admin.sales.invoices.show');
+                    Route::post('/upload-receipt/{id}', [SalesDocumentAdmin::class , 'uploadReceipt'])->name('admin.sales.invoices.upload-receipt');
+                    Route::post('/settle/{id}', [SalesDocumentAdmin::class , 'settlePayment'])->name('admin.sales.invoices.settle');
                     Route::delete('/{id}', [SalesDocumentAdmin::class , 'destroyInvoice'])->name('admin.sales.invoices.destroy');
                     Route::get('/print/{id}', [SalesDocumentAdmin::class , 'printInvoice'])->name('admin.sales.invoices.print');
                 }
@@ -238,6 +240,12 @@ Route::prefix('admin')->middleware(['auth', 'role:admin'])->group(function () {
                 Route::prefix('delivery-notes')->group(function () {
                     Route::get('/', [SalesDocumentAdmin::class , 'deliveryNotes'])->name('admin.sales.delivery_notes.index');
                     Route::get('/all', [SalesDocumentAdmin::class , 'getDeliveryNotes'])->name('admin.sales.delivery_notes.all');
+                    Route::get('/create', [SalesDocumentAdmin::class , 'createDeliveryNote'])->name('admin.sales.delivery_notes.create');
+                    Route::post('/', [SalesDocumentAdmin::class , 'storeDeliveryNote'])->name('admin.sales.delivery_notes.store');
+                    Route::get('/show/{id}', [SalesDocumentAdmin::class , 'showDeliveryNote'])->name('admin.sales.delivery_notes.show');
+                    Route::get('/edit/{id}', [SalesDocumentAdmin::class , 'editDeliveryNote'])->name('admin.sales.delivery_notes.edit');
+                    Route::put('/{id}', [SalesDocumentAdmin::class , 'updateDeliveryNote'])->name('admin.sales.delivery_notes.update');
+                    Route::delete('/{id}', [SalesDocumentAdmin::class , 'destroyDeliveryNote'])->name('admin.sales.delivery_notes.destroy');
                     Route::get('/print/{id}', [SalesDocumentAdmin::class , 'printDeliveryNote'])->name('admin.sales.delivery_notes.print');
                 }
                 );

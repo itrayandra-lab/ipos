@@ -17,5 +17,5 @@
       Psy\Exception\ParseErrorException::fromParseError(Object(PhpParser\Error))
 
   2   C:\Users\hp 745\Herd\ipos\vendor\psy\psysh\src\CodeCleaner.php:269
-      Psy\CodeCleaner::parse("<?php print_r(App\Models\User::all()-;
+      Psy\CodeCleaner::parse("<?php print_r(App\Models\TransactionPayment::all()-;
 ")

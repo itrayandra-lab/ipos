@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\StoreSetting;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Facades\File;
 
 class StoreSettingController extends Controller
 {
@@ -40,11 +41,20 @@ class StoreSettingController extends Controller
         if ($request->hasFile('logo')) {
             $file = $request->file('logo');
             $filename = 'logo-' . time() . '.' . $file->getClientOriginalExtension();
-            $file->move(public_path('assets/img/store'), $filename);
+
+            $path = public_path('assets/img/store');
+            if (!File::exists($path)) {
+                File::makeDirectory($path, 0755, true);
+            }
+
+            $file->move($path, $filename);
 
             // Delete old logo if exists and not default
-            if ($setting->logo_path && file_exists(public_path($setting->logo_path)) && strpos($setting->logo_path, 'logo-black.png') === false) {
-                unlink(public_path($setting->logo_path));
+            if ($setting->logo_path) {
+                $oldPath = public_path($setting->logo_path);
+                if (File::exists($oldPath) && strpos($setting->logo_path, 'logo-black.png') === false) {
+                    File::delete($oldPath);
+                }
             }
 
             $data['logo_path'] = 'assets/img/store/' . $filename;

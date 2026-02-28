@@ -412,17 +412,32 @@
 @push('scripts')
 <script>
     let cart = JSON.parse(localStorage.getItem('pos_cart')) || [];
-    let products = [];
+    let batchList = @json($batchList);
+    let batchesGrouped = {}; // Group by product+variant
     let affiliates = @json($affiliates);
     let affiliateProductRates = {};
     let voucherDiscount = 0;
 
+    // Group batches by product+variant combination
+    batchList.forEach(batch => {
+        let key = batch.text.split('(')[0].trim(); // Merek + Product + Variant
+        if (!batchesGrouped[key]) {
+            batchesGrouped[key] = {
+                display_name: key,
+                price: batch.price,
+                product_id: batch.product_id,
+                batches: []
+            };
+        }
+        batchesGrouped[key].batches.push(batch);
+    });
+
     $(document).ready(function() {
-        loadProducts();
+        renderProducts();
         renderCart();
 
-        $('#search-product').on('input', loadProducts);
-        $('#filter-merek').on('change', loadProducts);
+        $('#search-product').on('input', renderProducts);
+        $('#filter-merek').on('change', renderProducts);
         $('#btn-clear-cart').on('click', clearCart);
         $('#btn-new-order').on('click', () => {
             location.reload();
@@ -610,44 +625,48 @@
         return 0;
     }
 
-    function loadProducts() {
-        let search = $('#search-product').val();
-        let mrkId = $('#filter-merek').val();
-        $.ajax({
-            url: '{{ $posRoutes["products"] }}',
-            data: { search: search, merek_id: mrkId },
-            success: function(res) {
-                products = res;
-                renderProducts();
-            }
-        });
-    }
-
     function renderProducts() {
+        let search = $('#search-product').val().toLowerCase();
+        let mrkId = $('#filter-merek').val();
+        
         let container = $('#product-list');
         container.empty();
-        if (products.length === 0) {
+        
+        let filtered = Object.values(batchesGrouped).filter(item => {
+            let matchSearch = !search || item.display_name.toLowerCase().includes(search);
+            let matchMerek = !mrkId || item.batches.some(b => {
+                // Check if any batch in this group matches the merek filter
+                return batchList.find(bl => bl.id === b.id && bl.text.toLowerCase().includes(search));
+            });
+            return matchSearch && item.batches.length > 0;
+        });
+
+        if (filtered.length === 0) {
             container.append('<div class="col-12 text-center py-4">Produk tidak ditemukan</div>');
             return;
         }
 
-        products.forEach(p => {
-            let img = p.photos.length > 0 ? '{{ asset("") }}' + p.photos[0].foto : '{{ asset("assets/img/Asset 3.png") }}';
-            let batchOptions = p.batches.map(b => `<option value="${b.id}" data-stock="${b.qty}">Batch: ${b.batch_no} (Sisa: ${b.qty})</option>`).join('');
+        filtered.forEach((item, idx) => {
+            let img = '{{ asset("assets/img/Asset 3.png") }}'; // Default image
+            let batchOptions = item.batches.map(b => 
+                `<option value="${b.id}" data-stock="${b.stock}" data-price="${b.price}">${b.text.split('(')[1]}</option>`
+            ).join('');
+            
+            let uniqueId = 'variant-' + idx;
 
             let card = `
                 <div class="col-6 col-md-4 mb-3">
                     <div class="card product-card h-100 mb-0 position-relative">
-                        <div class="img-container" onclick="addToCart(${p.id})">
-                            <img src="${img}" alt="${p.name}">
+                        <div class="img-container" onclick="addToCartFromVariant('${uniqueId}')">
+                            <img src="${img}" alt="${item.display_name}">
                         </div>
                         <div class="card-body p-2">
-                            <div class="font-weight-bold" style="font-size: 0.8rem; height: 2.2rem; overflow: hidden;">${p.name}</div>
-                            <div class="text-primary product-price mt-1 font-weight-bold small">Rp ${parseInt(p.offline_price).toLocaleString('id-ID')}</div>
-                            <select class="form-control form-control-sm mt-1 batch-selector" id="batch-for-${p.id}" style="font-size: 0.7rem; height: auto; padding: 2px 5px;">
+                            <div class="font-weight-bold" style="font-size: 0.8rem; height: 2.2rem; overflow: hidden;">${item.display_name}</div>
+                            <div class="text-primary product-price mt-1 font-weight-bold small">Rp ${parseInt(item.price).toLocaleString('id-ID')}</div>
+                            <select class="form-control form-control-sm mt-1 batch-selector" id="${uniqueId}" data-product-id="${item.product_id}" style="font-size: 0.7rem; height: auto; padding: 2px 5px;">
                                 ${batchOptions}
                             </select>
-                            <button class="btn btn-warning btn-sm btn-block mt-2 py-1" onclick="addToCart(${p.id})">
+                            <button class="btn btn-warning btn-sm btn-block mt-2 py-1" onclick="addToCartFromVariant('${uniqueId}')">
                                 <i class="fas fa-plus"></i>
                             </button>
                         </div>
@@ -658,36 +677,43 @@
         });
     }
 
-    function addToCart(productId) {
-        let product = products.find(p => p.id == productId);
-        if (!product) return;
-        let batchId = $('#batch-for-' + productId).val();
-        let batch = product.batches.find(b => b.id == batchId);
+    function addToCartFromVariant(uniqueId) {
+        let selector = $('#' + uniqueId);
+        let batchId = selector.val();
+        let productId = selector.data('product-id');
         
-        if (!batch) {
+        if (!batchId) {
             iziToast.error({ title: 'Error', message: 'Pilih batch!', position: 'topRight' });
             return;
         }
 
+        let batch = batchList.find(b => b.id == batchId);
+        if (!batch) return;
+
         let existing = cart.find(item => item.batch_id == batchId);
         if (existing) {
-            if (existing.qty >= batch.qty) {
+            if (existing.qty >= batch.stock) {
                 iziToast.warning({ message: 'Stok Habis', position: 'topRight' });
                 return;
             }
             existing.qty++;
         } else {
-            if (batch.qty <= 0) {
+            if (batch.stock <= 0) {
                 iziToast.warning({ message: 'Stok Habis', position: 'topRight' });
                 return;
             }
             cart.push({
-                product_id: product.id, batch_id: batch.id, name: product.name,
-                price: product.offline_price, qty: 1, stock: batch.qty
+                product_id: productId,
+                batch_id: batch.id,
+                name: batch.text.split('(')[0].trim(),
+                price: batch.price,
+                qty: 1,
+                stock: batch.stock
             });
         }
-        saveCart(); renderCart();
-        iziToast.success({ message: product.name + ' ditambahkan', position: 'topRight', timeout: 500 });
+        saveCart();
+        renderCart();
+        iziToast.success({ message: 'Ditambahkan ke keranjang', position: 'topRight', timeout: 500 });
     }
 
     function renderCart() {
