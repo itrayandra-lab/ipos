@@ -39,8 +39,17 @@ class CategoryController extends Controller
 
     public function create(Request $request)
     {
-        Category::create($request->all());
-        return redirect()->back()->with('message', 'Kategori berhasil ditambahkan');
+        $request->validate([
+            'name' => 'required|string|max:255',
+            'description' => 'nullable|string',
+        ]);
+
+        try {
+            Category::create($request->all());
+            return redirect()->back()->with('message', 'Kategori berhasil ditambahkan');
+        } catch (\Exception $e) {
+            return redirect()->back()->with('error', 'Gagal menambahkan kategori: ' . $e->getMessage());
+        }
     }
 
     public function get(Request $request)
@@ -50,8 +59,18 @@ class CategoryController extends Controller
 
     public function update(Request $request)
     {
-        Category::find($request->id)->update($request->all());
-        return redirect()->back()->with('message', 'Kategori berhasil diperbarui');
+        $request->validate([
+            'id' => 'required|exists:categories,id',
+            'name' => 'required|string|max:255',
+            'description' => 'nullable|string',
+        ]);
+
+        try {
+            Category::find($request->id)->update($request->all());
+            return redirect()->back()->with('message', 'Kategori berhasil diperbarui');
+        } catch (\Exception $e) {
+            return redirect()->back()->with('error', 'Gagal memperbarui kategori: ' . $e->getMessage());
+        }
     }
 
     public function delete(Request $request)

@@ -15,8 +15,17 @@ return new class extends Migration
         // 1. Add category_id to products if it doesn't exist
         if (!Schema::hasColumn('products', 'category_id')) {
             Schema::table('products', function (Blueprint $table) {
-                $table->foreignId('category_id')->nullable()->after('merek_id')->constrained('categories')->onDelete('set null');
+                $table->unsignedBigInteger('category_id')->nullable()->after('merek_id');
             });
+            
+            // Add foreign key separately to avoid duplicate key error
+            try {
+                Schema::table('products', function (Blueprint $table) {
+                    $table->foreign('category_id')->references('id')->on('categories')->onDelete('set null');
+                });
+            } catch (\Exception $e) {
+                // Foreign key already exists, skip
+            }
         }
 
         // 2. Try to sync existing category data before dropping sub_categories
@@ -33,12 +42,16 @@ return new class extends Migration
         }
 
         // 3. Remove sub_category_id from product_types
-        Schema::table('product_types', function (Blueprint $table) {
-            if (Schema::hasColumn('product_types', 'sub_category_id')) {
-                $table->dropForeign(['sub_category_id']);
+        if (Schema::hasColumn('product_types', 'sub_category_id')) {
+            Schema::table('product_types', function (Blueprint $table) {
+                try {
+                    $table->dropForeign(['sub_category_id']);
+                } catch (\Exception $e) {
+                    // Foreign key doesn't exist, skip
+                }
                 $table->dropColumn('sub_category_id');
-            }
-        });
+            });
+        }
 
         // 4. Drop sub_categories table
         Schema::dropIfExists('sub_categories');
@@ -61,13 +74,21 @@ return new class extends Migration
             $table->timestamps();
         });
 
-        Schema::table('product_types', function (Blueprint $table) {
-            $table->foreignId('sub_category_id')->nullable()->constrained('sub_categories')->onDelete('cascade');
-        });
+        if (!Schema::hasColumn('product_types', 'sub_category_id')) {
+            Schema::table('product_types', function (Blueprint $table) {
+                $table->foreignId('sub_category_id')->nullable()->constrained('sub_categories')->onDelete('cascade');
+            });
+        }
 
-        Schema::table('products', function (Blueprint $table) {
-            $table->dropForeign(['category_id']);
-            $table->dropColumn('category_id');
-        });
+        if (Schema::hasColumn('products', 'category_id')) {
+            Schema::table('products', function (Blueprint $table) {
+                try {
+                    $table->dropForeign(['category_id']);
+                } catch (\Exception $e) {
+                    // Foreign key doesn't exist, skip
+                }
+                $table->dropColumn('category_id');
+            });
+        }
     }
 };
