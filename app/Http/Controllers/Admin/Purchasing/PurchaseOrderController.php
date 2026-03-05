@@ -43,6 +43,7 @@ class PurchaseOrderController extends Controller
                         </button>
                         <ul class="dropdown-menu">
                             <li><a href="' . route('admin.purchasing.purchase_orders.show', $po->id) . '" class="dropdown-item">Detail</a></li>
+                            <li><a href="' . route('admin.purchasing.purchase_orders.print', $po->id) . '" target="_blank" class="dropdown-item">Print PO</a></li>
                             <li><a href="#" data-id="' . $po->id . '" class="dropdown-item btn-delete text-danger">Hapus</a></li>
                         </ul>
                     </div>';
@@ -173,6 +174,15 @@ class PurchaseOrderController extends Controller
         $po = PurchaseOrder::with(['supplier', 'creator', 'items'])->findOrFail($id);
         return view('admin.purchasing.purchase_orders.show', compact('po'))->with('sb', 'PurchaseOrder');
     }
+
+    public function print($id)
+    {
+        $po = PurchaseOrder::with(['supplier', 'items'])->findOrFail($id);
+        $storeSetting = \App\Models\StoreSetting::find(1);
+        return view('admin.purchasing.purchase_orders.print', compact('po', 'storeSetting'));
+    }
+
+
 
     public function delete(Request $request)
     {

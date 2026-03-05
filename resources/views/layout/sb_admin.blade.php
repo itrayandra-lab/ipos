@@ -72,13 +72,14 @@
                 </ul>
             </li>
 
-            <li class="nav-item dropdown {{ ($sb == 'Transaction' || $sb == 'SalesInvoices' || $sb == 'SalesDeliveryNotes' || $sb == 'SalesReceipts' || $sb == 'SalesLabInvoices' || $sb == 'Voucher') ? 'active' : '' }}">
+            <li class="nav-item dropdown {{ ($sb == 'Transaction' || $sb == 'SalesInvoices' || $sb == 'SalesDeliveryNotes' || $sb == 'SalesReceipts' || $sb == 'SalesLabInvoices' || $sb == 'Voucher' || $sb == 'OnlineSale') ? 'active' : '' }}">
                 <a href="#" class="nav-link has-dropdown"><i class="fas fa-money-bill-wave"></i> <span>Penjualan</span></a>
                 <ul class="dropdown-menu">
                     <li class="{{ $sb == 'Transaction' ? 'active' : '' }}"><a class="nav-link" href="{{ url('admin/transactions') }}">Data Transaksi</a></li>
                     <li class="{{ $sb == 'SalesInvoices' ? 'active' : '' }}"><a class="nav-link" href="{{ route('admin.sales.invoices.index') }}">Invoice Penjualan</a></li>
                     <li class="{{ $sb == 'SalesDeliveryNotes' ? 'active' : '' }}"><a class="nav-link" href="{{ route('admin.sales.delivery_notes.index') }}">Surat Jalan</a></li>
                     <li class="{{ $sb == 'SalesReceipts' ? 'active' : '' }}"><a class="nav-link" href="{{ route('admin.sales.receipts.index') }}">Kuitansi</a></li>
+                    <li class="{{ $sb == 'OnlineSale' ? 'active' : '' }}"><a class="nav-link" href="{{ route('admin.online_sale.index') }}">Marketplace</a></li>
                     <li class="{{ $sb == 'Voucher' ? 'active' : '' }}"><a class="nav-link" href="{{ url('admin/manage-master/voucher') }}">Voucher / Diskon</a></li>
                 </ul>
             </li>
@@ -101,17 +102,11 @@
                     <li class="{{ Request::is('admin/settings/store') ? 'active' : '' }}"><a class="nav-link" href="{{ route('admin.settings.store') }}">Toko</a></li>
                 </ul>
             </li>
-
-            <li {{ $sb == 'OnlineSale' ? 'class=active' : '' }}>
-                <a class="nav-link" href="{{ route('admin.online_sale.index') }}">
-                    <i class="fas fa-shopping-bag"></i> <span>Marketplace</span>
-                </a>
-            </li>
-
             <li {{ $sb == 'POS' ? 'class=active' : '' }}>
                 <a class="nav-link" href="{{ route('admin.pos.index') }}">
                     <i class="fas fa-desktop"></i> <span>Tampilan Kasir</span>
                 </a>
+            </li>/a>
             </li>
         </ul>
         <div class="hide-sidebar-mini mt-4 mb-4 p-3">

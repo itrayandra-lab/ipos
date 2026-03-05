@@ -49,6 +49,9 @@ Route::post('/midtrans/callback', [GuestController::class , 'callback'])->name('
 Route::get('/checkout-success', [GuestController::class , 'success'])->name('checkout.success');
 Route::post('/voucher', [GuestController::class , 'voucher'])->name('checkout.voucher');
 
+# Share Links (Public - No Auth Required)
+
+
 # -------------------- ADMIN --------------------
 Route::prefix('admin')->middleware(['auth', 'role:admin'])->group(function () {
     # Dashboard
@@ -297,6 +300,7 @@ Route::prefix('admin')->middleware(['auth', 'role:admin'])->group(function () {
                     Route::post('/purchase-orders', 'store')->name('admin.purchasing.purchase_orders.store');
                     Route::post('/purchase-orders/delete', 'delete')->name('admin.purchasing.purchase_orders.delete');
                     Route::get('/purchase-orders/{id}', 'show')->name('admin.purchasing.purchase_orders.show');
+                    Route::get('/purchase-orders/{id}/print', 'print')->name('admin.purchasing.purchase_orders.print');
                 }
                 );
 

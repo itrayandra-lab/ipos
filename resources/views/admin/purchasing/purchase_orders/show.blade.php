@@ -117,17 +117,14 @@
                                         <div class="invoice-detail-name">Total</div>
                                         <div class="invoice-detail-value invoice-detail-value-lg">Rp {{ rtrim(rtrim(number_format($po->total, 2, ',', '.'), '0'), ',') }}</div>
                                     </div>
+                                    <hr class="mt-4 mb-4">
+                                    <div class="text-right">
+                                        <a href="{{ route('admin.purchasing.purchase_orders.print', $po->id) }}" target="_blank" class="btn btn-primary btn-icon icon-left"><i class="fas fa-print"></i> Print PO</a>
+                                    </div>
                                 </div>
                             </div>
                         </div>
                     </div>
-                </div>
-                <hr>
-                <div class="text-md-right">
-                    <div class="float-lg-left mb-lg-0 mb-3">
-                        <button class="btn btn-primary btn-icon icon-left" onclick="window.print()"><i class="fas fa-print"></i> Cetak PO</button>
-                    </div>
-                    <button class="btn btn-danger btn-icon icon-left"><i class="fas fa-times"></i> Batalkan PO</button>
                 </div>
             </div>
         </div>
