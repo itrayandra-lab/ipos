@@ -313,7 +313,7 @@
             <div class="header-info">
                 <table>
                     <tr>
-                        <td>Referensi</td>
+                        <td>Nomer PO</td>
                         <td>{{ $po->po_number }}</td>
                     </tr>
                     <tr>
