@@ -40,6 +40,12 @@ class Transaction extends Model
         'created_at',
     ];
 
+    protected $casts = [
+        'created_at' => 'datetime',
+        'updated_at' => 'datetime',
+        'due_date' => 'datetime',
+    ];
+
     public function user()
     {
         return $this->belongsTo(User::class);

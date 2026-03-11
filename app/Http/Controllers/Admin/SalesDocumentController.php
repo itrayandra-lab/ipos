@@ -52,9 +52,10 @@ class SalesDocumentController extends Controller
                 })
                 ->addColumn('action', function ($row) {
                     $show  = '<a href="' . route('admin.sales.invoices.show', $row->id) . '" class="btn btn-sm btn-info" title="Detail"><i class="fas fa-eye"></i></a>';
+                    $edit  = '<a href="' . route('admin.sales.invoices.edit', $row->id) . '" class="btn btn-sm btn-warning" title="Edit"><i class="fas fa-edit"></i></a>';
                     $print = '<a href="' . route('admin.sales.invoices.print', $row->id) . '" target="_blank" class="btn btn-sm btn-primary" title="Cetak"><i class="fas fa-print"></i></a>';
                     $del   = '<button onclick="deleteInvoice(' . $row->id . ')" class="btn btn-sm btn-danger" title="Hapus"><i class="fas fa-trash"></i></button>';
-                    return $show . ' ' . $print . ' ' . $del;
+                    return $show . ' ' . $edit . ' ' . $print . ' ' . $del;
                 })
                 ->rawColumns(['payment_status', 'action'])
                 ->make(true);
@@ -202,6 +203,135 @@ class SalesDocumentController extends Controller
             ->findOrFail($id);
         $setting = StoreSetting::getActiveSetting();
         return view('admin.sales.invoice.show', compact('transaction', 'setting'))->with('sb', 'SalesInvoices');
+    }
+
+    public function editInvoice($id)
+    {
+        $transaction = Transaction::with(['customer', 'items.product.merek', 'items.batch.variant'])
+            ->findOrFail($id);
+        
+        $customers = Customer::orderBy('name')->get();
+        
+        $batches = ProductBatch::with(['product.merek', 'variant'])
+            ->where('qty', '>', 0)
+            ->whereHas('product', fn($q) => $q->where('status', 'Y'))
+            ->get()
+            ->sortBy(fn($batch) => ($batch->product->merek->name ?? '') . ' ' . ($batch->product->name ?? ''));
+
+        $batchList = [];
+        foreach ($batches as $batch) {
+            $product     = $batch->product;
+            $merekName   = ($product && $product->merek) ? trim($product->merek->name) : '';
+            $productName = trim($product->name ?? '');
+            $variantName = $batch->variant ? trim($batch->variant->variant_name) : '';
+            
+            $originalParts = array_filter([$merekName, $productName, $variantName]);
+            $finalParts = [];
+            foreach ($originalParts as $p1) {
+                $isSubPart = false;
+                foreach ($originalParts as $p2) {
+                    if ($p1 !== $p2 && stripos($p2, $p1) !== false && strlen($p2) > strlen($p1)) {
+                        $isSubPart = true;
+                        break;
+                    }
+                }
+                if (!$isSubPart) {
+                    $finalParts[] = $p1;
+                }
+            }
+            $labelText = implode(' ', array_unique($finalParts));
+            $batchList[] = [
+                'id'        => $batch->id,
+                'text'      => $labelText . ' (' . $batch->batch_no . ' - ' . $batch->qty . ')',
+                'price'     => $batch->variant->price ?? ($product->price_real > 0 ? $product->price_real : $product->price),
+                'stock'     => $batch->qty,
+                'buy_price' => $batch->buy_price ?? 0,
+            ];
+        }
+
+        return view('admin.sales.invoice.edit', compact('transaction', 'customers', 'batchList'))
+            ->with('sb', 'SalesInvoices');
+    }
+
+    public function updateInvoice(Request $request, $id)
+    {
+        $transaction = Transaction::findOrFail($id);
+        
+        $request->validate([
+            'customer_id' => 'nullable|exists:customers,id',
+            'customer_name' => 'nullable|string|max:150',
+            'customer_phone' => 'nullable|string|max:30',
+            'transaction_date' => 'nullable|date',
+            'due_date' => 'nullable|date',
+            'payment_method' => 'required|string|max:50',
+            'payment_status' => 'required|in:draft,unpaid,paid,canceled,credit',
+            'notes' => 'nullable|string',
+            'items' => 'required|array|min:1',
+            'items.*.product_batch_id' => 'required|exists:product_batches,id',
+            'items.*.qty' => 'required|integer|min:1',
+            'items.*.price' => 'required|numeric|min:0',
+        ]);
+
+        try {
+            DB::transaction(function () use ($request, $transaction, $id) {
+                $totalAmount   = 0;
+                $itemsToCreate = [];
+                
+                foreach ($request->items as $item) {
+                    $batch    = ProductBatch::with('product')->findOrFail($item['product_batch_id']);
+                    $product  = $batch->product;
+                    $qty      = (int) $item['qty'];
+                    $price    = (float) $item['price'];
+                    $subtotal = $price * $qty;
+                    $totalAmount += $subtotal;
+                    $itemsToCreate[] = [
+                        'product_id'       => $product->id,
+                        'product_batch_id' => $batch->id,
+                        'buy_price'        => $batch->buy_price ?? 0,
+                        'qty'              => $qty,
+                        'price'            => $price,
+                        'subtotal'         => $subtotal,
+                    ];
+                }
+                
+                $taxAmount    = (float) ($request->tax_amount ?? 0);
+                $discountVal  = (float) ($request->discount ?? 0);
+                $taxType      = $request->tax_type ?? 'none';
+                $discountType = $request->discount_type ?? 'fixed';
+                $grandTotal   = ($totalAmount + $taxAmount) - $discountVal;
+                $txDate = $request->transaction_date ? Carbon::parse($request->transaction_date) : $transaction->created_at;
+                
+                $transaction->update([
+                    'customer_id'      => $request->customer_id,
+                    'customer_name'    => $request->customer_name,
+                    'customer_phone'   => $request->customer_phone,
+                    'notes'            => $request->notes,
+                    'total_amount'     => $grandTotal,
+                    'discount'         => $discountVal,
+                    'discount_type'    => $discountType,
+                    'tax_type'         => $taxType,
+                    'tax_amount'       => $taxAmount,
+                    'payment_status'   => $request->payment_status,
+                    'payment_method'   => $request->payment_method,
+                    'due_date'         => $request->due_date,
+                    'created_at'       => $txDate,
+                ]);
+                
+                // Hapus items lama
+                TransactionItem::where('transaction_id', $id)->delete();
+                
+                // Buat items baru
+                foreach ($itemsToCreate as $itemData) {
+                    $itemData['transaction_id'] = $transaction->id;
+                    TransactionItem::create($itemData);
+                }
+            });
+            
+            return redirect()->route('admin.sales.invoices.show', $transaction->id)
+                ->with('message', 'Invoice berhasil diperbarui: ' . $transaction->invoice_number);
+        } catch (\Exception $e) {
+            return redirect()->back()->with('error', $e->getMessage())->withInput();
+        }
     }
 
     public function printInvoice($id)

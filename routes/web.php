@@ -235,6 +235,8 @@ Route::prefix('admin')->middleware(['auth', 'role:admin'])->group(function () {
                     Route::get('/create', [SalesDocumentAdmin::class , 'createInvoice'])->name('admin.sales.invoices.create');
                     Route::post('/', [SalesDocumentAdmin::class , 'storeInvoice'])->name('admin.sales.invoices.store');
                     Route::get('/show/{id}', [SalesDocumentAdmin::class , 'showInvoice'])->name('admin.sales.invoices.show');
+                    Route::get('/edit/{id}', [SalesDocumentAdmin::class , 'editInvoice'])->name('admin.sales.invoices.edit');
+                    Route::put('/{id}', [SalesDocumentAdmin::class , 'updateInvoice'])->name('admin.sales.invoices.update');
                     Route::post('/upload-receipt/{id}', [SalesDocumentAdmin::class , 'uploadReceipt'])->name('admin.sales.invoices.upload-receipt');
                     Route::post('/settle/{id}', [SalesDocumentAdmin::class , 'settlePayment'])->name('admin.sales.invoices.settle');
                     Route::delete('/{id}', [SalesDocumentAdmin::class , 'destroyInvoice'])->name('admin.sales.invoices.destroy');
