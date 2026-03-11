@@ -171,13 +171,13 @@ class PurchaseOrderController extends Controller
 
     public function show($id)
     {
-        $po = PurchaseOrder::with(['supplier', 'creator', 'items'])->findOrFail($id);
+        $po = PurchaseOrder::with(['supplier', 'creator', 'items.product.merek'])->findOrFail($id);
         return view('admin.purchasing.purchase_orders.show', compact('po'))->with('sb', 'PurchaseOrder');
     }
 
     public function print($id)
     {
-        $po = PurchaseOrder::with(['supplier', 'items'])->findOrFail($id);
+        $po = PurchaseOrder::with(['supplier', 'items.product.merek'])->findOrFail($id);
         $storeSetting = \App\Models\StoreSetting::find(1);
         return view('admin.purchasing.purchase_orders.print', compact('po', 'storeSetting'));
     }

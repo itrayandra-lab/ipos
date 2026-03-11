@@ -378,7 +378,13 @@
             @foreach($po->items as $item)
             <tr>
                 <td>
-                    <strong>{{ $item->product_name }}</strong>
+                    <strong>
+                        @if($item->product && $item->product->merek)
+                            {{ $item->product->merek->name }} {{ $item->product_name }}
+                        @else
+                            {{ $item->product_name }}
+                        @endif
+                    </strong>
                     @if($item->description)
                         <br><small>{{ $item->description }}</small>
                     @endif

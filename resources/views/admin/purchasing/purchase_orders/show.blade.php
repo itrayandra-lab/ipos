@@ -9,7 +9,7 @@
             <div class="section-header-back">
                 <a href="{{ route('admin.purchasing.purchase_orders.index') }}" class="btn btn-icon"><i class="fas fa-arrow-left"></i></a>
             </div>
-            <h1>Purchase Order #{{ $po->po_number }}</h1>
+            <h1>Purchase Order {{ $po->po_number }}</h1>
             <div class="section-header-breadcrumb">
                 <div class="breadcrumb-item"><a href="#">Pembelian</a></div>
                 <div class="breadcrumb-item"><a href="{{ route('admin.purchasing.purchase_orders.index') }}">Order Pembelian</a></div>
@@ -24,7 +24,7 @@
                         <div class="col-lg-12">
                             <div class="invoice-title">
                                 <h2>Purchase Order</h2>
-                                <div class="invoice-number">Order #{{ $po->po_number }}</div>
+                                <div class="invoice-number">Order {{ $po->po_number }}</div>
                             </div>
                             <hr>
                             <div class="row">
@@ -78,7 +78,13 @@
                                     <tr>
                                         <td>{{ $index + 1 }}</td>
                                         <td>
-                                            <strong>{{ $item->product_name }}</strong><br>
+                                            <strong>
+                                                @if($item->product && $item->product->merek)
+                                                    {{ $item->product->merek->name }} {{ $item->product_name }}
+                                                @else
+                                                    {{ $item->product_name }}
+                                                @endif
+                                            </strong><br>
                                             <small>{{ $item->description }}</small>
                                         </td>
                                         <td class="text-center">{{ $item->satuan }}</td>
