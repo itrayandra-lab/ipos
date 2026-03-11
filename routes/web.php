@@ -223,6 +223,7 @@ Route::prefix('admin')->middleware(['auth', 'role:admin'])->group(function () {
             Route::get('all', [TransactionAdmin::class , 'getall']);
             Route::get('print', [TransactionAdmin::class , 'print']);
             Route::get('show/{id}', [TransactionAdmin::class , 'show']);
+            Route::get('print-struk/{id}', [TransactionAdmin::class , 'printStruk'])->name('admin.transactions.print_struk');
         }
         );
 

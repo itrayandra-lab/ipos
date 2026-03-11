@@ -55,7 +55,15 @@ class TransactionController extends Controller
                 return $transaction->user_name;
             })
             ->addColumn('action', function ($transaction) {
-                return '<a href="' . url('admin/transactions/show/'. $transaction->id) . '" class="btn btn-sm btn-primary">Detail</a>';
+                return '<div class="dropdown d-inline dropleft">
+                    <button type="button" class="btn btn-primary btn-sm dropdown-toggle" data-toggle="dropdown">
+                        Action
+                    </button>
+                    <ul class="dropdown-menu">
+                        <li><a href="' . url('admin/transactions/show/'. $transaction->id) . '" class="dropdown-item">Detail</a></li>
+                        <li><a href="' . route('admin.transactions.print_struk', $transaction->id) . '" target="_blank" class="dropdown-item">Print Struk</a></li>
+                    </ul>
+                </div>';
             })
             ->editColumn('created_at', function ($transaction) {
                 return Carbon::parse($transaction->created_at)->format('d-m-Y H:i');
@@ -108,5 +116,12 @@ class TransactionController extends Controller
         $transactions = $query->orderBy('id', 'desc')->get();
 
         return view('admin.transaction.print', compact('transactions'));
+    }
+
+    public function printStruk($id)
+    {
+        $transaction = Transaction::with(['user', 'customer', 'items.product', 'items.batch', 'payments'])->findOrFail($id);
+        $storeSetting = \App\Models\StoreSetting::find(1);
+        return view('admin.transaction.print_struk', compact('transaction', 'storeSetting'));
     }
 }
