@@ -77,6 +77,10 @@
                             <label>Email (Opsional)</label>
                             <input type="email" name="email" id="email" class="form-control">
                         </div>
+                        <div class="form-group">
+                            <label>Alamat (Opsional)</label>
+                            <textarea name="address" id="address" class="form-control" rows="3" placeholder="Masukkan alamat lengkap"></textarea>
+                        </div>
                     </div>
                     <div class="modal-footer bg-whitesmoke br">
                         <button type="button" class="btn btn-secondary" data-dismiss="modal">Batal</button>
@@ -155,6 +159,7 @@
                         $('#name').val(res.name);
                         $('#phone').val(res.phone);
                         $('#email').val(res.email);
+                        $('#address').val(res.address);
                         $('#modal-form').modal('show');
                     }
                 });

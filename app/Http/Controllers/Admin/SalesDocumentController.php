@@ -514,8 +514,9 @@ class SalesDocumentController extends Controller
                     })
                     ->addColumn('action', function ($row) {
                         $printBtn = '<a href="' . route('admin.sales.delivery_notes.print', $row->id) . '" target="_blank" class="btn btn-sm btn-primary" title="Cetak Surat Jalan"><i class="fas fa-print"></i></a>';
+                        $editBtn = '<a href="' . route('admin.sales.delivery_notes.edit', $row->id) . '" class="btn btn-sm btn-warning ml-1" title="Edit"><i class="fas fa-edit"></i></a>';
                         $deleteBtn = '<button type="button" onclick="deleteDeliveryNote(' . $row->id . ')" class="btn btn-sm btn-danger ml-1" title="Hapus"><i class="fas fa-trash"></i></button>';
-                        return $printBtn . ' ' . $deleteBtn;
+                        return $printBtn . ' ' . $editBtn . ' ' . $deleteBtn;
                     })
                     ->rawColumns(['action'])
                     ->make(true);
@@ -547,7 +548,11 @@ class SalesDocumentController extends Controller
             ];
         }
 
-        return view('admin.sales.delivery_note.create', compact('customers', 'batchList'))
+        // Get Netto attribute group and its attributes
+        $nettoGroup = \App\Models\AttributeGroup::where('code', 'netto')->orWhere('name', 'Netto')->first();
+        $nettoAttributes = $nettoGroup ? $nettoGroup->attributes()->orderBy('name')->get() : collect();
+
+        return view('admin.sales.delivery_note.create', compact('customers', 'batchList', 'nettoAttributes'))
             ->with('sb', 'SalesDeliveryNotes');
     }
 
@@ -557,6 +562,7 @@ class SalesDocumentController extends Controller
             'customer_id' => 'nullable|exists:customers,id',
             'customer_name' => 'nullable|string|max:150',
             'customer_phone' => 'nullable|string|max:30',
+            'delivery_address' => 'nullable|string|max:500',
             'transaction_date' => 'nullable|date',
             'delivery_type' => 'required|string|max:50',
             'notes' => 'nullable|string',
@@ -593,14 +599,15 @@ class SalesDocumentController extends Controller
                 
                 // Simpan ke tabel delivery_notes
                 $deliveryNote = \App\Models\DeliveryNote::create([
-                    'user_id'          => auth()->id(),
-                    'customer_id'      => $request->customer_id,
-                    'customer_name'    => $request->customer_name,
-                    'customer_phone'   => $request->customer_phone,
-                    'delivery_note_no' => $deliveryNoteNo,
-                    'transaction_date' => $txDate,
-                    'delivery_type'    => $request->delivery_type,
-                    'notes'            => $request->notes,
+                    'user_id'            => auth()->id(),
+                    'customer_id'        => $request->customer_id,
+                    'customer_name'      => $request->customer_name,
+                    'customer_phone'     => $request->customer_phone,
+                    'delivery_address'   => $request->delivery_address,
+                    'delivery_note_no'   => $deliveryNoteNo,
+                    'transaction_date'   => $txDate,
+                    'delivery_type'      => $request->delivery_type,
+                    'notes'              => $request->notes,
                 ]);
 
                 // Simpan items ke tabel delivery_note_items (tanpa mengurangi stok)
@@ -613,6 +620,8 @@ class SalesDocumentController extends Controller
                         'product_id'       => $batch->product_id,
                         'product_batch_id' => $batch->id,
                         'qty'              => $qty,
+                        'description'      => $item['description'] ?? null,
+                        'satuan'           => $item['satuan'] ?? null,
                     ]);
                 }
             });
@@ -661,6 +670,115 @@ class SalesDocumentController extends Controller
                 'success' => false,
                 'message' => 'Gagal menghapus: ' . $e->getMessage()
             ], 500);
+        }
+    }
+
+    public function editDeliveryNote($id)
+    {
+        $deliveryNote = \App\Models\DeliveryNote::with(['customer', 'items.product.merek', 'items.batch.variant'])
+            ->findOrFail($id);
+        
+        $customers = Customer::orderBy('name')->get();
+        
+        $batches = ProductBatch::with(['product.merek', 'variant'])
+            ->where('qty', '>', 0)
+            ->whereHas('product', fn($q) => $q->where('status', 'Y'))
+            ->get()
+            ->sortBy(fn($batch) => ($batch->product->merek->name ?? '') . ' ' . ($batch->product->name ?? ''));
+
+        $batchList = [];
+        foreach ($batches as $batch) {
+            $product     = $batch->product;
+            $merekName   = ($product && $product->merek) ? trim($product->merek->name) : '';
+            $productName = trim($product->name ?? '');
+            $variantName = $batch->variant ? trim($batch->variant->variant_name) : '';
+            
+            $originalParts = array_filter([$merekName, $productName, $variantName]);
+            $finalParts = [];
+            foreach ($originalParts as $p1) {
+                $isSubPart = false;
+                foreach ($originalParts as $p2) {
+                    if ($p1 !== $p2 && stripos($p2, $p1) !== false && strlen($p2) > strlen($p1)) {
+                        $isSubPart = true;
+                        break;
+                    }
+                }
+                if (!$isSubPart) {
+                    $finalParts[] = $p1;
+                }
+            }
+            $labelText = implode(' ', array_unique($finalParts));
+            $batchList[] = [
+                'id'        => $batch->id,
+                'text'      => $labelText . ' (' . $batch->batch_no . ' - ' . $batch->qty . ')',
+                'price'     => $batch->variant->price ?? ($product->price_real > 0 ? $product->price_real : $product->price),
+                'stock'     => $batch->qty,
+                'buy_price' => $batch->buy_price ?? 0,
+            ];
+        }
+
+        // Get Netto attribute group and its attributes
+        $nettoGroup = \App\Models\AttributeGroup::where('code', 'netto')->orWhere('name', 'Netto')->first();
+        $nettoAttributes = $nettoGroup ? $nettoGroup->attributes()->orderBy('name')->get() : collect();
+
+        return view('admin.sales.delivery_note.edit', compact('deliveryNote', 'customers', 'batchList', 'nettoAttributes'))
+            ->with('sb', 'SalesDeliveryNotes');
+    }
+
+    public function updateDeliveryNote(Request $request, $id)
+    {
+        $deliveryNote = \App\Models\DeliveryNote::findOrFail($id);
+        
+        $request->validate([
+            'customer_id' => 'nullable|exists:customers,id',
+            'customer_name' => 'nullable|string|max:150',
+            'customer_phone' => 'nullable|string|max:30',
+            'delivery_address' => 'nullable|string|max:500',
+            'transaction_date' => 'nullable|date',
+            'delivery_type' => 'required|string|max:50',
+            'notes' => 'nullable|string',
+            'items' => 'required|array|min:1',
+            'items.*.product_batch_id' => 'required|exists:product_batches,id',
+            'items.*.qty' => 'required|integer|min:1',
+        ]);
+
+        try {
+            DB::transaction(function () use ($request, $deliveryNote, $id) {
+                $txDate = $request->transaction_date ? Carbon::parse($request->transaction_date) : $deliveryNote->transaction_date;
+                
+                $deliveryNote->update([
+                    'customer_id'      => $request->customer_id,
+                    'customer_name'    => $request->customer_name,
+                    'customer_phone'   => $request->customer_phone,
+                    'delivery_address' => $request->delivery_address,
+                    'transaction_date' => $txDate,
+                    'delivery_type'    => $request->delivery_type,
+                    'notes'            => $request->notes,
+                ]);
+                
+                // Hapus items lama
+                \App\Models\DeliveryNoteItem::where('delivery_note_id', $id)->delete();
+                
+                // Buat items baru
+                foreach ($request->items as $item) {
+                    $batch = ProductBatch::with('product')->findOrFail($item['product_batch_id']);
+                    $qty = (int) $item['qty'];
+
+                    \App\Models\DeliveryNoteItem::create([
+                        'delivery_note_id' => $deliveryNote->id,
+                        'product_id'       => $batch->product_id,
+                        'product_batch_id' => $batch->id,
+                        'qty'              => $qty,
+                        'description'      => $item['description'] ?? null,
+                        'satuan'           => $item['satuan'] ?? null,
+                    ]);
+                }
+            });
+            
+            return redirect()->route('admin.sales.delivery_notes.index')
+                ->with('message', 'Surat Jalan berhasil diperbarui: ' . $deliveryNote->delivery_note_no);
+        } catch (\Exception $e) {
+            return redirect()->back()->with('error', $e->getMessage())->withInput();
         }
     }
 

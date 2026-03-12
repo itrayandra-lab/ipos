@@ -19,11 +19,11 @@
 <div class="main-content">
     <section class="section">
         <div class="section-header">
-            <h1>Buat Surat Jalan Manual</h1>
+            <h1>Edit Surat Jalan</h1>
             <div class="section-header-breadcrumb">
                 <div class="breadcrumb-item"><a href="{{ url('admin') }}">Dashboard</a></div>
                 <div class="breadcrumb-item"><a href="{{ route('admin.sales.delivery_notes.index') }}">Surat Jalan</a></div>
-                <div class="breadcrumb-item active">Buat Baru</div>
+                <div class="breadcrumb-item active">Edit</div>
             </div>
         </div>
 
@@ -32,8 +32,9 @@
                 <div class="alert alert-danger">{{ session('error') }}</div>
             @endif
 
-            <form action="{{ route('admin.sales.delivery_notes.store') }}" method="POST">
+            <form action="{{ route('admin.sales.delivery_notes.update', $deliveryNote->id) }}" method="POST">
                 @csrf
+                @method('PUT')
                 
                 <div class="card">
                     <div class="card-header">
@@ -44,16 +45,16 @@
                             <div class="col-md-6">
                                 <div class="form-group">
                                     <label>Tanggal</label>
-                                    <input type="date" name="transaction_date" class="form-control" value="{{ date('Y-m-d') }}" required>
+                                    <input type="date" name="transaction_date" class="form-control" value="{{ $deliveryNote->transaction_date->format('Y-m-d') }}" required>
                                 </div>
                             </div>
                             <div class="col-md-6">
                                 <div class="form-group">
                                     <label>Metode Pengiriman</label>
                                     <select name="delivery_type" class="form-control" required>
-                                        <option value="pickup">Pickup</option>
-                                        <option value="kurir">Kurir</option>
-                                        <option value="ekspedisi">Ekspedisi</option>
+                                        <option value="pickup" {{ $deliveryNote->delivery_type == 'pickup' ? 'selected' : '' }}>Pickup</option>
+                                        <option value="kurir" {{ $deliveryNote->delivery_type == 'kurir' ? 'selected' : '' }}>Kurir</option>
+                                        <option value="ekspedisi" {{ $deliveryNote->delivery_type == 'ekspedisi' ? 'selected' : '' }}>Ekspedisi</option>
                                     </select>
                                 </div>
                             </div>
@@ -67,17 +68,17 @@
                                         <select name="customer_id" class="form-control select2" id="customer-select" style="width: 100%;">
                                             <option value="">-- Pilih Customer --</option>
                                             @foreach($customers as $c)
-                                                <option value="{{ $c->id }}" data-name="{{ $c->name }}" data-phone="{{ $c->phone }}" data-address="{{ $c->address }}">
+                                                <option value="{{ $c->id }}" data-name="{{ $c->name }}" data-phone="{{ $c->phone }}" data-address="{{ $c->address }}" {{ $deliveryNote->customer_id == $c->id ? 'selected' : '' }}>
                                                     {{ $c->name }} {{ $c->phone ? '('.$c->phone.')' : '' }}
                                                 </option>
                                             @endforeach
                                         </select>
                                     </div>
                                     <div id="customer-text-wrapper">
-                                        <input type="text" name="customer_name" id="customer-name" class="form-control" placeholder="Nama manual" required>
+                                        <input type="text" name="customer_name" id="customer-name" class="form-control" value="{{ $deliveryNote->customer_name }}" placeholder="Nama manual" required>
                                     </div>
                                     <div class="form-check mt-1">
-                                        <input class="form-check-input" type="checkbox" id="is_registered_customer">
+                                        <input class="form-check-input" type="checkbox" id="is_registered_customer" {{ $deliveryNote->customer_id ? 'checked' : '' }}>
                                         <label class="form-check-label" for="is_registered_customer">Customer Terdaftar</label>
                                     </div>
                                 </div>
@@ -85,19 +86,19 @@
                             <div class="col-md-6">
                                 <div class="form-group">
                                     <label>No. Telepon</label>
-                                    <input type="text" name="customer_phone" id="customer-phone" class="form-control" placeholder="08xx">
+                                    <input type="text" name="customer_phone" id="customer-phone" class="form-control" value="{{ $deliveryNote->customer_phone }}" placeholder="08xx">
                                 </div>
                             </div>
                         </div>
 
                         <div class="form-group">
                             <label>Alamat Pengiriman</label>
-                            <textarea name="delivery_address" id="delivery-address" class="form-control" rows="3" placeholder="Masukkan alamat tujuan pengiriman"></textarea>
+                            <textarea name="delivery_address" id="delivery-address" class="form-control" rows="3" placeholder="Masukkan alamat tujuan pengiriman">{{ $deliveryNote->delivery_address }}</textarea>
                         </div>
 
                         <div class="form-group">
                             <label>Catatan / Keterangan</label>
-                            <textarea name="notes" class="form-control" rows="2"></textarea>
+                            <textarea name="notes" class="form-control" rows="2">{{ $deliveryNote->notes }}</textarea>
                         </div>
                     </div>
                 </div>
@@ -119,7 +120,39 @@
                                     </tr>
                                 </thead>
                                 <tbody id="item-rows">
-                                    {{-- Rows added via JS --}}
+                                    @foreach($deliveryNote->items as $index => $item)
+                                    <tr>
+                                        <td>
+                                            <select name="items[{{ $index }}][product_batch_id]" class="form-control select2-items" required>
+                                                <option value="">-- Pilih Barang --</option>
+                                                @foreach($batchList as $batch)
+                                                    <option value="{{ $batch['id'] }}" {{ $item->product_batch_id == $batch['id'] ? 'selected' : '' }}>
+                                                        {{ $batch['text'] }}
+                                                    </option>
+                                                @endforeach
+                                            </select>
+                                        </td>
+                                        <td>
+                                            <input type="number" name="items[{{ $index }}][qty]" class="form-control" value="{{ $item->qty }}" min="1" required>
+                                        </td>
+                                        <td>
+                                            <select name="items[{{ $index }}][satuan]" class="form-control">
+                                                <option value="">-- Pilih Satuan --</option>
+                                                @foreach($nettoAttributes as $attr)
+                                                    <option value="{{ $attr->name }}" {{ $item->satuan == $attr->name ? 'selected' : '' }}>
+                                                        {{ $attr->name }}
+                                                    </option>
+                                                @endforeach
+                                            </select>
+                                        </td>
+                                        <td>
+                                            <input type="text" name="items[{{ $index }}][description]" class="form-control" value="{{ $item->description }}" placeholder="Keterangan (opsional)">
+                                        </td>
+                                        <td class="text-center">
+                                            <button type="button" class="btn btn-sm btn-danger remove-row"><i class="fas fa-trash"></i></button>
+                                        </td>
+                                    </tr>
+                                    @endforeach
                                 </tbody>
                             </table>
                         </div>
@@ -130,8 +163,11 @@
                 </div>
 
                 <div class="mb-5 text-right">
+                    <a href="{{ route('admin.sales.delivery_notes.index') }}" class="btn btn-secondary btn-lg px-5">
+                        <i class="fas fa-times"></i> Batal
+                    </a>
                     <button type="submit" class="btn btn-primary btn-lg px-5 shadow">
-                        <i class="fas fa-save"></i> Simpan Surat Jalan
+                        <i class="fas fa-save"></i> Simpan Perubahan
                     </button>
                 </div>
             </form>
@@ -142,12 +178,12 @@
 <script>
 const batchData = @json($batchList);
 const nettoAttributes = @json($nettoAttributes);
-let rowIndex = 0;
+let rowIndex = {{ count($deliveryNote->items) }};
 
 function buildBatchOptions() {
     let html = '<option value="">-- Pilih Barang --</option>';
     batchData.forEach(function(b) {
-        html += `<option value="${b.id}" data-stock="${b.stock}">${b.text}</option>`;
+        html += `<option value="${b.id}">${b.text}</option>`;
     });
     return html;
 }
@@ -189,7 +225,7 @@ function addRow() {
 }
 
 $(document).ready(function() {
-    addRow();
+    $('.select2-items').select2({ width: '100%' });
 
     $('#add-row').on('click', addRow);
     $(document).on('click', '.remove-row', function() { $(this).closest('tr').remove(); });
@@ -214,71 +250,9 @@ $(document).ready(function() {
             $('#delivery-address').val(opt.data('address'));
         }
     });
+
+    // Trigger change event on load to set initial state
+    $('#is_registered_customer').trigger('change');
 });
 </script>
 @endsection
-
-@push('scripts')
-<script>
-    let rowIndex = 0;
-
-    function buildBatchOptions() {
-        let html = '<option value="">-- Pilih Barang --</option>';
-        batchData.forEach(function(b) {
-            html += `<option value="${b.id}" data-stock="${b.stock}">${b.text}</option>`;
-        });
-        return html;
-    }
-
-    function addRow() {
-        const idx = rowIndex++;
-        const row = `
-        <tr>
-            <td>
-                <select name="items[${idx}][product_batch_id]" class="form-control select2-items" required>
-                    ${buildBatchOptions()}
-                </select>
-            </td>
-            <td>
-                <input type="number" name="items[${idx}][qty]" class="form-control" value="1" min="1" required>
-            </td>
-            <td>
-                <input type="text" name="items[${idx}][description]" class="form-control" placeholder="Keterangan (opsional)">
-            </td>
-            <td class="text-center">
-                <button type="button" class="btn btn-sm btn-danger remove-row"><i class="fas fa-trash"></i></button>
-            </td>
-        </tr>`;
-        $('#item-rows').append(row);
-        $('.select2-items').last().select2({ width: '100%' });
-    }
-
-    $(document).ready(function() {
-        addRow();
-
-        $('#add-row').on('click', addRow);
-        $(document).on('click', '.remove-row', function() { $(this).closest('tr').remove(); });
-
-        $('#is_registered_customer').on('change', function() {
-            if ($(this).is(':checked')) {
-                $('#customer-select-wrapper').show();
-                $('#customer-text-wrapper').hide();
-                $('#customer-name').removeAttr('required');
-            } else {
-                $('#customer-select-wrapper').hide();
-                $('#customer-text-wrapper').show();
-                $('#customer-name').attr('required', 'required');
-            }
-        });
-
-        $('#customer-select').on('change', function() {
-            const opt = $(this).find(':selected');
-            if (opt.val()) {
-                $('#customer-name').val(opt.data('name'));
-                $('#customer-phone').val(opt.data('phone'));
-                $('#delivery-address').val(opt.data('address'));
-            }
-        });
-    });
-</script>
-@endpush

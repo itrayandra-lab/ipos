@@ -219,10 +219,12 @@ Route::prefix('admin')->middleware(['auth', 'role:admin'])->group(function () {
         );
 
         Route::prefix('transactions')->group(function () {
-            Route::get('/', [TransactionAdmin::class , 'index']);
+            Route::get('/', [TransactionAdmin::class , 'index'])->name('admin.transactions.index');
             Route::get('all', [TransactionAdmin::class , 'getall']);
             Route::get('print', [TransactionAdmin::class , 'print']);
-            Route::get('show/{id}', [TransactionAdmin::class , 'show']);
+            Route::get('show/{id}', [TransactionAdmin::class , 'show'])->name('admin.transactions.show');
+            Route::get('edit/{id}', [TransactionAdmin::class , 'edit'])->name('admin.transactions.edit');
+            Route::put('{id}', [TransactionAdmin::class , 'update'])->name('admin.transactions.update');
             Route::get('print-struk/{id}', [TransactionAdmin::class , 'printStruk'])->name('admin.transactions.print_struk');
         }
         );

@@ -95,6 +95,7 @@ class CustomerController extends Controller
             'name' => 'required|string|max:255',
             'phone' => 'required|string|unique:customers,phone',
             'email' => 'nullable|email|max:255',
+            'address' => 'nullable|string|max:500',
         ]);
 
         if ($validator->fails()) {
@@ -119,6 +120,7 @@ class CustomerController extends Controller
             'name' => 'required|string|max:255',
             'phone' => 'required|string|unique:customers,phone,' . $request->id,
             'email' => 'nullable|email|max:255',
+            'address' => 'nullable|string|max:500',
         ]);
 
         if ($validator->fails()) {
@@ -194,6 +196,7 @@ class CustomerController extends Controller
             'name' => 'required|string|max:255',
             'phone' => 'required|string|unique:customers,phone',
             'email' => 'nullable|email|max:255',
+            'address' => 'nullable|string|max:500',
         ]);
 
         $customer = Customer::create($request->all());

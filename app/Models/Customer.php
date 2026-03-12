@@ -11,6 +11,7 @@ class Customer extends Model
         'name',
         'phone',
         'email',
+        'address',
     ];
 
     public function transactions()

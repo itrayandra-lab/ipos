@@ -14,6 +14,8 @@ class DeliveryNoteItem extends Model
         'product_id',
         'product_batch_id',
         'qty',
+        'description',
+        'satuan',
     ];
 
     public function deliveryNote()

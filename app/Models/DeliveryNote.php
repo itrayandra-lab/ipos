@@ -14,10 +14,15 @@ class DeliveryNote extends Model
         'customer_id',
         'customer_name',
         'customer_phone',
+        'delivery_address',
         'delivery_note_no',
         'transaction_date',
         'delivery_type',
         'notes',
+    ];
+
+    protected $casts = [
+        'transaction_date' => 'datetime',
     ];
 
     public function user()
