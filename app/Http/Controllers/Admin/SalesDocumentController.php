@@ -65,6 +65,7 @@ class SalesDocumentController extends Controller
     public function createInvoice()
     {
         $customers = Customer::orderBy('name')->get();
+        $bankAccounts = \App\Models\BankAccount::where('is_active', true)->orderBy('bank_name')->get();
         
         $batches = ProductBatch::with(['product.merek', 'variant'])
             ->where('qty', '>', 0)
@@ -104,7 +105,7 @@ class SalesDocumentController extends Controller
         }
 
         $nextInvoiceNumber = InvoiceService::generate();
-        return view('admin.sales.invoice.create', compact('customers', 'batchList', 'nextInvoiceNumber'))
+        return view('admin.sales.invoice.create', compact('customers', 'batchList', 'nextInvoiceNumber', 'bankAccounts'))
             ->with('sb', 'SalesInvoices');
     }
 
@@ -166,6 +167,8 @@ class SalesDocumentController extends Controller
                     'customer_id'      => $request->customer_id,
                     'customer_name'    => $request->customer_name,
                     'customer_phone'   => $request->customer_phone,
+                    'customer_address' => $request->customer_address,
+                    'bank_account_id'  => $request->bank_account_id,
                     'source'           => 'manual-invoice',
                     'transaction_type' => $request->transaction_type,
                     'is_dp'            => $request->payment_status === 'credit',
@@ -199,7 +202,7 @@ class SalesDocumentController extends Controller
 
     public function showInvoice($id)
     {
-        $transaction = Transaction::with(['user', 'customer', 'items.product.merek', 'items.batch.variant', 'payments'])
+        $transaction = Transaction::with(['user', 'customer', 'items.product.merek', 'items.batch.variant', 'payments', 'bankAccount'])
             ->findOrFail($id);
         $setting = StoreSetting::getActiveSetting();
         return view('admin.sales.invoice.show', compact('transaction', 'setting'))->with('sb', 'SalesInvoices');
@@ -211,6 +214,7 @@ class SalesDocumentController extends Controller
             ->findOrFail($id);
         
         $customers = Customer::orderBy('name')->get();
+        $bankAccounts = \App\Models\BankAccount::where('is_active', true)->orderBy('bank_name')->get();
         
         $batches = ProductBatch::with(['product.merek', 'variant'])
             ->where('qty', '>', 0)
@@ -249,7 +253,7 @@ class SalesDocumentController extends Controller
             ];
         }
 
-        return view('admin.sales.invoice.edit', compact('transaction', 'customers', 'batchList'))
+        return view('admin.sales.invoice.edit', compact('transaction', 'customers', 'batchList', 'bankAccounts'))
             ->with('sb', 'SalesInvoices');
     }
 
@@ -305,6 +309,8 @@ class SalesDocumentController extends Controller
                     'customer_id'      => $request->customer_id,
                     'customer_name'    => $request->customer_name,
                     'customer_phone'   => $request->customer_phone,
+                    'customer_address' => $request->customer_address,
+                    'bank_account_id'  => $request->bank_account_id,
                     'notes'            => $request->notes,
                     'total_amount'     => $grandTotal,
                     'discount'         => $discountVal,
@@ -336,7 +342,7 @@ class SalesDocumentController extends Controller
 
     public function printInvoice($id)
     {
-        $transaction = Transaction::with(['user', 'customer', 'items.product.merek', 'items.batch.variant', 'payments'])
+        $transaction = Transaction::with(['user', 'customer', 'items.product.merek', 'items.batch.variant', 'payments', 'bankAccount'])
             ->findOrFail($id);
         $setting = StoreSetting::getActiveSetting();
         return view('admin.sales.invoice.print', compact('transaction', 'setting'));
@@ -635,7 +641,7 @@ class SalesDocumentController extends Controller
 
     public function printDeliveryNote($id)
     {
-        $deliveryNote = \App\Models\DeliveryNote::with(['user', 'customer', 'items.product', 'items.batch'])->findOrFail($id);
+        $deliveryNote = \App\Models\DeliveryNote::with(['user', 'customer', 'items.product.merek', 'items.batch.variant.netto'])->findOrFail($id);
         $storeSetting = StoreSetting::find(1);
         return view('admin.sales.delivery_note.print', compact('deliveryNote', 'storeSetting'));
     }

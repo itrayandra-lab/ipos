@@ -99,6 +99,9 @@
                 @if($transaction->customer_phone || ($transaction->customer->phone ?? false))
                 <div class="value" style="font-weight: normal; font-size: 10px;">Telp: {{ $transaction->customer_phone ?? $transaction->customer->phone }}</div>
                 @endif
+                @if($transaction->customer_address)
+                <div class="value" style="font-weight: normal; font-size: 10px; margin-top: 5px;">Alamat: {{ $transaction->customer_address }}</div>
+                @endif
             </div>
             <div class="invoice-info">
                 <div style="display: flex;">
@@ -125,6 +128,26 @@
                 </div>
             </div>
         </div>
+
+        @if($transaction->bankAccount)
+        <div style="background: #f9f9f9; padding: 15px; border-radius: 8px; margin-bottom: 20px; border-left: 3px solid #6777ef;">
+            <span class="label" style="display: block; margin-bottom: 8px;">Informasi Rekening Transfer:</span>
+            <div style="display: flex; gap: 30px;">
+                <div>
+                    <span style="font-size: 9px; color: #999; text-transform: uppercase;">Bank:</span>
+                    <div style="font-weight: 600; font-size: 12px;">{{ $transaction->bankAccount->bank_name }}</div>
+                </div>
+                <div>
+                    <span style="font-size: 9px; color: #999; text-transform: uppercase;">No. Rekening:</span>
+                    <div style="font-weight: 600; font-size: 12px;">{{ $transaction->bankAccount->account_number }}</div>
+                </div>
+                <div>
+                    <span style="font-size: 9px; color: #999; text-transform: uppercase;">Atas Nama:</span>
+                    <div style="font-weight: 600; font-size: 12px;">{{ $transaction->bankAccount->account_holder }}</div>
+                </div>
+            </div>
+        </div>
+        @endif
 
         <table class="table">
             <thead>

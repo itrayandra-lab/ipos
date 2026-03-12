@@ -100,6 +100,7 @@
                     <li class="{{ $sb == 'Attributes' ? 'active' : '' }}"><a class="nav-link" href="{{ route('admin.manage_master.attributes.index') }}">Data Atribut</a></li>
                     <li class="{{ Request::is('admin/settings/channels') ? 'active' : '' }}"><a class="nav-link" href="{{ route('admin.settings.channels') }}">Saluran Penjualan</a></li>
                     <li class="{{ Request::is('admin/settings/store') ? 'active' : '' }}"><a class="nav-link" href="{{ route('admin.settings.store') }}">Toko</a></li>
+                    <li class="{{ Request::is('admin/settings/bank-accounts*') ? 'active' : '' }}"><a class="nav-link" href="{{ route('admin.settings.bank_accounts') }}">Rekening Bank</a></li>
                 </ul>
             </li>
             <li {{ $sb == 'POS' ? 'class=active' : '' }}>

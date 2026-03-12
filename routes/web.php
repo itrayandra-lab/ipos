@@ -25,6 +25,7 @@ use App\Http\Controllers\Admin\PosController as PosAdmin;
 use App\Http\Controllers\Admin\AffiliateController as AffiliateAdmin;
 use App\Http\Controllers\Admin\CustomerController as CustomerAdmin;
 use App\Http\Controllers\Admin\SalesDocumentController as SalesDocumentAdmin;
+use App\Http\Controllers\Admin\BankAccountController as BankAccountAdmin;
 
 # Sales Controllers
 use App\Http\Controllers\Sales\DashboardController as DashboardSales;
@@ -184,6 +185,12 @@ Route::prefix('admin')->middleware(['auth', 'role:admin'])->group(function () {
             Route::post('/channels/store', [ChannelSettingAdmin::class , 'store'])->name('admin.settings.channels.store');
             Route::post('/channels/update', [ChannelSettingAdmin::class , 'update'])->name('admin.settings.channels.update');
             Route::post('/channels/delete', [ChannelSettingAdmin::class , 'delete'])->name('admin.settings.channels.delete');
+            Route::get('/bank-accounts', [BankAccountAdmin::class , 'index'])->name('admin.settings.bank_accounts');
+            Route::get('/bank-accounts/all', [BankAccountAdmin::class , 'getall'])->name('admin.bank_accounts.all');
+            Route::post('/bank-accounts/store', [BankAccountAdmin::class , 'store'])->name('admin.bank_accounts.store');
+            Route::post('/bank-accounts/get', [BankAccountAdmin::class , 'get'])->name('admin.bank_accounts.get');
+            Route::post('/bank-accounts/update', [BankAccountAdmin::class , 'update'])->name('admin.bank_accounts.update');
+            Route::delete('/bank-accounts/delete', [BankAccountAdmin::class , 'delete'])->name('admin.bank_accounts.delete');
         }
         );
 

@@ -76,7 +76,7 @@
                                         <select name="customer_id" class="form-control select2" id="customer-select" style="width: 100%;">
                                             <option value="">-- Pilih Customer --</option>
                                             @foreach($customers as $c)
-                                                <option value="{{ $c->id }}" data-name="{{ $c->name }}" data-phone="{{ $c->phone }}">
+                                                <option value="{{ $c->id }}" data-name="{{ $c->name }}" data-phone="{{ $c->phone }}" data-address="{{ $c->address }}">
                                                     {{ $c->name }} {{ $c->phone ? '('.$c->phone.')' : '' }}
                                                 </option>
                                             @endforeach
@@ -108,6 +108,28 @@
                             </div>
                         </div>
 
+                        {{-- Row 3: Alamat Customer | Rekening Bank --}}
+                        <div class="row mt-2">
+                            <div class="col-md-8">
+                                <div class="form-group">
+                                    <label>Alamat Customer</label>
+                                    <textarea name="customer_address" id="customer-address" class="form-control" rows="2" placeholder="Alamat lengkap customer"></textarea>
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="form-group">
+                                    <label>Rekening Bank</label>
+                                    <select name="bank_account_id" class="form-control">
+                                        <option value="">-- Pilih Rekening --</option>
+                                        @foreach($bankAccounts as $bank)
+                                            <option value="{{ $bank->id }}">
+                                                {{ $bank->bank_name }} - {{ $bank->account_holder }} - {{ $bank->account_number }}
+                                            </option>
+                                        @endforeach
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
                         {{-- Row 3: Metode Pembayaran | Status Pembayaran | Catatan --}}
                         <div class="row mt-2">
                             <div class="col-md-4">
@@ -437,6 +459,7 @@ const batchData = @json($batchList);
             if (opt.val()) {
                 $('#customer-name').val(opt.data('name'));
                 $('#customer-phone').val(opt.data('phone'));
+                $('#customer-address').val(opt.data('address'));
             }
         });
     });

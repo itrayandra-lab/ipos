@@ -22,11 +22,13 @@ class Transaction extends Model
         'customer_id',
         'customer_name',
         'customer_phone',
+        'customer_address',
         'source',
         'notes',
         'total_amount',
         'payment_status',
         'payment_method',
+        'bank_account_id',
         'delivery_type',
         'delivery_desc',
         'voucher_code',
@@ -64,5 +66,10 @@ class Transaction extends Model
     public function payments()
     {
         return $this->hasMany(TransactionPayment::class);
+    }
+
+    public function bankAccount()
+    {
+        return $this->belongsTo(BankAccount::class);
     }
 }

@@ -95,15 +95,13 @@
                             <strong>{{ $item->product->merek->name }}</strong> - 
                         @endif
                         {{ $item->product->name }}
-                        @if($item->batch && $item->batch->variant)
+                        @if($item->batch && $item->batch->variant && $item->batch->variant->netto)
                             @php
                                 $netto = $item->batch->variant->netto;
                             @endphp
-                            @if($netto)
-                                <br><small>Netto: {{ $netto->netto_value }} {{ $netto->satuan }} | Batch: {{ $item->batch->batch_no }}</small>
-                            @else
-                                <br><small>Batch: {{ $item->batch->batch_no }}</small>
-                            @endif
+                            <br><small>Netto: {{ $netto->netto_value }} {{ $netto->satuan }} | Batch: {{ $item->batch->batch_no }}</small>
+                        @elseif($item->batch)
+                            <br><small>Batch: {{ $item->batch->batch_no }}</small>
                         @endif
                     @else
                         -
