@@ -67,7 +67,7 @@ class SalesDocumentController extends Controller
         $customers = Customer::orderBy('name')->get();
         $bankAccounts = \App\Models\BankAccount::where('is_active', true)->orderBy('bank_name')->get();
         
-        $batches = ProductBatch::with(['product.merek', 'variant'])
+        $batches = ProductBatch::with(['product.merek', 'variant.netto'])
             ->where('qty', '>', 0)
             ->whereHas('product', fn($q) => $q->where('status', 'Y'))
             ->get()
@@ -76,28 +76,23 @@ class SalesDocumentController extends Controller
         $batchList = [];
         foreach ($batches as $batch) {
             $product     = $batch->product;
+            $variant     = $batch->variant;
+            $netto       = $variant ? $variant->netto : null;
+            
             $merekName   = ($product && $product->merek) ? trim($product->merek->name) : '';
             $productName = trim($product->name ?? '');
-            $variantName = $batch->variant ? trim($batch->variant->variant_name) : '';
+            $nettoValue  = $netto ? trim($netto->netto_value ?? '') : '';
+            $satuan      = $netto ? trim($netto->satuan ?? '') : '';
+            $batchNo     = trim($batch->batch_no ?? '');
             
-            $originalParts = array_filter([$merekName, $productName, $variantName]);
-            $finalParts = [];
-            foreach ($originalParts as $p1) {
-                $isSubPart = false;
-                foreach ($originalParts as $p2) {
-                    if ($p1 !== $p2 && stripos($p2, $p1) !== false && strlen($p2) > strlen($p1)) {
-                        $isSubPart = true;
-                        break;
-                    }
-                }
-                if (!$isSubPart) {
-                    $finalParts[] = $p1;
-                }
-            }
-            $labelText = implode(' ', array_unique($finalParts));
+            // Format: Merek + Produk + Netto + Satuan + (batch)
+            $parts = array_filter([$merekName, $productName, $nettoValue, $satuan]);
+            $labelText = implode(' ', $parts);
+            $fullText = $labelText . ' (Stok: ' . $batch->qty . ')';
+            
             $batchList[] = [
                 'id'        => $batch->id,
-                'text'      => $labelText . ' (' . $batch->batch_no . ' - ' . $batch->qty . ')',
+                'text'      => $fullText,
                 'price'     => $batch->variant->price ?? ($product->price_real > 0 ? $product->price_real : $product->price),
                 'stock'     => $batch->qty,
                 'buy_price' => $batch->buy_price ?? 0,
@@ -216,7 +211,7 @@ class SalesDocumentController extends Controller
         $customers = Customer::orderBy('name')->get();
         $bankAccounts = \App\Models\BankAccount::where('is_active', true)->orderBy('bank_name')->get();
         
-        $batches = ProductBatch::with(['product.merek', 'variant'])
+        $batches = ProductBatch::with(['product.merek', 'variant.netto'])
             ->where('qty', '>', 0)
             ->whereHas('product', fn($q) => $q->where('status', 'Y'))
             ->get()
@@ -225,28 +220,23 @@ class SalesDocumentController extends Controller
         $batchList = [];
         foreach ($batches as $batch) {
             $product     = $batch->product;
+            $variant     = $batch->variant;
+            $netto       = $variant ? $variant->netto : null;
+            
             $merekName   = ($product && $product->merek) ? trim($product->merek->name) : '';
             $productName = trim($product->name ?? '');
-            $variantName = $batch->variant ? trim($batch->variant->variant_name) : '';
+            $nettoValue  = $netto ? trim($netto->netto_value ?? '') : '';
+            $satuan      = $netto ? trim($netto->satuan ?? '') : '';
+            $batchNo     = trim($batch->batch_no ?? '');
             
-            $originalParts = array_filter([$merekName, $productName, $variantName]);
-            $finalParts = [];
-            foreach ($originalParts as $p1) {
-                $isSubPart = false;
-                foreach ($originalParts as $p2) {
-                    if ($p1 !== $p2 && stripos($p2, $p1) !== false && strlen($p2) > strlen($p1)) {
-                        $isSubPart = true;
-                        break;
-                    }
-                }
-                if (!$isSubPart) {
-                    $finalParts[] = $p1;
-                }
-            }
-            $labelText = implode(' ', array_unique($finalParts));
+            // Format: Merek + Produk + Netto + Satuan + (batch)
+            $parts = array_filter([$merekName, $productName, $nettoValue, $satuan]);
+            $labelText = implode(' ', $parts);
+            $fullText = $labelText . ' (Stok: ' . $batch->qty . ')';
+            
             $batchList[] = [
                 'id'        => $batch->id,
-                'text'      => $labelText . ' (' . $batch->batch_no . ' - ' . $batch->qty . ')',
+                'text'      => $fullText,
                 'price'     => $batch->variant->price ?? ($product->price_real > 0 ? $product->price_real : $product->price),
                 'stock'     => $batch->qty,
                 'buy_price' => $batch->buy_price ?? 0,

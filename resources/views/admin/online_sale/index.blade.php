@@ -2,6 +2,34 @@
 
 @section('title', 'Record Online Marketplace Sale')
 
+@push('styles')
+<style>
+    /* Custom styling for Select2 dropdown text wrapping */
+    .select2-container .select2-selection--single {
+        height: auto !important;
+        min-height: 38px !important;
+    }
+    .select2-container--default .select2-selection--single .select2-selection__rendered {
+        white-space: normal !important;
+        word-wrap: break-word !important;
+        line-height: 1.4 !important;
+        padding: 8px 12px !important;
+    }
+    .select2-results__option {
+        white-space: normal !important;
+        word-wrap: break-word !important;
+        line-height: 1.4 !important;
+    }
+    /* Table cell text wrapping */
+    .table td {
+        vertical-align: top !important;
+    }
+    .batch-dropdown {
+        width: 100% !important;
+    }
+</style>
+@endpush
+
 @section('content')
 <div class="main-content">
     <section class="section">
@@ -78,15 +106,15 @@
                                     <table class="table table-striped table-md">
                                         <thead>
                                             <tr>
-                                                <th width="70%">Produk & Batch (Cari di sini)</th>
-                                                <th width="20%">Qty</th>
-                                                <th width="10%"></th>
+                                                <th style="width: 70%;">Produk & Batch (Cari di sini)</th>
+                                                <th style="width: 20%;">Qty</th>
+                                                <th style="width: 10%;"></th>
                                             </tr>
                                         </thead>
                                         <tbody id="items-container">
                                             <tr class="item-row">
-                                                <td>
-                                                    <select name="items[0][product_batch_id]" class="form-control select2 batch-dropdown" required>
+                                                <td style="width: 70%; word-wrap: break-word; white-space: normal;">
+                                                    <select name="items[0][product_batch_id]" class="form-control select2 batch-dropdown" required style="width: 100%;">
                                                         <option value="">Ketik nama produk atau batch...</option>
                                                         @foreach($batchList as $batch)
                                                             <option value="{{ $batch->id }}" 
@@ -97,7 +125,7 @@
                                                         @endforeach
                                                     </select>
                                                 </td>
-                                                <td>
+                                                <td style="width: 20%;">
                                                     <input type="number" name="items[0][qty]" class="form-control qty-input" required min="1" value="1">
                                                     <small class="batch-info text-info"></small>
                                                     <div class="mt-2 suggested-price-wrapper" style="display:none;">
@@ -105,7 +133,7 @@
                                                         <span class="badge badge-light suggested-price-text"></span>
                                                     </div>
                                                 </td>
-                                                <td></td>
+                                                <td style="width: 10%;"></td>
                                             </tr>
                                         </tbody>
                                     </table>
@@ -174,8 +202,8 @@
     $('#add-item').click(function() {
         let html = `
             <tr class="item-row">
-                <td>
-                    <select name="items[${itemIndex}][product_batch_id]" class="form-control batch-dropdown" required>
+                <td style="width: 70%; word-wrap: break-word; white-space: normal;">
+                    <select name="items[${itemIndex}][product_batch_id]" class="form-control batch-dropdown" required style="width: 100%;">
                         <option value="">Ketik nama produk atau batch...</option>
                         @foreach($batchList as $batch)
                             <option value="{{ $batch->id }}" 
@@ -186,7 +214,7 @@
                         @endforeach
                     </select>
                 </td>
-                <td>
+                <td style="width: 20%;">
                     <input type="number" name="items[${itemIndex}][qty]" class="form-control qty-input" required min="1" value="1">
                     <small class="batch-info text-info"></small>
                     <div class="mt-2 suggested-price-wrapper" style="display:none;">
@@ -194,7 +222,7 @@
                         <span class="badge badge-light suggested-price-text"></span>
                     </div>
                 </td>
-                <td>
+                <td style="width: 10%;">
                     <button type="button" class="btn btn-danger btn-sm remove-item"><i class="fas fa-trash"></i></button>
                 </td>
             </tr>

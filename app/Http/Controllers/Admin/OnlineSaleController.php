@@ -30,6 +30,25 @@ class OnlineSaleController extends Controller
         foreach ($products as $product) {
             foreach ($product->batches as $batch) {
                 if ($batch->qty > 0) {
+                    // Load relasi untuk mendapatkan data lengkap
+                    $batch->load(['variant.netto', 'product.merek']);
+                    
+                    $variant = $batch->variant;
+                    $netto = $variant ? $variant->netto : null;
+                    
+                    $merekName = ($product && $product->merek) ? trim($product->merek->name) : '';
+                    $productName = trim($product->name ?? '');
+                    $nettoValue = $netto ? trim($netto->netto_value ?? '') : '';
+                    $satuan = $netto ? trim($netto->satuan ?? '') : '';
+                    $batchNo = trim($batch->batch_no ?? '');
+                    $stock = $batch->qty;
+                    $expiredDate = $batch->expiry_date ? $batch->expiry_date->format('d/m/Y') : 'No Exp';
+                    
+                    // Format: Merek + Produk + Netto + Satuan + (batch + stok + Expired date)
+                    $parts = array_filter([$merekName, $productName, $nettoValue, $satuan]);
+                    $labelText = implode(' ', $parts);
+                    $fullText = $labelText . ' (' . $batchNo . ' - Stok: ' . $stock . ' - Exp: ' . $expiredDate . ')';
+
                     $prices = [
                         'offline' => \App\Services\PricingService::calculate($batch, 'offline'),
                     ];
@@ -41,7 +60,7 @@ class OnlineSaleController extends Controller
                     $batchList[] = (object)[
                         'id' => $batch->id,
                         'product_id' => $product->id,
-                        'text' => "{$product->name} (Batch: {$batch->batch_no}) (Stok: {$batch->qty})",
+                        'text' => $fullText,
                         'stock' => $batch->qty,
                         'prices' => $prices
                     ];
@@ -167,6 +186,26 @@ class OnlineSaleController extends Controller
         foreach ($products as $product) {
             foreach ($product->batches as $batch) {
                 // For edit, we include the batch even if qty is 0 because the current transaction might have it
+                
+                // Load relasi untuk mendapatkan data lengkap
+                $batch->load(['variant.netto', 'product.merek']);
+                
+                $variant = $batch->variant;
+                $netto = $variant ? $variant->netto : null;
+                
+                $merekName = ($product && $product->merek) ? trim($product->merek->name) : '';
+                $productName = trim($product->name ?? '');
+                $nettoValue = $netto ? trim($netto->netto_value ?? '') : '';
+                $satuan = $netto ? trim($netto->satuan ?? '') : '';
+                $batchNo = trim($batch->batch_no ?? '');
+                $stock = $batch->qty;
+                $expiredDate = $batch->expiry_date ? $batch->expiry_date->format('d/m/Y') : 'No Exp';
+                
+                // Format: Merek + Produk + Netto + Satuan + (batch + stok + Expired date)
+                $parts = array_filter([$merekName, $productName, $nettoValue, $satuan]);
+                $labelText = implode(' ', $parts);
+                $fullText = $labelText . ' (' . $batchNo . ' - Stok: ' . $stock . ' - Exp: ' . $expiredDate . ')';
+
                 $prices = [
                     'offline' => \App\Services\PricingService::calculate($batch, 'offline'),
                 ];
@@ -178,7 +217,7 @@ class OnlineSaleController extends Controller
                 $batchList[] = (object)[
                     'id' => $batch->id,
                     'product_id' => $product->id,
-                    'text' => "{$product->name} (Batch: {$batch->batch_no}) (Stok: {$batch->qty})",
+                    'text' => $fullText,
                     'stock' => $batch->qty,
                     'prices' => $prices
                 ];
