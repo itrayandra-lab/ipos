@@ -120,6 +120,7 @@ class ProductController extends Controller
 
         $product = Product::create([
             'name' => $request->name,
+            'code' => $request->code,
             'slug' => $slug,
             'merek_id' => $request->merek_id,
             'category_id' => $request->category_id,
