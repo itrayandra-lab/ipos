@@ -120,7 +120,7 @@ class GoodsReceiptController extends Controller
                 // Update Stock logic
                 // Cari variant_id berdasarkan item if linked to product
                 $poItem = null;
-                if ($item['purchase_order_item_id']) {
+                if (!empty($item['purchase_order_item_id'])) {
                     $poItem = \App\Models\PurchaseOrderItem::find($item['purchase_order_item_id']);
                 }
 
