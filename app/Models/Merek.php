@@ -11,7 +11,7 @@ class Merek extends Model
 
     protected $table = 'merek';
 
-    protected $fillable = ['name', 'slug', 'description'];
+    protected $fillable = ['name', 'code', 'slug', 'description'];
 
     public function products()
     {

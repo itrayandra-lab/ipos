@@ -9,7 +9,7 @@ class TransactionItem extends Model
 {
     use HasFactory;
 
-    protected $fillable = ['transaction_id', 'product_id', 'product_variant_id', 'product_batch_id', 'buy_price', 'qty', 'price', 'subtotal'];
+    protected $fillable = ['transaction_id', 'product_id', 'product_variant_id', 'product_batch_id', 'buy_price', 'qty', 'price', 'discount', 'subtotal'];
 
     public $timestamps = false;
 

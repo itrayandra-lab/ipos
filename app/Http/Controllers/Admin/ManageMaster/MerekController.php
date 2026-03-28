@@ -18,7 +18,7 @@ class MerekController extends Controller
 
     public function getall(Request $request)
     {
-        $query = Merek::select('id', 'name', 'slug', 'description')
+        $query = Merek::select('id', 'name', 'code', 'slug', 'description')
             ->orderBy('name', 'ASC')
             ->get();
 
@@ -45,6 +45,7 @@ class MerekController extends Controller
     {
         $validator = Validator::make($request->all(), [
             'name' => 'required|string|max:100',
+            'code' => 'required|string|max:10|unique:merek,code',
             'description' => 'nullable|string|max:255',
         ]);
 
@@ -54,6 +55,7 @@ class MerekController extends Controller
 
         Merek::create([
             'name' => $request->name,
+            'code' => strtoupper($request->code),
             'slug' => Str::slug($request->name),
             'description' => $request->description,
         ]);
@@ -81,6 +83,7 @@ class MerekController extends Controller
 
         $validator = Validator::make($request->all(), [
             'name' => 'required|string|max:100',
+            'code' => 'required|string|max:10|unique:merek,code,' . $id,
             'description' => 'nullable|string|max:255',
         ]);
 
@@ -98,6 +101,7 @@ class MerekController extends Controller
 
         $merek->update([
             'name' => $request->name,
+            'code' => strtoupper($request->code),
             'slug' => $slug,
             'description' => $request->description,
         ]);

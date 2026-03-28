@@ -75,6 +75,7 @@
                 $firstItem = $group->first();
                 $totalQty = $group->sum('qty');
                 $totalSubtotal = $group->sum('subtotal');
+                $totalItemDiscount = $group->sum('discount');
             @endphp
             <tr>
                 <td colspan="3">{{ $firstItem->product->name }}</td>
@@ -84,6 +85,13 @@
                 <td style="font-size: 10px;">@ Rp {{ number_format($firstItem->price, 0, ',', '.') }}</td>
                 <td class="price-col">Rp {{ number_format($totalSubtotal, 0, ',', '.') }}</td>
             </tr>
+            @if($totalItemDiscount > 0)
+            <tr>
+                <td></td>
+                <td style="font-size: 9px; font-style: italic;">(Disc: -Rp {{ number_format($totalItemDiscount, 0, ',', '.') }})</td>
+                <td></td>
+            </tr>
+            @endif
         @endforeach
     </table>
 

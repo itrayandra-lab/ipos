@@ -280,6 +280,45 @@
     </div>
 </div>
 
+<!-- Modal 4: Item Discount -->
+<div class="modal fade modal-fullscreen-tablet" id="modal-item-discount" tabindex="-1" role="dialog">
+    <div class="modal-dialog" role="document">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Atur Diskon Item</h5>
+                <button type="button" class="close" data-dismiss="modal"><span>&times;</span></button>
+            </div>
+            <div class="modal-body">
+                <input type="hidden" id="item-discount-batch-id">
+                <div class="form-group mb-3">
+                    <label class="font-weight-bold text-dark">Produk</label>
+                    <div id="item-discount-product-name" class="h6 text-primary mb-0"></div>
+                </div>
+                <div class="form-group mb-3">
+                    <label class="font-weight-bold text-dark">Jenis Diskon</label>
+                    <select id="item-discount-type" class="form-control selectric">
+                        <option value="nominal">Nominal (Rp)</option>
+                        <option value="percent">Persentase (%)</option>
+                    </select>
+                </div>
+                <div class="form-group mb-3">
+                    <label class="font-weight-bold text-dark" id="label-item-discount-value">Nilai Diskon</label>
+                    <input type="number" id="item-discount-value" class="form-control form-control-lg" placeholder="0">
+                </div>
+                <div class="alert alert-light mt-4 border">
+                    <div class="d-flex justify-content-between">
+                        <span>Total Potongan:</span>
+                        <strong id="item-discount-calc-display" class="text-danger">Rp 0</strong>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-primary btn-block tablet-btn" id="btn-save-item-discount">Terapkan Diskon</button>
+            </div>
+        </div>
+    </div>
+</div>
+
 <!-- Success Modal -->
 <div class="modal fade" id="receiptModal" tabindex="-1" role="dialog">
     <div class="modal-dialog" role="document">
@@ -555,7 +594,8 @@
                 items: cart.map(item => ({
                     product_id: item.product_id,
                     batch_id: item.batch_id,
-                    qty: item.qty
+                    qty: item.qty,
+                    discount: item.discount || 0
                 })),
                 customer_id: $('#customer-id').val(),
                 customer_name: $('#customer-name').val(),
@@ -588,6 +628,73 @@
                 }
             });
         });
+        
+        // Item-level discount modal handler
+        $(document).on('click', '.btn-item-discount', function() {
+            let id = $(this).data('id');
+            let item = cart.find(i => i.batch_id == id);
+            if (item) {
+                $('#item-discount-batch-id').val(id);
+                $('#item-discount-product-name').text(item.name);
+                $('#item-discount-value').val(item.discount_value || 0);
+                $('#item-discount-type').val(item.discount_type || 'nominal').trigger('change');
+                $('#modal-item-discount').modal('show');
+                updateItemDiscountPreview();
+            }
+        });
+
+        $('#item-discount-value, #item-discount-type').on('input change', function() {
+            updateItemDiscountPreview();
+        });
+
+        $('#btn-save-item-discount').on('click', function() {
+            let id = $('#item-discount-batch-id').val();
+            let item = cart.find(i => i.batch_id == id);
+            if (item) {
+                let type = $('#item-discount-type').val();
+                let value = parseFloat($('#item-discount-value').val()) || 0;
+                let displayPrice = parseFloat(item.price) + getProductMarkup(item.product_id, item.price);
+                let totalItemPrice = displayPrice * item.qty;
+                
+                let actualDiscount = 0;
+                if (type === 'percent') {
+                    actualDiscount = totalItemPrice * (value / 100);
+                } else {
+                    actualDiscount = value;
+                }
+
+                item.discount = actualDiscount;
+                item.discount_type = type;
+                item.discount_value = value;
+                
+                saveCart();
+                renderCart();
+                $('#modal-item-discount').modal('hide');
+                iziToast.success({ message: 'Diskon item diterapkan', position: 'topRight', timeout: 1000 });
+            }
+        });
+
+        function updateItemDiscountPreview() {
+            let id = $('#item-discount-batch-id').val();
+            let item = cart.find(i => i.batch_id == id);
+            if (!item) return;
+
+            let type = $('#item-discount-type').val();
+            let value = parseFloat($('#item-discount-value').val()) || 0;
+            let displayPrice = parseFloat(item.price) + getProductMarkup(item.product_id, item.price);
+            let totalItemPrice = displayPrice * item.qty;
+            let calculated = 0;
+
+            if (type === 'percent') {
+                calculated = totalItemPrice * (value / 100);
+                $('#label-item-discount-value').text('Nilai Diskon (%)');
+            } else {
+                calculated = value;
+                $('#label-item-discount-value').text('Nilai Diskon (Nominal Rp)');
+            }
+
+            $('#item-discount-calc-display').text('Rp ' + calculated.toLocaleString('id-ID'));
+        }
     });
 
     function loadAffiliateRates(affiliateId) {
@@ -697,6 +804,11 @@
                 return;
             }
             existing.qty++;
+            // Recalculate percentage discount
+            if (existing.discount_type === 'percent') {
+                let dp = parseFloat(existing.price) + getProductMarkup(existing.product_id, existing.price);
+                existing.discount = (dp * existing.qty) * (existing.discount_value / 100);
+            }
         } else {
             if (batch.stock <= 0) {
                 iziToast.warning({ message: 'Stok Habis', position: 'topRight' });
@@ -708,7 +820,8 @@
                 name: batch.text.split('(')[0].trim(),
                 price: batch.price,
                 qty: 1,
-                stock: batch.stock
+                stock: batch.stock,
+                discount: 0
             });
         }
         saveCart();
@@ -726,18 +839,21 @@
 
         cart.forEach(item => {
             let displayPrice = parseFloat(item.price) + getProductMarkup(item.product_id, item.price);
+            let itemSubtotal = (displayPrice * item.qty) - (item.discount || 0);
             container.append(`
                 <tr class="cart-item-row">
-                    <td>
+                    <td style="width: 55%;">
                         <div class="font-weight-bold small">${item.name}</div>
                         <div class="text-muted small">Rp ${displayPrice.toLocaleString('id-ID')} x ${item.qty}</div>
+                        ${item.discount > 0 ? `<div class="text-danger small font-weight-bold mt-1"><i class="fas fa-tag mr-1"></i> -Rp ${item.discount.toLocaleString('id-ID')}</div>` : ''}
                     </td>
                     <td class="text-right">
-                        <div class="font-weight-bold">Rp ${(displayPrice * item.qty).toLocaleString('id-ID')}</div>
+                        <div class="font-weight-bold">Rp ${itemSubtotal.toLocaleString('id-ID')}</div>
                         <div class="btn-group btn-group-sm mt-1">
                             <button class="btn btn-light btn-qty" data-id="${item.batch_id}" data-action="minus"><i class="fas fa-minus small"></i></button>
                             <button class="btn btn-light btn-qty font-weight-bold px-2" disabled>${item.qty}</button>
                             <button class="btn btn-light btn-qty" data-id="${item.batch_id}" data-action="plus"><i class="fas fa-plus small"></i></button>
+                            <button class="btn btn-info btn-item-discount ml-1" data-id="${item.batch_id}"><i class="fas fa-tag small"></i></button>
                             <button class="btn btn-light text-danger btn-remove-cart ml-1" data-id="${item.batch_id}"><i class="fas fa-trash small"></i></button>
                         </div>
                     </td>
@@ -756,6 +872,13 @@
             item.qty--;
             if (item.qty <= 0) { removeFromCart(id); return; }
         }
+
+        // Recalculate discount if percentage-based
+        if (item.discount_type === 'percent') {
+            let displayPrice = parseFloat(item.price) + getProductMarkup(item.product_id, item.price);
+            item.discount = (displayPrice * item.qty) * (item.discount_value / 100);
+        }
+
         saveCart(); renderCart();
     }
 
@@ -766,16 +889,18 @@
     function updateTotals() {
         let discountManual = parseFloat($('#discount-manual').val()) || 0;
         let subtotal = 0;
+        let itemDiscountsTotal = 0;
         let affiliateFee = 0;
 
         cart.forEach(item => {
             let itemPrice = parseFloat(item.price);
             let itemMarkup = getProductMarkup(item.product_id, itemPrice);
             subtotal += (itemPrice + itemMarkup) * item.qty;
+            itemDiscountsTotal += parseFloat(item.discount || 0);
             if ($('#affiliate-select').val()) affiliateFee += itemMarkup * item.qty;
         });
 
-        let totalDiscount = discountManual + voucherDiscount;
+        let totalDiscount = discountManual + voucherDiscount + itemDiscountsTotal;
         let total = Math.max(0, subtotal - totalDiscount);
         
         // Update Sidebar View

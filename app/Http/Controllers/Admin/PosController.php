@@ -136,6 +136,7 @@ class PosController extends Controller
             'items.*.product_id' => 'required|exists:products,id',
             'items.*.batch_id' => 'required|exists:product_batches,id',
             'items.*.qty' => 'required|integer|min:1',
+            'items.*.discount' => 'nullable|numeric|min:0',
             'customer_name' => 'nullable|string|max:100',
             'customer_phone' => 'nullable|string|max:20',
             'customer_id' => 'nullable|exists:customers,id',
@@ -177,6 +178,7 @@ class PosController extends Controller
                 $batch = ProductBatch::with('product')->findOrFail($item['batch_id']);
                 $product = $batch->product;
                 $qty = $item['qty'];
+                $itemDiscount = (float)($item['discount'] ?? 0);
 
                 if ($batch->qty < $qty) {
                     throw new \Exception("Stok batch {$batch->batch_no} untuk produk {$product->name} tidak mencukupi.");
@@ -220,7 +222,7 @@ class PosController extends Controller
                     $finalPrice += $itemFee;
                 }
 
-                $subtotal = $finalPrice * $qty;
+                $subtotal = ($finalPrice * $qty) - $itemDiscount;
                 $totalAmount += $subtotal;
                 
                 if ($affiliate) {
@@ -233,6 +235,7 @@ class PosController extends Controller
                     'buy_price' => $batch->buy_price,
                     'qty' => $qty,
                     'price' => $finalPrice, // Price saved includes fee if ADD_TO_PRICE
+                    'discount' => $itemDiscount,
                     'subtotal' => $subtotal,
                 ];
 
