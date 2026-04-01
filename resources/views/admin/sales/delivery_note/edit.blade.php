@@ -112,10 +112,9 @@
                             <table class="table table-bordered" id="items-table">
                                 <thead class="bg-light">
                                     <tr>
-                                        <th style="width: 45%">Nama Barang (Batch)</th>
+                                        <th style="width: 55%">Nama Barang (Batch)</th>
                                         <th style="width: 12%">Qty</th>
-                                        <th style="width: 15%">Satuan</th>
-                                        <th style="width: 20%">Keterangan</th>
+                                        <th style="width: 25%">Keterangan</th>
                                         <th style="width: 8%"></th>
                                     </tr>
                                 </thead>
@@ -134,16 +133,6 @@
                                         </td>
                                         <td>
                                             <input type="number" name="items[{{ $index }}][qty]" class="form-control" value="{{ $item->qty }}" min="1" required>
-                                        </td>
-                                        <td>
-                                            <select name="items[{{ $index }}][satuan]" class="form-control">
-                                                <option value="">-- Pilih Satuan --</option>
-                                                @foreach($nettoAttributes as $attr)
-                                                    <option value="{{ $attr->name }}" {{ $item->satuan == $attr->name ? 'selected' : '' }}>
-                                                        {{ $attr->name }}
-                                                    </option>
-                                                @endforeach
-                                            </select>
                                         </td>
                                         <td>
                                             <input type="text" name="items[{{ $index }}][description]" class="form-control" value="{{ $item->description }}" placeholder="Keterangan (opsional)">
@@ -188,13 +177,6 @@ function buildBatchOptions() {
     return html;
 }
 
-function buildSatuanOptions() {
-    let html = '<option value="">-- Pilih Satuan --</option>';
-    nettoAttributes.forEach(function(attr) {
-        html += `<option value="${attr.name}">${attr.name}</option>`;
-    });
-    return html;
-}
 
 function addRow() {
     const idx = rowIndex++;
@@ -207,11 +189,6 @@ function addRow() {
         </td>
         <td>
             <input type="number" name="items[${idx}][qty]" class="form-control" value="1" min="1" required>
-        </td>
-        <td>
-            <select name="items[${idx}][satuan]" class="form-control">
-                ${buildSatuanOptions()}
-            </select>
         </td>
         <td>
             <input type="text" name="items[${idx}][description]" class="form-control" placeholder="Keterangan (opsional)">

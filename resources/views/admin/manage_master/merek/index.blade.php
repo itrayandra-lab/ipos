@@ -50,6 +50,7 @@
                             <thead>
                                 <tr>
                                     <th width="10px">#</th>
+                                    <th>Kode</th>
                                     <th>Nama</th>
                                     <th>Deskripsi</th>
                                     <th width="10px">Action</th>
@@ -82,6 +83,13 @@
                             <input type="text" placeholder="Masukkan Nama Merek" class="form-control" name="name" required="">
                             <div class="invalid-feedback">
                                 Masukkan Nama Merek
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label>Kode Merek</label>
+                            <input type="text" placeholder="Contoh: MSL (Maks 10 Karakter)" class="form-control" name="code" required="" maxlength="10">
+                            <div class="invalid-feedback">
+                                Masukkan Kode Merek
                             </div>
                         </div>
                         <div class="form-group">
@@ -119,6 +127,13 @@
                             </div>
                         </div>
                         <div class="form-group">
+                            <label>Kode Merek</label>
+                            <input type="text" placeholder="Contoh: MSL (Maks 10 Karakter)" class="form-control" name="code" required="" id="code" maxlength="10">
+                            <div class="invalid-feedback">
+                                Masukkan Kode Merek
+                            </div>
+                        </div>
+                        <div class="form-group">
                             <label>Deskripsi <small>( Optional )</small> </label>
                             <textarea data-height="200" class="form-control" placeholder="Masukkan Deskripsi ( Optional )" name="description" id="description"></textarea>
                         </div>
@@ -144,6 +159,7 @@
                 },
                 columns: [
                     { data: 'DT_RowIndex', name: 'DT_RowIndex' },
+                    { data: 'code', name: 'code' },
                     { data: 'name', name: 'name' },
                     { data: 'description', name: 'description' },
                     { data: 'action', name: 'action' }
@@ -172,6 +188,7 @@
                     success: function(data) {
                         $('#id').val(data.id);
                         $('#name').val(data.name);
+                        $('#code').val(data.code);
                         $('#description').val(data.description);
                         $('#updateModal').modal('show');
                     },

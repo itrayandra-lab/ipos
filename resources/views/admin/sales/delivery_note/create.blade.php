@@ -111,10 +111,9 @@
                             <table class="table table-bordered" id="items-table">
                                 <thead class="bg-light">
                                     <tr>
-                                        <th style="width: 45%">Nama Barang (Batch)</th>
+                                        <th style="width: 55%">Nama Barang (Batch)</th>
                                         <th style="width: 12%">Qty</th>
-                                        <th style="width: 15%">Satuan</th>
-                                        <th style="width: 20%">Keterangan</th>
+                                        <th style="width: 25%">Keterangan</th>
                                         <th style="width: 8%"></th>
                                     </tr>
                                 </thead>
@@ -139,87 +138,12 @@
     </section>
 </div>
 
-<script>
-const batchData = @json($batchList);
-const nettoAttributes = @json($nettoAttributes);
-let rowIndex = 0;
 
-function buildBatchOptions() {
-    let html = '<option value="">-- Pilih Barang --</option>';
-    batchData.forEach(function(b) {
-        html += `<option value="${b.id}" data-stock="${b.stock}">${b.text}</option>`;
-    });
-    return html;
-}
-
-function buildSatuanOptions() {
-    let html = '<option value="">-- Pilih Satuan --</option>';
-    nettoAttributes.forEach(function(attr) {
-        html += `<option value="${attr.name}">${attr.name}</option>`;
-    });
-    return html;
-}
-
-function addRow() {
-    const idx = rowIndex++;
-    const row = `
-    <tr>
-        <td>
-            <select name="items[${idx}][product_batch_id]" class="form-control select2-items" required>
-                ${buildBatchOptions()}
-            </select>
-        </td>
-        <td>
-            <input type="number" name="items[${idx}][qty]" class="form-control" value="1" min="1" required>
-        </td>
-        <td>
-            <select name="items[${idx}][satuan]" class="form-control">
-                ${buildSatuanOptions()}
-            </select>
-        </td>
-        <td>
-            <input type="text" name="items[${idx}][description]" class="form-control" placeholder="Keterangan (opsional)">
-        </td>
-        <td class="text-center">
-            <button type="button" class="btn btn-sm btn-danger remove-row"><i class="fas fa-trash"></i></button>
-        </td>
-    </tr>`;
-    $('#item-rows').append(row);
-    $('.select2-items').last().select2({ width: '100%' });
-}
-
-$(document).ready(function() {
-    addRow();
-
-    $('#add-row').on('click', addRow);
-    $(document).on('click', '.remove-row', function() { $(this).closest('tr').remove(); });
-
-    $('#is_registered_customer').on('change', function() {
-        if ($(this).is(':checked')) {
-            $('#customer-select-wrapper').show();
-            $('#customer-text-wrapper').hide();
-            $('#customer-name').removeAttr('required');
-        } else {
-            $('#customer-select-wrapper').hide();
-            $('#customer-text-wrapper').show();
-            $('#customer-name').attr('required', 'required');
-        }
-    });
-
-    $('#customer-select').on('change', function() {
-        const opt = $(this).find(':selected');
-        if (opt.val()) {
-            $('#customer-name').val(opt.data('name'));
-            $('#customer-phone').val(opt.data('phone'));
-            $('#delivery-address').val(opt.data('address'));
-        }
-    });
-});
-</script>
 @endsection
 
 @push('scripts')
 <script>
+    const batchData = @json($batchList);
     let rowIndex = 0;
 
     function buildBatchOptions() {

@@ -79,9 +79,8 @@
         <thead>
             <tr>
                 <th style="width: 5%;">No</th>
-                <th style="width: 40%;">Nama Barang</th>
+                <th style="width: 52%;">Nama Barang</th>
                 <th style="width: 12%;">Qty</th>
-                <th style="width: 12%;">Satuan</th>
                 <th style="width: 31%;">Keterangan</th>
             </tr>
         </thead>
@@ -108,7 +107,6 @@
                     @endif
                 </td>
                 <td class="text-right">{{ $item->qty }}</td>
-                <td>{{ $item->satuan ?? '-' }}</td>
                 <td>{{ $item->description ?? '-' }}</td>
             </tr>
             @endforeach
