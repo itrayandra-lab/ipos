@@ -150,6 +150,54 @@
                           "&end_date=" + end_date;
                 window.open(url, '_blank');
             };
+
+            // Delete transaction
+            window.deleteTransaction = function(id) {
+                if (confirm('Apakah Anda yakin ingin menghapus transaksi ini? Stok barang akan dikembalikan.')) {
+                    $.ajax({
+                        url: "{{ url('admin/transactions') }}/" + id,
+                        type: 'DELETE',
+                        data: {
+                            _token: "{{ csrf_token() }}"
+                        },
+                        success: function(response) {
+                            if (response.success) {
+                                table.ajax.reload();
+                                if (typeof iziToast !== "undefined") {
+                                    iziToast.success({
+                                        title: 'Berhasil',
+                                        message: 'Transaksi berhasil dihapus',
+                                        position: 'topRight'
+                                    });
+                                } else {
+                                    alert('Transaksi berhasil dihapus');
+                                }
+                            } else {
+                                if (typeof iziToast !== "undefined") {
+                                    iziToast.error({
+                                        title: 'Gagal',
+                                        message: response.message || 'Terjadi kesalahan saat menghapus transaksi',
+                                        position: 'topRight'
+                                    });
+                                } else {
+                                    alert('Gagal: ' + (response.message || 'Terjadi kesalahan'));
+                                }
+                            }
+                        },
+                        error: function() {
+                            if (typeof iziToast !== "undefined") {
+                                iziToast.error({
+                                    title: 'Gagal',
+                                    message: 'Terjadi kesalahan sistem',
+                                    position: 'topRight'
+                                });
+                            } else {
+                                alert('Terjadi kesalahan sistem');
+                            }
+                        }
+                    });
+                }
+            };
         });
     </script>
 @endsection

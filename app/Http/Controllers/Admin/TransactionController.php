@@ -67,6 +67,7 @@ class TransactionController extends Controller
                         <li><a href="' . url('admin/transactions/show/'. $transaction->id) . '" class="dropdown-item">Detail</a></li>
                         <li><a href="' . route('admin.transactions.edit', $transaction->id) . '" class="dropdown-item">Edit</a></li>
                         <li><a href="' . route('admin.transactions.print_struk', $transaction->id) . '" target="_blank" class="dropdown-item">Print Struk</a></li>
+                        <li><button type="button" onclick="deleteTransaction(' . $transaction->id . ')" class="dropdown-item text-danger">Hapus</button></li>
                     </ul>
                 </div>';
             })
@@ -254,6 +255,43 @@ class TransactionController extends Controller
                 ->with('message', 'Transaksi berhasil diperbarui');
         } catch (\Exception $e) {
             return redirect()->back()->with('error', $e->getMessage())->withInput();
+        }
+    }
+
+    public function destroy($id)
+    {
+        $transaction = Transaction::with('items.product')->findOrFail($id);
+        try {
+            DB::transaction(function () use ($transaction) {
+                // Kembalikan stok jika statusnya sudah lunas atau kredit (DP)
+                if (in_array($transaction->payment_status, ['paid', 'credit'])) {
+                    foreach ($transaction->items as $item) {
+                        if ($item->product_batch_id) {
+                            $batch = ProductBatch::find($item->product_batch_id);
+                            if ($batch) {
+                                $batch->increment('qty', $item->qty);
+                                if ($batch->product) {
+                                    $batch->product->increment('stock', $item->qty);
+                                }
+                            }
+                        }
+                    }
+                }
+
+                // Hapus items (sudah cascade di DB biasanya, tapi amannya hapus manual)
+                $transaction->items()->delete();
+                
+                // Hapus payments terkait
+                if (method_exists($transaction, 'payments')) {
+                    $transaction->payments()->delete();
+                }
+
+                $transaction->delete();
+            });
+
+            return response()->json(['success' => true]);
+        } catch (\Exception $e) {
+            return response()->json(['success' => false, 'message' => $e->getMessage()]);
         }
     }
 }

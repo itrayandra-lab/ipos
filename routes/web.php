@@ -234,6 +234,7 @@ Route::prefix('admin')->middleware(['auth', 'role:admin'])->group(function () {
             Route::get('show/{id}', [TransactionAdmin::class , 'show'])->name('admin.transactions.show');
             Route::get('edit/{id}', [TransactionAdmin::class , 'edit'])->name('admin.transactions.edit');
             Route::put('{id}', [TransactionAdmin::class , 'update'])->name('admin.transactions.update');
+            Route::delete('{id}', [TransactionAdmin::class , 'destroy'])->name('admin.transactions.destroy');
             Route::get('print-struk/{id}', [TransactionAdmin::class , 'printStruk'])->name('admin.transactions.print_struk');
         }
         );
