@@ -20,12 +20,13 @@
         .info-col strong { display: inline-block; width: 100px; flex-shrink: 0; }
         .info-col .address-text { word-wrap: break-word; flex: 1; }
         .table { width: 100%; border-collapse: collapse; margin-bottom: 20px; }
-        .table th { border-top: 1px solid #000; border-bottom: 1px solid #000; padding: 6px; text-align: left; font-weight: bold; background-color: #141414ff; color: white; font-size: 10px; }
+        .table th { border-top: 1px solid #000; border-bottom: 1px solid #000; padding: 6px; font-weight: bold; background-color: #141414ff; color: white; font-size: 10px; }
         .table td { border-bottom: 1px solid #000; padding: 6px; font-size: 10px; }
         .table tbody tr:nth-child(odd) td { background-color: rgba(0, 0, 0, 0.1); }
         .table tbody tr:nth-child(even) td { background-color: rgba(0, 0, 0, 0.2); }
-        .table td.text-right { text-align: right; }
-        .table td.text-center { text-align: center; }
+        .text-right { text-align: right !important; }
+        .text-center { text-align: center !important; }
+        .text-left { text-align: left !important; }
         .footer { margin-top: 30px; }
         .signatures { display: flex; justify-content: space-between; margin-top: 40px; }
         .signature-box { text-align: center; width: 30%; }
@@ -78,9 +79,9 @@
     <table class="table">
         <thead>
             <tr>
-                <th style="width: 5%;">No</th>
+                <th class="text-center" style="width: 5%;">No</th>
                 <th style="width: 52%;">Nama Barang</th>
-                <th style="width: 12%;">Qty</th>
+                <th class="text-center" style="width: 12%;">Qty</th>
                 <th style="width: 31%;">Keterangan</th>
             </tr>
         </thead>
@@ -106,7 +107,7 @@
                         -
                     @endif
                 </td>
-                <td class="text-right">{{ $item->qty }}</td>
+                <td class="text-center">{{ $item->qty }}</td>
                 <td>{{ $item->description ?? '-' }}</td>
             </tr>
             @endforeach

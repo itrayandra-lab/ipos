@@ -1,0 +1,294 @@
+BLUEPRINT SISTEM iPOS RAYCORP
+
+Integrasi SKU, Batch, ED, Search, Tracking, Auto PO,
+Inventory Finance, Download, dan Print
+
+Dokumen spesifikasi operasional dan teknis untuk tim IT
+Tujuan Dokumen
+Sebagai acuan implementasi iPOS RayCorp agar operasional brand, stok, batch, penjualan, pembelian, dan laporan inventory terintegrasi dalam satu sistem.
+Cakupan
+Beautylatory, Mommylatory, Babylatory, Sun & Moon, Dermond, Sheluna, dan brand RayCorp lain yang akan ditambahkan.
+Posisi Dokumen
+Dokumen kerja untuk tim IT/developer, tim operasional, gudang, admin pembelian, dan finance.
+
+Prinsip utama: iPOS tidak hanya menjadi kasir/admin transaksi, tetapi menjadi single source of truth untuk produk, SKU, batch, stok, PO, penjualan, retur, ED, dan inventory value.
+
+
+1. Latar Belakang dan Tujuan Sistem
+? RayCorp sedang merapikan pencatatan seluruh brand agar data operasional tidak terpecah di Excel, pencatatan manual, marketplace, dan sistem transaksi yang berbeda-beda.
+? Karena produk RayCorp memiliki banyak SKU, ukuran, varian, channel penjualan, serta risiko ED, maka iPOS harus ditingkatkan menjadi sistem administrasi operasional yang mampu melakukan tracking end-to-end.
+? Tujuan implementasi ini adalah menyatukan master data produk, transaksi pembelian, stok per batch, penjualan, retur, monitoring ED, rekomendasi PO ke pabrik, dan laporan inventory untuk finance dalam satu alur yang konsisten.
+2. Prinsip Desain Sistem
+? Satu SKU hanya punya satu identitas produk. SKU tidak berubah meskipun harga berubah, batch berubah, atau terjadi produksi ulang.
+? Batch disimpan di level penerimaan barang/stok, bukan di level master produk.
+? Stok kosmetik harus dikelola per batch dan per ED agar retur, recall, clearance, dan FEFO dapat berjalan.
+? Sistem harus mampu menghasilkan output operasional dan output laporan. Artinya data yang sama dipakai untuk gudang, admin, pembelian, sales, dan finance.
+? Search, filter, export, print, dan tracking harus tersedia di semua modul agar data mudah dipakai, bukan hanya sekadar disimpan.
+3. Struktur Kode Produk yang Harus Menjadi Standar
+Format SKU: [Brand]-[Category]-[Product]-[Size]
+Contoh
+Arti
+Catatan
+MOM-BL-LOT-250
+Mommylatory - Body Lotion - Lotion - 250 ml
+SKU produk tetap
+
+Kode lengkap SKU + batch
+Dipakai untuk tracking stok batch
+? Aturan batch yang direkomendasikan:
+? Format batch: YYMM-Batch. Contoh: 2503-A.
+? Saat tahun berganti, kode batch otomatis ikut berubah karena dua digit tahun berada di depan.
+? Jika dalam satu bulan ada lebih dari satu produksi untuk SKU yang sama, gunakan suffix A, B, C, dan seterusnya.
+? Batch harus disimpan saat penerimaan barang dari pabrik, bukan saat pembuatan master produk.
+
+5. Struktur Menu iPOS yang Direkomendasikan
+Dashboard
+? Total inventory value
+? Warning ED
+? Fast moving
+? Slow moving
+? Recommended PO
+? Ringkasan penjualan
+? PO pending
+Produk
+? Merek
+? Kategori Utama
+? Sub Kategori
+? Tipe Produk
+? Produk Induk
+? SKU / Varian Produk
+Stok
+? Stok Batch
+? Mutasi Stok
+? Monitoring ED
+? Penyesuaian Stok
+? Retur
+? Batch Tracking
+Pembelian
+? Supplier
+? Purchase Order
+? Penerimaan Barang
+? Rekomendasi PO
+Penjualan
+? Data Transaksi
+? Invoice Penjualan
+? Surat Jalan
+? Marketplace
+? Voucher / Diskon
+Laporan
+? Inventory Value
+? Stock on Hand
+? Stock per Batch
+? ED Warning
+? Aging Stock
+? Sales Report
+? Purchase Report
+? Return Report
+Tracking
+? Global Search
+? SKU Tracking
+? Batch Tracking
+? PO Tracking
+? Invoice Tracking
+Export Center (opsional)
+? Export Produk
+? Export Stok
+? Export Pembelian
+? Export Penjualan
+? Export Retur
+? Export Laporan
+
+6. Detail Modul Produk
+? Form tambah produk yang ada saat ini sudah mendekati kebutuhan, namun harus dipisahkan dengan jelas antara master produk dan master SKU.
+? Brand, kategori, sub kategori, dan tipe produk berada di level produk induk.
+? Nama varian, netto, unit, SKU code, HPP default, harga jual, min stock alert, barcode, shelf life, supplier default, status aktif, flag ED tracking, dan flag batch tracking berada di level SKU.
+? SKU sebaiknya dapat di-generate otomatis dari kombinasi brand code, category code, product code, variant code, dan size code, namun tetap bisa diubah manual oleh admin superuser.
+? Field tambahan yang perlu ada: HPP default, shelf life (bulan), default supplier/pabrik, product code, variant code, size code, barcode, allow batch tracking, allow ED tracking, channel allowed, dan preview SKU structure.
+7. Detail Modul Pembelian
+? Menu Purchase Order dipakai untuk membuat PO ke pabrik/supplier.
+? PO tidak menambah stok. Stok baru bertambah saat penerimaan barang dilakukan.
+? Status PO minimal: Draft, Approved, Ordered, Partial Received, Received, Closed, Cancelled.
+? Form PO perlu memuat PO number otomatis, supplier, tanggal PO, ETA, catatan, item SKU, qty, harga satuan/HPP, subtotal, diskon, pajak, dan total.
+? Menu Penerimaan Barang harus memaksa input SKU, batch, tanggal produksi, ED, qty diterima, dan HPP aktual. Di titik ini sistem membentuk batch stock baru atau menambahkan qty ke batch yang sama jika diizinkan.
+? Menu Rekomendasi PO menampilkan current stock, sales 30/60/90 hari, average sales, safety stock, lead time, forecast kebutuhan, suggested PO qty, supplier default, dan tombol Buat PO.
+8. Detail Modul Stok dan Batch
+? Stok tidak boleh hanya disimpan sebagai angka total per produk. Harus ada stok per SKU dan per batch.
+? Field minimum stok batch: SKU, product name, batch code, production date, expired date, qty_in, qty_out, qty_remaining, warehouse location, hpp_actual, status ED.
+? Sistem penjualan wajib memotong stok pada batch tertentu. Untuk kosmetik direkomendasikan memakai FEFO (First Expired First Out).
+? Mutasi stok harus tercatat untuk setiap pergerakan: receiving, sales, return, adjustment, disposal, transfer.
+? Monitoring ED harus memiliki filter semua, warning < 12 bulan, warning < 6 bulan, expired, per brand, per SKU, dan per lokasi gudang.
+? Batch tracking page harus menampilkan SKU, batch, ED, qty remaining, supplier/PO asal, transaksi keluar, retur, dan status.
+9. Detail Modul Penjualan
+? Penjualan harus merekam SKU yang terjual, batch yang dipotong, qty, harga jual, channel, invoice, dan status pembayaran.
+? Channel minimal: marketplace, website, offline store, RSIA, reseller, internal.
+? Halaman transaksi perlu mendukung filter tanggal, channel, payment status, delivery type, SKU, brand, customer/mitra, serta export hasil filter.
+? Invoice, surat jalan, dan detail transaksi harus dapat dicetak dan diunduh PDF.
+? Jika satu transaksi menjual beberapa item, setiap item tetap harus tertaut ke SKU dan batch stok yang keluar.
+10. Detail Modul Retur
+? Retur harus menjadi modul khusus, tidak hanya catatan teks di transaksi.
+? Jenis retur minimal: retur customer, retur supplier/pabrik, retur internal rusak, retur expired/near expiry.
+? Field wajib: tanggal, SKU, batch, qty, alasan retur, kondisi barang, tindakan akhir (kembali ke stok, reject, retur supplier, disposal).
+? Retur hanya valid jika SKU dan batch diketahui. Ini penting untuk audit, quality control, dan tanggung jawab stok.
+11. ED Monitoring dan Alert
+Status
+Parameter
+Aksi yang disarankan
+AMAN
+ED > 12 bulan
+Stok normal
+WARNING < 12 BULAN
+6-12 bulan menuju ED
+Monitor ketat, review pergerakan
+WARNING < 6 BULAN
+< 6 bulan menuju ED
+Prioritas clearance, bundling, promo
+EXPIRED
+Lewat ED
+Blok penjualan, disposal / tindak lanjut
+? Sistem perlu menyediakan warna indikator (hijau, kuning, merah, hitam/abu) dan kemampuan download laporan ED warning berdasarkan filter yang sedang aktif.
+12. Search, Tracking, dan Filter Global
+? Tambahkan global search pada topbar iPOS dengan placeholder: Cari SKU, batch, produk, PO, invoice, supplier, customer.
+? Search harus dapat membaca data di seluruh modul: Produk, Stok, Pembelian, Penjualan, Retur, Supplier, dan Laporan.
+? Jika user mengetik SKU, sistem harus bisa menampilkan semua data terkait: profile SKU, stok per batch, PO terkait, transaksi penjualan, retur, inventory value, dan rekomendasi PO.
+? Jika user mengetik batch, sistem harus menampilkan asal batch, tanggal penerimaan, ED, sisa stok, transaksi keluar, dan retur terkait.
+? Setiap halaman tabel harus punya advanced filter, search box, tombol reset filter, export, dan print.
+? Export harus mengikuti hasil filter yang aktif, bukan seluruh data.
+13. Download, Export, dan Print
+Modul
+Output minimum
+Produk
+Export master product, export SKU, print product list
+Stok
+Export stock on hand, export batch stock, export ED report, print stock list, print batch stock card
+Pembelian
+Print PO, download PO PDF, export purchase report, export outstanding PO
+Penerimaan Barang
+Print receiving note, download receiving report
+Penjualan
+Export sales report, print invoice, print surat jalan, export by channel
+Retur
+Export return report, print return note
+Laporan
+Download Excel, CSV, PDF, dan print summary/detail
+? Tombol UI minimum yang direkomendasikan di kanan atas setiap tabel: [Search] [Filter] [Export Excel] [CSV/PDF] [Print] [Reset Filter].
+14. Forecast dan Auto PO ke Pabrik
+? Sistem forecast minimal memakai data sales 90 hari terakhir untuk menghitung average monthly sales.
+? Rumus awal yang direkomendasikan: Avg Monthly Sales = Sales 90D / 3.
+? Forecast 3 Bulan = Avg Monthly Sales x 3.
+? Suggested PO Qty = (Forecast 3 Bulan + Safety Stock) - Current Stock.
+? Jika Suggested PO Qty > 0, tampilkan status ORDER dan sediakan tombol Buat PO.
+? Tambahkan supplier default dan lead time default di master SKU/supplier agar rekomendasi PO lebih akurat.
+? Sales Data harus menjadi sumber untuk forecast. Karena itu data transaksi per SKU harus konsisten dan disiplin.
+15. Laporan Inventory untuk Finance
+? Laporan inventory value harus membaca stok batch yang masih tersisa dan HPP aktual per batch.
+? Kolom minimal: SKU, product name, batch, qty remaining, HPP, total value, ED status.
+? Ringkasan minimal: total inventory value, inventory value per brand, near expiry value, expired value, aging stock.
+? Output ini dipakai finance sebagai nilai persediaan dan kontrol stok mati.
+? Jika HPP antar batch berbeda, laporan tidak boleh mengambil HPP default secara membabi buta; harus memakai HPP aktual batch saat receiving.
+16. Alur Proses Operasional End-to-End
+1. Admin membuat brand, kategori, produk induk, dan SKU.
+2. Sistem membentuk SKU code.
+3. Admin pembelian membuat PO ke pabrik.
+4. Supplier/pabrik mengirim barang.
+5. Admin receiving menerima barang dan menginput batch, production date, ED, qty, dan HPP aktual.
+6. Sistem menambah stok batch dan membentuk mutasi receiving.
+7. Penjualan terjadi melalui salah satu channel.
+8. Sistem memotong stok batch sesuai FEFO dan membentuk mutasi sales.
+9. Jika ada retur, admin memilih SKU dan batch lalu menentukan tindakan akhir.
+10. Sistem ED monitoring, search, tracking, dan dashboard terus membaca data yang sama.
+11. Finance menarik laporan inventory value dari stok batch yang tersisa.
+17. Prioritas Implementasi Bertahap
+Tahap
+Fokus implementasi
+Fase 1 - Pondasi
+Brand, kategori, sub kategori, produk induk, SKU, stok per SKU, search dasar, export dasar.
+Fase 2 - Kontrol Batch
+Receiving barang, batch, ED, stok per batch, mutasi stok, monitoring ED.
+Fase 3 - Tracking dan Output
+Global search, advanced filter, export filtered result, print invoice/PO/report, SKU tracking, batch tracking.
+Fase 4 - Optimasi Operasional
+Forecast, auto PO, dashboard owner, inventory value finance, retur terstruktur, aging stock.
+18. Daftar Kebutuhan UI per Halaman
+Produk - Tambah Produk
+? Brand
+? Nama produk
+? Kategori
+? Sub kategori
+? Tipe produk
+? Min stock alert
+? Varian produk (SKU)
+? Netto
+? Satuan
+? SKU Code
+? Harga jual
+? HPP default
+? Shelf life
+? Default supplier
+? Barcode
+? Status aktif
+? Preview SKU
+Pembelian - Buat PO
+? PO number otomatis
+? Tanggal PO
+? Supplier
+? ETA
+? Catatan
+? Item produk berbasis SKU
+? Qty
+? Harga satuan/HPP
+? Subtotal
+? Diskon
+? Pajak
+? Total
+Penerimaan Barang
+? Pilih PO
+? SKU
+? Batch
+? Tanggal produksi
+? Tanggal ED
+? Qty diterima
+? HPP aktual
+? Catatan
+Stok Batch
+? Search
+? Filter
+? Export
+? Print
+? Lihat detail batch
+? Lihat mutasi
+Penjualan - Data Transaksi
+? Filter tanggal
+? Filter payment status
+? Filter delivery type
+? Search invoice/SKU/customer
+? Export
+? Print
+Monitoring ED
+? Search SKU/Batch
+? Filter by status
+? Filter by brand
+? Filter by range ED
+? Export report
+? Print
+19. Observasi dari UI iPOS Saat Ini
+? Berdasarkan tampilan yang sudah ada, iPOS sudah memiliki fondasi yang baik: sidebar modular, halaman transaksi dengan filter dasar, form PO, dan form tambah produk. Ini mempercepat implementasi karena pengembangan dapat dilakukan dengan memperkaya model data dan action di tiap modul, bukan membangun semuanya dari nol.
+? Catatan utama dari UI saat ini: form produk sudah memiliki area varian/SKU namun belum cukup untuk batch, HPP default, shelf life, dan relasi supplier; form PO sudah cocok untuk dasar pembelian namun perlu ditautkan ke receiving dan batch; tabel transaksi sudah punya filter dasar namun perlu global search, export, print, dan tracking yang lebih kuat.
+Lampiran A - Referensi UI Saat Ini
+Sidebar iPOS Admin dan struktur menu dasar saat ini.
+
+
+Form pembuatan Purchase Order baru.
+
+
+Form tambah produk dan area varian/SKU.
+
+
+Halaman data transaksi penjualan.
+
+
+20. Keputusan dan Rekomendasi Akhir
+? Sistem SKU, batch, ED, search, tracking, download/print, forecast, auto PO, dan inventory value sebaiknya langsung dimasukkan ke iPOS agar tidak terjadi dual system terlalu lama.
+? Excel tetap berguna sebagai alat desain, validasi awal, dan backup, tetapi operasional utama sebaiknya berpindah ke iPOS.
+? Prioritas paling kuat untuk tim IT adalah memastikan struktur data benar terlebih dahulu. Jika struktur tabel dan relasi benar, fitur search, laporan, export, dan dashboard akan jauh lebih mudah dibangun.
+? Untuk produk kosmetik dan personal care RayCorp, batch tracking dan ED monitoring bukan fitur tambahan; ini fitur inti.
+? Dokumen ini dapat dijadikan basis technical brief untuk developer, lalu diturunkan ke ERD database, flowchart proses, dan task breakdown sprint.

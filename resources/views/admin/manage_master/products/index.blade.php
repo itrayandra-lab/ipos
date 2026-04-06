@@ -95,13 +95,19 @@
                     @csrf
                     <div class="modal-body">
                         <div class="row">
-                            <div class="col-md-6">
+                            <div class="col-md-4">
                                 <div class="form-group">
                                     <label>Nama Produk</label>
                                     <input type="text" placeholder="Masukkan Nama Produk" class="form-control" name="name" required>
                                 </div>
                             </div>
-                            <div class="col-md-6">
+                            <div class="col-md-4">
+                                <div class="form-group">
+                                    <label>Kode Produk</label>
+                                    <input type="text" placeholder="Contoh: CRM" class="form-control" name="code" required>
+                                </div>
+                            </div>
+                            <div class="col-md-4">
                                 <div class="form-group">
                                     <label>Merk</label>
                                     <select class="form-control" name="merek_id" required>
@@ -229,13 +235,19 @@
                     <input type="hidden" name="deleted_photos" id="deleted_photos">
                     <div class="modal-body">
                         <div class="row">
-                            <div class="col-md-6">
+                            <div class="col-md-4">
                                 <div class="form-group">
                                     <label>Nama Produk</label>
                                     <input type="text" placeholder="Masukkan Nama Produk" class="form-control" name="name" id="name" required>
                                 </div>
                             </div>
-                            <div class="col-md-6">
+                            <div class="col-md-4">
+                                <div class="form-group">
+                                    <label>Kode Produk</label>
+                                    <input type="text" placeholder="Contoh: CRM" class="form-control" name="code" id="edit_code" required>
+                                </div>
+                            </div>
+                            <div class="col-md-4">
                                 <div class="form-group">
                                     <label>Merk</label>
                                     <select class="form-control" name="merek_id" id="merek_id" required>
@@ -349,6 +361,42 @@
     </div>
 
     <script>
+        const MEREK_DATA = @json($merek);
+        const CATEGORY_DATA = @json($categories);
+
+        function getMerekCode(id) {
+            if (!id) return 'UNK';
+            const m = MEREK_DATA.find(x => x.id == id);
+            return m ? (m.code || 'UNK') : 'UNK';
+        }
+
+        function getCategoryCode(id) {
+            if (!id) return 'UNK';
+            const c = CATEGORY_DATA.find(x => x.id == id);
+            return c ? (c.code || 'UNK') : 'UNK';
+        }
+
+        function generateSku(merekId, categoryId, productCode, netto) {
+            const mCode = getMerekCode(merekId);
+            const cCode = getCategoryCode(categoryId);
+            const pCode = productCode || 'UNK';
+            const nPart = (netto || '').replace(/[^0-9]/g, '');
+            return `${mCode}-${cCode}-${pCode}-${nPart}`.toUpperCase();
+        }
+
+        function updateAllSkus(containerType) { // 'add' or 'edit'
+            const merekId = containerType === 'add' ? $('select[name="merek_id"]').first().val() : $('#merek_id').val();
+            const categoryId = containerType === 'add' ? $('#add-category').val() : $('#edit-category').val();
+            const productCode = containerType === 'add' ? $('input[name="code"]').first().val() : $('#edit_code').val();
+            const tableId = containerType === 'add' ? '#table-variants' : '#table-variants-edit';
+
+            $(`${tableId} tbody tr`).each(function() {
+                const netto = $(this).find('input[name*="[netto]"]').val();
+                const sku = generateSku(merekId, categoryId, productCode, netto);
+                $(this).find('input[name*="[sku]"]').val(sku);
+            });
+        }
+
         // Rupiah formatting function
         function formatRupiah(angka) {
             let number_string = angka.toString().replace(/[^,\d]/g, ''),
@@ -458,10 +506,23 @@
 
             $('#add-category').on('change', function() {
                 loadSubCategories($(this).val(), '#add-sub-category');
+                updateAllSkus('add');
             });
 
             $('#edit-category').on('change', function() {
                 loadSubCategories($(this).val(), '#edit-sub-category');
+                updateAllSkus('edit');
+            });
+
+            $('select[name="merek_id"]').first().on('change', function() { updateAllSkus('add'); });
+            $('#merek_id').on('change', function() { updateAllSkus('edit'); });
+            
+            $('input[name="code"]').first().on('input', function() { updateAllSkus('add'); });
+            $('#edit_code').on('input', function() { updateAllSkus('edit'); });
+
+            $(document).on('input', 'input[name*="[netto]"]', function() {
+                const type = $(this).closest('table').attr('id') === 'table-variants' ? 'add' : 'edit';
+                updateAllSkus(type);
             });
 
             // Variant Grid Management
@@ -488,6 +549,7 @@
                 `;
                 $('#table-variants tbody').append(html);
                 variantIndex++;
+                updateAllSkus('add');
             });
 
             $(document).on('click', '.btn-remove-variant', function() {
@@ -551,6 +613,7 @@
                     success: function(data) {
                         $('#id').val(data.id);
                         $('#name').val(data.name);
+                        $('#edit_code').val(data.code);
                         $('#merek_id').val(data.merek_id);
                         $('#min_stock_alert').val(data.min_stock_alert);
                         $('#status').val(data.status);
@@ -609,6 +672,7 @@
                             `);
                         });
                         $('#foto_update + .custom-file-label').text('Pilih gambar...');
+                        updateAllSkus('edit');
                         $('#updateModal').modal('show');
                     }
                 });
@@ -637,6 +701,7 @@
                 `;
                 $('#table-variants-edit tbody').append(html);
                 variantIndexEdit++;
+                updateAllSkus('edit');
             });
 
             // AJAX Form Submission for Update
@@ -710,6 +775,16 @@
                     }
                 });
             });
+
+            // Handle edit from query param
+            const urlParams = new URLSearchParams(window.location.search);
+            const editId = urlParams.get('edit');
+            if (editId) {
+                // Wait for DT or some delay to ensure page is ready
+                setTimeout(() => {
+                    $(`.edit[data-id="${editId}"]`).click();
+                }, 500);
+            }
         });
 
         function removePhoto(photoId) {

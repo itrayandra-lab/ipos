@@ -12,6 +12,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Facades\File;
 use App\Services\InvoiceService;
+use Yajra\DataTables\Facades\DataTables;
 
 class OnlineSaleController extends Controller
 {
@@ -161,11 +162,82 @@ class OnlineSaleController extends Controller
     }
     public function index()
     {
-        $transactions = Transaction::where('source', '!=', 'offline')
-            ->with(['items.product', 'items.batch'])
-            ->latest()
-            ->get();
-        return view('admin.online_sale.history', compact('transactions'))->with('sb', 'OnlineSale');
+        return view('admin.online_sale.history')->with('sb', 'OnlineSale');
+    }
+
+    public function getall(Request $request)
+    {
+        $query = Transaction::where('source', '!=', 'offline')
+            ->with(['items.product', 'items.batch']);
+
+        if ($request->has('source') && !empty($request->source)) {
+            $query->where('source', $request->source);
+        }
+
+        if ($request->has('start_date') && !empty($request->start_date)) {
+            $query->whereDate('created_at', '>=', $request->start_date);
+        }
+
+        if ($request->has('end_date') && !empty($request->end_date)) {
+            $query->whereDate('created_at', '<=', $request->end_date);
+        }
+
+        $transactions = $query->latest();
+
+        return DataTables::of($transactions)
+            ->addIndexColumn()
+            ->editColumn('created_at', function ($trx) {
+                return $trx->created_at->format('d/m/Y H:i');
+            })
+            ->editColumn('source', function ($trx) {
+                if ($trx->source == 'shopee') return '<span class="badge badge-warning">Shopee</span>';
+                if ($trx->source == 'tokopedia') return '<span class="badge badge-success">Tokopedia</span>';
+                if ($trx->source == 'tiktok') return '<span class="badge badge-dark">TikTok</span>';
+                return '<span class="badge badge-info">' . ucfirst($trx->source) . '</span>';
+            })
+            ->addColumn('notes_with_receipt', function ($trx) {
+                $html = $trx->notes ?? '-';
+                if ($trx->payment_receipt) {
+                    $html .= '<br><a href="' . asset($trx->payment_receipt) . '" target="_blank" class="badge badge-info mt-1"><i class="fas fa-file-invoice"></i> Bukti Bayar</a>';
+                }
+                return $html;
+            })
+            ->addColumn('total_items', function ($trx) {
+                return $trx->items->sum('qty') . ' Item';
+            })
+            ->editColumn('total_amount', function ($trx) {
+                return 'Rp' . number_format($trx->total_amount, 0, ',', '.');
+            })
+            ->addColumn('action', function ($trx) {
+                $itemsJson = htmlspecialchars(json_encode($trx->items), ENT_QUOTES, 'UTF-8');
+                $receiptUrl = $trx->payment_receipt ? asset($trx->payment_receipt) : '';
+                
+                $html = '<div class="dropdown d-inline">
+                            <button class="btn btn-primary dropdown-toggle btn-sm" type="button" data-toggle="dropdown">Aksi</button>
+                            <div class="dropdown-menu">
+                                <a class="dropdown-item has-icon show-detail" href="#" 
+                                   data-items=\'' . $itemsJson . '\'
+                                   data-receipt="' . $receiptUrl . '">
+                                    <i class="fas fa-eye text-info"></i> Detail
+                                </a>';
+                if ($trx->payment_receipt) {
+                    $html .= '<a class="dropdown-item has-icon" href="' . $receiptUrl . '" target="_blank">
+                                <i class="fas fa-file-download text-success"></i> Lihat Bukti
+                              </a>';
+                }
+                $html .= '<a class="dropdown-item has-icon" href="' . route('admin.online_sale.edit', $trx->id) . '">
+                            <i class="fas fa-edit text-primary"></i> Edit
+                          </a>
+                          <div class="dropdown-divider"></div>
+                          <a class="dropdown-item has-icon text-danger btn-delete" href="#" data-id="' . $trx->id . '">
+                            <i class="fas fa-trash"></i> Hapus
+                          </a>
+                        </div>
+                    </div>';
+                return $html;
+            })
+            ->rawColumns(['source', 'notes_with_receipt', 'action'])
+            ->make(true);
     }
 
     public function edit($id)
@@ -328,10 +400,16 @@ class OnlineSaleController extends Controller
                 $transaction->items()->delete();
                 $transaction->delete();
             });
-
+            
+            if (request()->ajax()) {
+                return response()->json(['success' => true, 'message' => 'Transaksi berhasil dihapus']);
+            }
             return redirect()->route('admin.online_sale.index')->with('message', 'Transaksi berhasil dihapus dan stok dikembalikan');
         }
         catch (\Exception $e) {
+            if (request()->ajax()) {
+                return response()->json(['success' => false, 'message' => $e->getMessage()], 500);
+            }
             return redirect()->back()->with('error', 'Gagal menghapus transaksi: ' . $e->getMessage());
         }
     }

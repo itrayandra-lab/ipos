@@ -13,6 +13,35 @@
             <div class="section-body">
                 <h2 class="section-title">Data Kategori</h2>
                 <p class="section-lead">Berikut adalah Data Kategori Utama.</p>
+                @if (session()->has('message'))
+                    <div class="alert alert-success alert-dismissible fade show" role="alert">
+                        {{ session()->get('message') }}
+                        <button type="button" class="close" data-dismiss="alert" aria-label="Close">
+                            <span aria-hidden="true">×</span>
+                        </button>
+                    </div>
+                @endif
+                @if (session()->has('error'))
+                    <div class="alert alert-danger alert-dismissible fade show" role="alert">
+                        {{ session()->get('error') }}
+                        <button type="button" class="close" data-dismiss="alert" aria-label="Close">
+                            <span aria-hidden="true">×</span>
+                        </button>
+                    </div>
+                @endif
+                @if ($errors->any())
+                    <div class="alert alert-danger alert-dismissible fade show" role="alert">
+                        <strong>Terjadi kesalahan!</strong>
+                        <ul class="mb-0">
+                            @foreach ($errors->all() as $error)
+                                <li>{{ $error }}</li>
+                            @endforeach
+                        </ul>
+                        <button type="button" class="close" data-dismiss="alert" aria-label="Tutup">
+                            <span aria-hidden="true">&times;</span>
+                        </button>
+                    </div>
+                @endif
                 <div class="card">
                     <div class="card-header">
                         <h4>Data Seluruh Kategori</h4>
@@ -27,6 +56,7 @@
                             <thead>
                                 <tr>
                                     <th width="10px">#</th>
+                                    <th>Kode</th>
                                     <th>Nama</th>
                                     <th>Deskripsi</th>
                                     <th width="10px">Action</th>
@@ -54,6 +84,10 @@
                         <div class="form-group">
                             <label>Nama Kategori</label>
                             <input type="text" class="form-control" name="name" required>
+                        </div>
+                        <div class="form-group">
+                            <label>Kode Kategori (Maks 10 Karakter)</label>
+                            <input type="text" class="form-control" name="code" maxlength="10">
                         </div>
                         <div class="form-group">
                             <label>Deskripsi</label>
@@ -85,6 +119,10 @@
                             <input type="text" class="form-control" name="name" id="edit-name" required>
                         </div>
                         <div class="form-group">
+                            <label>Kode Kategori (Maks 10 Karakter)</label>
+                            <input type="text" class="form-control" name="code" id="edit-code" maxlength="10">
+                        </div>
+                        <div class="form-group">
                             <label>Deskripsi</label>
                             <textarea class="form-control" name="description" id="edit-description"></textarea>
                         </div>
@@ -105,6 +143,7 @@
                 ajax: "{{ url('admin/manage-master/categories/all') }}",
                 columns: [
                     { data: 'DT_RowIndex', name: 'DT_RowIndex' },
+                    { data: 'code', name: 'code' },
                     { data: 'name', name: 'name' },
                     { data: 'description', name: 'description' },
                     { data: 'action', name: 'action' }
@@ -113,11 +152,23 @@
 
             $(document).on('click', '.edit', function() {
                 let id = $(this).data('id');
-                $.get("{{ url('admin/manage-master/categories/get') }}", { id: id }, function(data) {
-                    $('#edit-id').val(data.id);
-                    $('#edit-name').val(data.name);
-                    $('#edit-description').val(data.description);
-                    $('#updateModal').modal('show');
+                $.ajax({
+                    data: {
+                        'id': id,
+                        '_token': "{{ csrf_token() }}"
+                    },
+                    type: 'POST',
+                    url: "{{ url('admin/manage-master/categories/get') }}",
+                    success: function(data) {
+                        $('#edit-id').val(data.id);
+                        $('#edit-name').val(data.name);
+                        $('#edit-code').val(data.code);
+                        $('#edit-description').val(data.description);
+                        $('#updateModal').modal('show');
+                    },
+                    error: function(err) {
+                        alert('Error fetching category data: ' + err.responseText);
+                    }
                 });
             });
 

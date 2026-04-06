@@ -20,6 +20,9 @@ class CategoryController extends Controller
         $data = Category::orderBy('name', 'ASC')->get();
         return DataTables::of($data)
             ->addIndexColumn()
+            ->addColumn('code', function ($row) {
+                return $row->code ?? '-';
+            })
             ->addColumn('action', function ($row) {
             return '
                     <div class="dropdown d-inline dropleft">
@@ -41,6 +44,7 @@ class CategoryController extends Controller
     {
         $request->validate([
             'name' => 'required|string|max:255',
+            'code' => 'nullable|string|max:10',
             'description' => 'nullable|string',
         ]);
 
@@ -62,6 +66,7 @@ class CategoryController extends Controller
         $request->validate([
             'id' => 'required|exists:categories,id',
             'name' => 'required|string|max:255',
+            'code' => 'nullable|string|max:10',
             'description' => 'nullable|string',
         ]);
 

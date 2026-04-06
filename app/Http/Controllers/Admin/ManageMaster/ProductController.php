@@ -16,7 +16,7 @@ class ProductController extends Controller
 {
     public function index()
     {
-        $categories = Category::select('id', 'name')->orderBy('name', 'ASC')->get();
+        $categories = Category::select('id', 'name', 'code')->orderBy('name', 'ASC')->get();
         $productTypes = \App\Models\ProductType::select('id', 'name')->orderBy('name', 'ASC')->get();
         $merek = \App\Models\Merek::orderBy('name', 'ASC')->get();
         $netto_attributes = \App\Models\Attribute::whereHas('group', function ($q) {
@@ -74,6 +74,7 @@ class ProductController extends Controller
                         Action
                     </button>
                     <ul class="dropdown-menu">
+                        <li><a href="' . route('admin.products.show', $product->id) . '" class="dropdown-item">Detail</a></li>
                         <li><a data-id="' . $product->id . '" class="dropdown-item edit">Edit</a></li>
                         <li><a data-id="' . $product->id . '" class="dropdown-item hapus" href="#">Hapus</a></li>
                     </ul>
@@ -102,14 +103,25 @@ class ProductController extends Controller
         }
 
         // Validate SKU uniqueness
-        foreach ($request->variants as $v) {
-            $existingSku = \App\Models\ProductVariant::where('sku_code', $v['sku'])->first();
+        // Since SKU is now automatic, we calculate it here for validation
+        $merek = \App\Models\Merek::find($request->merek_id);
+        $category = \App\Models\Category::find($request->category_id);
+        $merekCode = $merek?->code ?? 'UNK';
+        $categoryCode = $category?->code ?? 'UNK';
+        $productCode = $request->code ?? 'UNK';
+
+        foreach ($request->variants as $index => $v) {
+            $nettoPart = preg_replace('/[^0-9]/', '', $v['netto']);
+            $generatedSku = strtoupper("{$merekCode}-{$categoryCode}-{$productCode}-{$nettoPart}");
+            
+            $existingSku = \App\Models\ProductVariant::where('sku_code', $generatedSku)->first();
             if ($existingSku) {
                 return response()->json([
                     'status' => 'error',
-                    'message' => 'SKU Code "' . $v['sku'] . '" sudah digunakan. Silakan gunakan SKU yang berbeda.'
+                    'message' => 'Auto-generated SKU "' . $generatedSku . '" sudah digunakan. Silakan periksa kembali kode produk atau netto.'
                 ], 422);
             }
+            // Store the generated SKU back to the request array if needed, but we'll use it during save
         }
 
         $slug = Str::slug($request->name);
@@ -148,10 +160,14 @@ class ProductController extends Controller
             // Auto-generate variant_name from Product Name + Netto + Satuan
             $variantName = $product->name . ' ' . $v['netto'] . ($v['satuan'] ?? '');
 
+            // Auto-generate SKU
+            $nettoPart = preg_replace('/[^0-9]/', '', $v['netto']);
+            $generatedSku = strtoupper("{$merekCode}-{$categoryCode}-{$productCode}-{$nettoPart}");
+
             try {
                 \App\Models\ProductVariant::create([
                     'product_netto_id' => $netto->id,
-                    'sku_code' => $v['sku'],
+                    'sku_code' => $generatedSku,
                     'variant_name' => $variantName,
                     'price' => $v['price'],
                     'price_real' => $v['price'],
@@ -223,6 +239,7 @@ class ProductController extends Controller
 
         $product->update([
             'name' => $request->name,
+            'code' => $request->code,
             'slug' => $slug,
             'merek_id' => $request->merek_id,
             'category_id' => $request->category_id,
@@ -233,18 +250,27 @@ class ProductController extends Controller
         ]);
 
         // Validate SKU uniqueness (excluding current product's existing SKUs)
+        $merek = \App\Models\Merek::find($request->merek_id);
+        $category = \App\Models\Category::find($request->category_id);
+        $merekCode = $merek?->code ?? 'UNK';
+        $categoryCode = $category?->code ?? 'UNK';
+        $productCode = $request->code ?? 'UNK';
+
         $currentSkus = \App\Models\ProductVariant::whereHas('netto', function ($q) use ($product) {
             $q->where('product_id', $product->id);
         })->pluck('sku_code')->toArray();
 
         foreach ($request->variants as $v) {
+            $nettoPart = preg_replace('/[^0-9]/', '', $v['netto']);
+            $generatedSku = strtoupper("{$merekCode}-{$categoryCode}-{$productCode}-{$nettoPart}");
+
             // Skip if this SKU belongs to the current product (it's being edited)
-            if (!in_array($v['sku'], $currentSkus)) {
-                $existingSku = \App\Models\ProductVariant::where('sku_code', $v['sku'])->first();
+            if (!in_array($generatedSku, $currentSkus)) {
+                $existingSku = \App\Models\ProductVariant::where('sku_code', $generatedSku)->first();
                 if ($existingSku) {
                     return response()->json([
                         'status' => 'error',
-                        'message' => 'SKU Code "' . $v['sku'] . '" sudah digunakan. Silakan gunakan SKU yang berbeda.'
+                        'message' => 'Auto-generated SKU "' . $generatedSku . '" sudah digunakan oleh produk lain.'
                     ], 422);
                 }
             }
@@ -269,9 +295,13 @@ class ProductController extends Controller
             // Auto-generate variant_name from Product Name + Netto + Satuan
             $variantName = $product->name . ' ' . $v['netto'] . ($v['satuan'] ?? '');
 
+            // Auto-generate SKU
+            $nettoPart = preg_replace('/[^0-9]/', '', $v['netto']);
+            $generatedSku = strtoupper("{$merekCode}-{$categoryCode}-{$productCode}-{$nettoPart}");
+
             try {
                 $variant = \App\Models\ProductVariant::updateOrCreate(
-                ['product_netto_id' => $netto->id, 'sku_code' => $v['sku']],
+                ['product_netto_id' => $netto->id, 'sku_code' => $generatedSku],
                 [
                     'variant_name' => $variantName,
                     'price' => $v['price'],
@@ -397,5 +427,14 @@ class ProductController extends Controller
         ]);
 
         return response()->json(['message' => 'Harga resmi produk berhasil diperbarui']);
+    }
+
+    public function show($id)
+    {
+        $product = Product::with(['merek', 'category', 'subCategory', 'productType', 'variants.netto', 'photos', 'batches'])->findOrFail($id);
+        
+        return view('admin.manage_master.products.show', compact('product'))->with([
+            'sb' => 'Product'
+        ]);
     }
 }

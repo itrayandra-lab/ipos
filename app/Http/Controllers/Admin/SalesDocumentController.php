@@ -28,9 +28,22 @@ class SalesDocumentController extends Controller
     public function getInvoices(Request $request)
     {
         if ($request->ajax()) {
-            $data = Transaction::with(['user', 'customer', 'payments'])
-                ->whereNotNull('invoice_number')
-                ->latest();
+            $query = Transaction::with(['user', 'customer', 'payments'])
+                ->whereNotNull('invoice_number');
+
+            if ($request->has('payment_status') && !empty($request->payment_status)) {
+                $query->where('payment_status', $request->payment_status);
+            }
+
+            if ($request->has('start_date') && !empty($request->start_date)) {
+                $query->whereDate('created_at', '>=', $request->start_date);
+            }
+
+            if ($request->has('end_date') && !empty($request->end_date)) {
+                $query->whereDate('created_at', '<=', $request->end_date);
+            }
+
+            $data = $query->latest();
 
             return DataTables::of($data)
                 ->addIndexColumn()
@@ -465,9 +478,18 @@ class SalesDocumentController extends Controller
     public function getReceipts(Request $request)
     {
         if ($request->ajax()) {
-            $data = Transaction::with(['user', 'customer', 'payments'])
-                ->where('payment_status', 'paid')
-                ->latest();
+            $query = Transaction::with(['user', 'customer', 'payments'])
+                ->where('payment_status', 'paid');
+
+            if ($request->has('start_date') && !empty($request->start_date)) {
+                $query->whereDate('created_at', '>=', $request->start_date);
+            }
+
+            if ($request->has('end_date') && !empty($request->end_date)) {
+                $query->whereDate('created_at', '<=', $request->end_date);
+            }
+
+            $data = $query->latest();
             return DataTables::of($data)
                 ->addIndexColumn()
                 ->editColumn('created_at', fn($row) => Carbon::parse($row->created_at)->format('d/m/Y H:i'))
@@ -494,8 +516,21 @@ class SalesDocumentController extends Controller
     public function getDeliveryNotes(Request $request)
         {
             if ($request->ajax()) {
-                $data = \App\Models\DeliveryNote::with(['customer'])
-                    ->latest();
+                $query = \App\Models\DeliveryNote::with(['customer']);
+
+                if ($request->has('delivery_type') && !empty($request->delivery_type)) {
+                    $query->where('delivery_type', $request->delivery_type);
+                }
+
+                if ($request->has('start_date') && !empty($request->start_date)) {
+                    $query->whereDate('transaction_date', '>=', $request->start_date);
+                }
+
+                if ($request->has('end_date') && !empty($request->end_date)) {
+                    $query->whereDate('transaction_date', '<=', $request->end_date);
+                }
+
+                $data = $query->latest();
 
                 return DataTables::of($data)
                     ->addIndexColumn()

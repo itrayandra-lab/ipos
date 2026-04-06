@@ -125,6 +125,7 @@ Route::prefix('admin')->middleware(['auth', 'role:admin'])->group(function () {
                     Route::post('/get', [ProductAdmin::class , 'get']);
                     Route::post('update', [ProductAdmin::class , 'update']);
                     Route::delete('/', [ProductAdmin::class , 'delete']);
+                    Route::get('/show/{id}', [ProductAdmin::class , 'show'])->name('admin.products.show');
                 }
                 );
                 Route::prefix('batches')->group(function () {
@@ -169,6 +170,7 @@ Route::prefix('admin')->middleware(['auth', 'role:admin'])->group(function () {
 
             Route::prefix('online-sale')->group(function () {
             Route::get('/', [OnlineSaleAdmin::class , 'index'])->name('admin.online_sale.index');
+            Route::get('all', [OnlineSaleAdmin::class , 'getall']);
             Route::get('/history', [OnlineSaleAdmin::class , 'index']); // Legacy compatibility
             Route::post('/', [OnlineSaleAdmin::class , 'store'])->name('admin.online_sale.store');
             Route::get('/create', [OnlineSaleAdmin::class , 'create'])->name('admin.online_sale.create');

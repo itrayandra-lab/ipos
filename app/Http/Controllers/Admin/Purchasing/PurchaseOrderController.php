@@ -20,9 +20,23 @@ class PurchaseOrderController extends Controller
         return view('admin.purchasing.purchase_orders.index')->with('sb', 'PurchaseOrder');
     }
 
-    public function getall()
+    public function getall(Request $request)
     {
-        $pos = PurchaseOrder::with(['supplier', 'creator'])->orderBy('po_date', 'desc');
+        $query = PurchaseOrder::with(['supplier', 'creator']);
+
+        if ($request->has('status') && !empty($request->status)) {
+            $query->where('status', $request->status);
+        }
+
+        if ($request->has('start_date') && !empty($request->start_date)) {
+            $query->whereDate('po_date', '>=', $request->start_date);
+        }
+
+        if ($request->has('end_date') && !empty($request->end_date)) {
+            $query->whereDate('po_date', '<=', $request->end_date);
+        }
+
+        $pos = $query->orderBy('po_date', 'desc');
 
         return DataTables::of($pos)
             ->addIndexColumn()
