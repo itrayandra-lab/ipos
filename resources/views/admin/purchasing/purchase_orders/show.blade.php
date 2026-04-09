@@ -68,29 +68,22 @@
                                 <table class="table table-striped table-hover table-md">
                                     <tr>
                                         <th data-width="40">#</th>
-                                        <th>Item</th>
-                                        <th class="text-center">Satuan</th>
-                                        <th class="text-center">Qty</th>
-                                        <th class="text-right">Harga</th>
-                                        <th class="text-right">Total</th>
+                                        <th style="width: 25%;">Item</th>
+                                        <th class="text-center" style="width: 10%;">Qty</th>
+                                        <th class="text-right" style="width: 15%;">Harga</th>
+                                        <th class="text-right" style="width: 15%;">Total</th>
+                                        <th class="text-center">Keterangan</th>
                                     </tr>
                                     @foreach($po->items as $index => $item)
                                     <tr>
                                         <td>{{ $index + 1 }}</td>
                                         <td>
-                                            <strong>
-                                                @if($item->product && $item->product->merek)
-                                                    {{ $item->product->merek->name }} {{ $item->product_name }}
-                                                @else
-                                                    {{ $item->product_name }}
-                                                @endif
-                                            </strong><br>
-                                            <small>{{ $item->description }}</small>
+                                            <strong>{{ $item->product_name }}</strong>
                                         </td>
-                                        <td class="text-center">{{ $item->satuan }}</td>
                                         <td class="text-center">{{ rtrim(rtrim(number_format($item->quantity, 2, ',', '.'), '0'), ',') }}</td>
                                         <td class="text-right">Rp {{ rtrim(rtrim(number_format($item->unit_price, 2, ',', '.'), '0'), ',') }}</td>
                                         <td class="text-right">Rp {{ rtrim(rtrim(number_format($item->total, 2, ',', '.'), '0'), ',') }}</td>
+                                        <td class="text-center">{{ $item->description ?: '-' }}</td>
                                     </tr>
                                     @endforeach
                                 </table>
@@ -125,6 +118,7 @@
                                     </div>
                                     <hr class="mt-4 mb-4">
                                     <div class="text-right">
+                                        <a href="{{ route('admin.purchasing.purchase_orders.edit', $po->id) }}" class="btn btn-warning btn-icon icon-left"><i class="fas fa-edit"></i> Edit PO</a>
                                         <a href="{{ route('admin.purchasing.purchase_orders.print', $po->id) }}" target="_blank" class="btn btn-primary btn-icon icon-left"><i class="fas fa-print"></i> Print PO</a>
                                     </div>
                                 </div>

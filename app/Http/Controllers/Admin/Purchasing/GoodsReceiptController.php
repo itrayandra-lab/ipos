@@ -61,7 +61,8 @@ class GoodsReceiptController extends Controller
         $sj_number = GoodsReceipt::generateSJNumber();
         $pos = PurchaseOrder::whereIn('status', ['submitted', 'approved'])->get();
         $suppliers = Supplier::where('status', 'active')->get();
-        return view('admin.purchasing.goods_receipts.create', compact('sj_number', 'pos', 'suppliers'))->with('sb', 'GoodsReceipt');
+        $warehouses = \App\Models\Warehouse::where('status', 'active')->get();
+        return view('admin.purchasing.goods_receipts.create', compact('sj_number', 'pos', 'suppliers', 'warehouses'))->with('sb', 'GoodsReceipt');
     }
 
     public function getPoItems(Request $request)
@@ -69,6 +70,7 @@ class GoodsReceiptController extends Controller
         $po = PurchaseOrder::with('items')->findOrFail($request->po_id);
         return response()->json([
             'supplier_id' => $po->supplier_id,
+            'warehouse_id' => $po->warehouse_id,
             'items' => $po->items
         ]);
     }
@@ -77,6 +79,7 @@ class GoodsReceiptController extends Controller
     {
         $validator = Validator::make($request->all(), [
             'supplier_id' => 'required|exists:suppliers,id',
+            'warehouse_id' => 'required|exists:warehouses,id',
             'delivery_note_number' => 'required|string|max:255',
             'delivery_date' => 'required|date',
             'received_date' => 'required|date',
@@ -96,6 +99,7 @@ class GoodsReceiptController extends Controller
                 'sj_number' => GoodsReceipt::generateSJNumber(),
                 'purchase_order_id' => $request->purchase_order_id,
                 'supplier_id' => $request->supplier_id,
+                'warehouse_id' => $request->warehouse_id,
                 'delivery_note_number' => $request->delivery_note_number,
                 'delivery_date' => $request->delivery_date,
                 'received_date' => $request->received_date,
@@ -139,6 +143,7 @@ class GoodsReceiptController extends Controller
                         \App\Models\ProductBatch::create([
                             'product_id' => $poItem->product_id,
                             'product_variant_id' => $variant->id,
+                            'warehouse_id' => $request->warehouse_id,
                             'batch_no' => $request->delivery_note_number,
                             'qty' => $item['qty_received'],
                             'buy_price' => $poItem->unit_price,

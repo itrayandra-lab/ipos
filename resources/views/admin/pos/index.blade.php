@@ -23,10 +23,17 @@
                         </div>
                         <div class="card-body">
                             <div class="row mb-3">
-                                <div class="col-12 col-md-6 mb-2 mb-md-0">
+                                <div class="col-12 col-md-4 mb-2 mb-md-0">
                                     <input type="text" id="search-product" class="form-control" placeholder="Cari produk...">
                                 </div>
-                                <div class="col-12 col-md-6">
+                                <div class="col-12 col-md-4 mb-2 mb-md-0">
+                                    <select id="filter-warehouse" class="form-control selectric">
+                                        @foreach($warehouses as $wh)
+                                            <option value="{{ $wh->id }}">{{ $wh->name }}</option>
+                                        @endforeach
+                                    </select>
+                                </div>
+                                <div class="col-12 col-md-4">
                                     <select id="filter-merek" class="form-control selectric">
                                         <option value="">Semua Merk</option>
                                         @foreach($merek as $m)
@@ -105,6 +112,18 @@
                                             <option value="unpaid">Belum Bayar</option>
                                             <option value="draft">Pending</option>
                                         </select>
+                                    </div>
+                                    <div class="col-12 mt-2">
+                                        <label class="small text-muted font-weight-bold">Tanggal Transaksi</label>
+                                        <input type="date" id="transaction-date" class="form-control" value="{{ date('Y-m-d') }}">
+                                    </div>
+                                </div>
+
+                                <!-- Invoice Checkbox -->
+                                <div class="form-group mb-3">
+                                    <div class="custom-control custom-checkbox">
+                                        <input type="checkbox" class="custom-control-input" id="generate-invoice-check">
+                                        <label class="custom-control-label font-weight-bold text-primary" for="generate-invoice-check">Cetak Invoice formal? (Format: INV/...)</label>
                                     </div>
                                 </div>
 
@@ -477,6 +496,10 @@
 
         $('#search-product').on('input', renderProducts);
         $('#filter-merek').on('change', renderProducts);
+        $('#filter-warehouse').on('change', function() {
+            clearCart();
+            renderProducts();
+        });
         $('#btn-clear-cart').on('click', clearCart);
         $('#btn-new-order').on('click', () => {
             location.reload();
@@ -606,6 +629,9 @@
                 voucher_code: $('#voucher-code').val(),
                 affiliate_id: $('#affiliate-select').val(),
                 affiliate_fee_mode: $('#affiliate-mode').val(),
+                generate_invoice: $('#generate-invoice-check').is(':checked') ? 1 : 0,
+                created_at: $('#transaction-date').val(),
+                warehouse_id: $('#filter-warehouse').val(),
                 notes: '-' // Default notes or pull from a field if added
             };
 
@@ -619,7 +645,23 @@
                     if (res.success) {
                         localStorage.removeItem('pos_cart');
                         $('#final-total-text').text($('#cart-total').text());
-                        $('#btn-print-receipt').attr('href', '{{ $posRoutes["receipt"] }}/' + res.transaction_id);
+                        
+                        let printUrl = '{{ $posRoutes["receipt"] }}/' + res.transaction_id;
+                        $('#btn-print-receipt').attr('href', printUrl);
+
+                        // If invoice was generated, add an extra button to print formal invoice
+                        if (res.invoice_number) {
+                            let invUrl = '{{ route("admin.sales.invoices.print", ":id") }}'.replace(':id', res.transaction_id);
+                            $('#btn-print-invoice-formal').remove(); // Clean up old ones
+                            $('#btn-print-receipt').after(`
+                                <a href="${invUrl}" target="_blank" class="btn btn-info btn-block tablet-btn mt-2" id="btn-print-invoice-formal">
+                                    <i class="fas fa-file-invoice mr-2"></i> Print Invoice Formal
+                                </a>
+                            `);
+                        } else {
+                            $('#btn-print-invoice-formal').remove();
+                        }
+
                         $('#receiptModal').modal('show');
                     }
                 },
@@ -733,54 +775,73 @@
     }
 
     function renderProducts() {
-        let search = $('#search-product').val().toLowerCase();
+        let search = $('#search-product').val();
         let mrkId = $('#filter-merek').val();
+        let whId = $('#filter-warehouse').val();
         
         let container = $('#product-list');
-        container.empty();
+        container.html('<div class="col-12 text-center py-5"><div class="spinner-border text-primary"></div></div>');
         
-        let filtered = Object.values(batchesGrouped).filter(item => {
-            let matchSearch = !search || item.display_name.toLowerCase().includes(search);
-            let matchMerek = !mrkId || item.batches.some(b => {
-                // Check if any batch in this group matches the merek filter
-                return batchList.find(bl => bl.id === b.id && bl.text.toLowerCase().includes(search));
-            });
-            return matchSearch && item.batches.length > 0;
-        });
+        $.ajax({
+            url: '{{ $posRoutes["products"] }}',
+            method: 'GET',
+            data: { search: search, merek_id: mrkId, warehouse_id: whId },
+            success: function(products) {
+                container.empty();
+                if (products.length === 0) {
+                    container.append('<div class="col-12 text-center py-4">Produk tidak ditemukan atau stok habis di gudang ini.</div>');
+                    return;
+                }
 
-        if (filtered.length === 0) {
-            container.append('<div class="col-12 text-center py-4">Produk tidak ditemukan</div>');
-            return;
-        }
+                // Temporary batchList update for lookup in addToCart
+                products.forEach(p => {
+                    p.batches.forEach(b => {
+                        let existingBatch = batchList.find(bl => bl.id === b.id);
+                        if (!existingBatch) {
+                            batchList.push({
+                                id: b.id,
+                                text: p.name + ' (' + b.batch_no + ' - ' + b.qty + ')',
+                                price: b.buy_price && b.buy_price > 0 ? b.buy_price : p.offline_price, // fallback if needed
+                                stock: b.qty,
+                                product_id: p.id,
+                                batch_no: b.batch_no
+                            });
+                        } else {
+                            existingBatch.stock = b.qty; // Update latest stock
+                        }
+                    });
+                });
 
-        filtered.forEach((item, idx) => {
-            let img = '{{ asset("assets/img/Asset 3.png") }}'; // Default image
-            let batchOptions = item.batches.map(b => 
-                `<option value="${b.id}" data-stock="${b.stock}" data-price="${b.price}">${b.text.split('(')[1]}</option>`
-            ).join('');
-            
-            let uniqueId = 'variant-' + idx;
+                products.forEach((p, idx) => {
+                    let img = p.photos && p.photos.length > 0 ? '{{ asset("storage") }}/' + p.photos[0].photo_path : '{{ asset("assets/img/Asset 3.png") }}';
+                    let batchOptions = p.batches.map(b => 
+                        `<option value="${b.id}" data-stock="${b.qty}" data-price="${p.offline_price}">${b.batch_no} (Stok: ${b.qty})</option>`
+                    ).join('');
+                    
+                    let uniqueId = 'variant-' + p.id;
 
-            let card = `
-                <div class="col-6 col-md-4 mb-3">
-                    <div class="card product-card h-100 mb-0 position-relative">
-                        <div class="img-container" onclick="addToCartFromVariant('${uniqueId}')">
-                            <img src="${img}" alt="${item.display_name}">
+                    let card = `
+                        <div class="col-6 col-md-4 mb-3">
+                            <div class="card product-card h-100 mb-0 position-relative">
+                                <div class="img-container" onclick="addToCartFromVariant('${uniqueId}')">
+                                    <img src="${img}" alt="${p.name}">
+                                </div>
+                                <div class="card-body p-2">
+                                    <div class="font-weight-bold" style="font-size: 0.8rem; height: 2.2rem; overflow: hidden;">${p.name}</div>
+                                    <div class="text-primary product-price mt-1 font-weight-bold small">Rp ${parseInt(p.offline_price).toLocaleString('id-ID')}</div>
+                                    <select class="form-control form-control-sm mt-1 batch-selector" id="${uniqueId}" data-product-id="${p.id}" style="font-size: 0.7rem; height: auto; padding: 2px 5px;">
+                                        ${batchOptions}
+                                    </select>
+                                    <button class="btn btn-warning btn-sm btn-block mt-2 py-1" onclick="addToCartFromVariant('${uniqueId}')">
+                                        <i class="fas fa-plus"></i>
+                                    </button>
+                                </div>
+                            </div>
                         </div>
-                        <div class="card-body p-2">
-                            <div class="font-weight-bold" style="font-size: 0.8rem; height: 2.2rem; overflow: hidden;">${item.display_name}</div>
-                            <div class="text-primary product-price mt-1 font-weight-bold small">Rp ${parseInt(item.price).toLocaleString('id-ID')}</div>
-                            <select class="form-control form-control-sm mt-1 batch-selector" id="${uniqueId}" data-product-id="${item.product_id}" style="font-size: 0.7rem; height: auto; padding: 2px 5px;">
-                                ${batchOptions}
-                            </select>
-                            <button class="btn btn-warning btn-sm btn-block mt-2 py-1" onclick="addToCartFromVariant('${uniqueId}')">
-                                <i class="fas fa-plus"></i>
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            `;
-            container.append(card);
+                    `;
+                    container.append(card);
+                });
+            }
         });
     }
 

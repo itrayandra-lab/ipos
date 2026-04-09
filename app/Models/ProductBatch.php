@@ -12,6 +12,7 @@ class ProductBatch extends Model
     protected $fillable = [
         'product_id',
         'product_variant_id',
+        'warehouse_id',
         'batch_no',
         'expiry_date',
         'qty',
@@ -30,6 +31,11 @@ class ProductBatch extends Model
     public function variant()
     {
         return $this->belongsTo(ProductVariant::class , 'product_variant_id');
+    }
+
+    public function warehouse()
+    {
+        return $this->belongsTo(Warehouse::class);
     }
 
     public function transactionItems()

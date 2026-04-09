@@ -368,30 +368,23 @@
     <table class="items-table">
         <thead>
             <tr>
-                <th style="width: 50%;">Produk</th>
-                <th style="width: 15%;" class="text-center">Kuantitas</th>
-                <th style="width: 17.5%;" class="text-right">Harga</th>
-                <th style="width: 17.5%;" class="text-right">Total</th>
+                <th style="width: 30%;">Produk</th>
+                <th style="width: 10%;" class="text-center">Kuantitas</th>
+                <th style="width: 18%;" class="text-right">Harga</th>
+                <th style="width: 18%;" class="text-right">Total</th>
+                <th style="width: 24%;">Keterangan</th>
             </tr>
         </thead>
         <tbody>
             @foreach($po->items as $item)
             <tr>
                 <td>
-                    <strong>
-                        @if($item->product && $item->product->merek)
-                            {{ $item->product->merek->name }} {{ $item->product_name }}
-                        @else
-                            {{ $item->product_name }}
-                        @endif
-                    </strong>
-                    @if($item->description)
-                        <br><small>{{ $item->description }}</small>
-                    @endif
+                    <strong>{{ $item->product_name }}</strong>
                 </td>
-                <td class="text-center">{{ number_format($item->quantity, 0) }} {{ $item->satuan }}</td>
+                <td class="text-center">{{ number_format($item->quantity, 0) }}</td>
                 <td class="text-right">Rp {{ number_format($item->unit_price, 0, ',', '.') }}</td>
                 <td class="text-right">Rp {{ number_format($item->total, 0, ',', '.') }}</td>
+                <td>{{ $item->description ?: '-' }}</td>
             </tr>
             @endforeach
         </tbody>

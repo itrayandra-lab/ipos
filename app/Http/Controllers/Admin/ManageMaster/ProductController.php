@@ -23,18 +23,21 @@ class ProductController extends Controller
             $q->where('code', 'NETTO');
         })->orderBy('name', 'ASC')->get();
 
+        $productTiers = \App\Models\ProductTier::all();
+
         return view('admin.manage_master.products.index')->with([
             'sb' => 'Product',
             'categories' => $categories,
             'productTypes' => $productTypes,
             'merek' => $merek,
-            'netto_attributes' => $netto_attributes
+            'netto_attributes' => $netto_attributes,
+            'productTiers' => $productTiers
         ]);
     }
 
     public function getall(Request $request)
     {
-        $query = Product::with(['merek', 'photos', 'category', 'subCategory', 'productType', 'variants'])
+        $query = Product::with(['merek', 'photos', 'category', 'subCategory', 'productType', 'productTier', 'variants'])
             ->orderBy('id', 'desc')
             ->get();
 
@@ -94,6 +97,7 @@ class ProductController extends Controller
             'category_id' => 'required|exists:categories,id',
             'sub_category_id' => 'nullable|exists:sub_categories,id',
             'product_type_id' => 'required|exists:product_types,id',
+            'product_tier_id' => 'nullable|exists:product_tiers,id',
             'min_stock_alert' => 'required|integer|min:0',
             'variants' => 'required|array|min:1',
         ]);
@@ -138,6 +142,7 @@ class ProductController extends Controller
             'category_id' => $request->category_id,
             'sub_category_id' => $request->sub_category_id,
             'product_type_id' => $request->product_type_id,
+            'product_tier_id' => $request->product_tier_id,
             'stock' => 0,
             'min_stock_alert' => $request->min_stock_alert,
             'status' => $request->status,
@@ -170,7 +175,8 @@ class ProductController extends Controller
                     'sku_code' => $generatedSku,
                     'variant_name' => $variantName,
                     'price' => $v['price'],
-                    'price_real' => $v['price'],
+                    'price_real' => $v['price_real'] ?? $v['price'],
+                    'price_tier' => $v['price_tier'] ?? null,
                 ]);
             }
             catch (\Illuminate\Database\QueryException $e) {
@@ -209,7 +215,7 @@ class ProductController extends Controller
 
     public function get(Request $request)
     {
-        $product = Product::with(['category', 'subCategory', 'productType', 'variants.netto', 'photos'])->findOrFail($request->id);
+        $product = Product::with(['category', 'subCategory', 'productType', 'productTier', 'variants.netto', 'photos'])->findOrFail($request->id);
         return response()->json($product, 200);
     }
 
@@ -222,6 +228,7 @@ class ProductController extends Controller
             'category_id' => 'required|exists:categories,id',
             'sub_category_id' => 'nullable|exists:sub_categories,id',
             'product_type_id' => 'required|exists:product_types,id',
+            'product_tier_id' => 'nullable|exists:product_tiers,id',
             'min_stock_alert' => 'required|integer|min:0',
             'variants' => 'required|array|min:1',
             'deleted_photos' => 'nullable|string',
@@ -245,6 +252,7 @@ class ProductController extends Controller
             'category_id' => $request->category_id,
             'sub_category_id' => $request->sub_category_id,
             'product_type_id' => $request->product_type_id,
+            'product_tier_id' => $request->product_tier_id,
             'min_stock_alert' => $request->min_stock_alert,
             'status' => $request->status,
         ]);
@@ -305,7 +313,8 @@ class ProductController extends Controller
                 [
                     'variant_name' => $variantName,
                     'price' => $v['price'],
-                    'price_real' => $v['price'],
+                    'price_real' => $v['price_real'] ?? $v['price'],
+                    'price_tier' => $v['price_tier'] ?? null,
                 ]
                 );
                 $existingVariantIds[] = $variant->id;

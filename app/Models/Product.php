@@ -25,7 +25,8 @@ class Product extends Model
         'stock',
         'min_stock_alert',
         'neto',
-        'pieces'
+        'pieces',
+        'product_tier_id'
     ];
 
     public function category()
@@ -41,6 +42,11 @@ class Product extends Model
     public function productType()
     {
         return $this->belongsTo(ProductType::class);
+    }
+
+    public function productTier()
+    {
+        return $this->belongsTo(ProductTier::class);
     }
 
     public function nettos()

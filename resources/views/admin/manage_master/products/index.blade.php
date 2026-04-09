@@ -2,6 +2,41 @@
 @section('title', 'Data Produk')
 @section('content')
     <div class="main-content">
+        <style>
+            #products-table {
+                font-size: 12px !important;
+            }
+            /* Fix Produk Column */
+            #products-table th:nth-child(3), 
+            #products-table td:nth-child(3) {
+                min-width: 200px !important;
+                white-space: normal !important;
+            }
+            .select2-container .select2-selection--single {
+                height: 42px !important;
+                line-height: 42px !important;
+                border-color: #e4e6fc !important;
+            }
+            .satuan-input {
+                padding: 5px !important;
+            }
+            #products-table thead th {
+                font-weight: 700;
+                text-transform: uppercase;
+                letter-spacing: 0.5px;
+            }
+            #products-table tbody td {
+                vertical-align: middle !important;
+            }
+            .img-thumbnail {
+                padding: 0.15rem;
+                background-color: #fff;
+                border: 1px solid #dee2e6;
+                border-radius: 0.25rem;
+                max-width: 100%;
+                height: auto;
+            }
+        </style>
         <section class="section">
             <div class="section-header">
                 <h1>Data Produk</h1>
@@ -63,9 +98,9 @@
                             <thead>
                                 <tr>
                                     <th width="10px">#</th>
-                                    <th>Nama</th>
-                                    <th>Hierarki</th>
                                     <th>Merk</th>
+                                    <th>Produk</th>
+                                    <th>Hirarki</th>
                                     <th>Jumlah Varian</th>
                                     <th>Status</th>
                                     <th>Foto</th>
@@ -113,6 +148,7 @@
                                     <select class="form-control" name="merek_id" required>
                                         <option value="">Pilih Merk</option>
                                         @foreach ($merek as $m)
+                                            @php /** @var \App\Models\Merek $m */ @endphp
                                             <option value="{{ $m->id }}">{{ $m->name }}</option>
                                         @endforeach
                                     </select>
@@ -153,9 +189,24 @@
                             </div>
                         </div>
 
-                        <div class="form-group">
-                            <label>Min. Stock Alert</label>
-                            <input type="number" placeholder="Batas stok minimum untuk alert" class="form-control" name="min_stock_alert" required min="0" value="0">
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="form-group">
+                                    <label>Product Tier</label>
+                                    <select class="form-control select-tier" name="product_tier_id" id="add-product-tier">
+                                        <option value="">Tanpa Tier (Manual)</option>
+                                        @foreach($productTiers as $tier)
+                                            <option value="{{ $tier->id }}" data-multiplier="{{ $tier->multiplier }}">{{ $tier->name }} (x{{ $tier->multiplier }})</option>
+                                        @endforeach
+                                    </select>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="form-group">
+                                    <label>Min. Stock Alert</label>
+                                    <input type="number" placeholder="Batas stok minimum untuk alert" class="form-control" name="min_stock_alert" required min="0" value="0">
+                                </div>
+                            </div>
                         </div>
 
                         <div class="form-group">
@@ -167,6 +218,8 @@
                                             <th>Netto</th>
                                             <th>Satuan</th>
                                             <th>SKU Code</th>
+                                            <th>Harga Modal (Rp)</th>
+                                            <th>Harga Kategori (Rp)</th>
                                             <th>Harga Jual (Rp)</th>
                                             <th width="50px"></th>
                                         </tr>
@@ -175,7 +228,7 @@
                                         <tr>
                                             <td><input type="text" name="variants[0][netto]" class="form-control form-control-sm" placeholder="100" required></td>
                                             <td>
-                                                <select name="variants[0][satuan]" class="form-control form-control-sm" style="height: calc(1.5em + 0.5rem + 2px);" required>
+                                                <select name="variants[0][satuan]" class="form-control form-control-sm satuan-input" style="height: calc(1.5em + 0.5rem + 2px);" required>
                                                     <option value="">Pilih Satuan</option>
                                                     @foreach($netto_attributes as $attr)
                                                         <option value="{{ $attr->name }}">{{ $attr->name }}</option>
@@ -183,6 +236,14 @@
                                                 </select>
                                             </td>
                                             <td><input type="text" name="variants[0][sku]" class="form-control form-control-sm" placeholder="SKU001" required></td>
+                                            <td>
+                                                <input type="text" class="form-control form-control-sm rupiah-modal" placeholder="Rp 0" required>
+                                                <input type="hidden" name="variants[0][price_real]" class="raw-modal-variant">
+                                            </td>
+                                            <td>
+                                                <input type="text" class="form-control form-control-sm rupiah-tier" placeholder="Rp 0" readonly>
+                                                <input type="hidden" name="variants[0][price_tier]" class="raw-tier-variant">
+                                            </td>
                                             <td>
                                                 <input type="text" class="form-control form-control-sm rupiah-variant" placeholder="Rp 0" required>
                                                 <input type="hidden" name="variants[0][price]" class="raw-price-variant">
@@ -253,6 +314,7 @@
                                     <select class="form-control" name="merek_id" id="merek_id" required>
                                         <option value="">Pilih Merk</option>
                                         @foreach ($merek as $m)
+                                            @php /** @var \App\Models\Merek $m */ @endphp
                                             <option value="{{ $m->id }}">{{ $m->name }}</option>
                                         @endforeach
                                     </select>
@@ -293,9 +355,24 @@
                             </div>
                         </div>
 
-                        <div class="form-group">
-                            <label>Min. Stock Alert</label>
-                            <input type="number" placeholder="Batas stok minimum untuk alert" class="form-control" name="min_stock_alert" id="min_stock_alert" required min="0">
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="form-group">
+                                    <label>Product Tier</label>
+                                    <select class="form-control select-tier" name="product_tier_id" id="edit-product-tier">
+                                        <option value="">Tanpa Tier (Manual)</option>
+                                        @foreach($productTiers as $tier)
+                                            <option value="{{ $tier->id }}" data-multiplier="{{ $tier->multiplier }}">{{ $tier->name }} (x{{ $tier->multiplier }})</option>
+                                        @endforeach
+                                    </select>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="form-group">
+                                    <label>Min. Stock Alert</label>
+                                    <input type="number" placeholder="Batas stok minimum untuk alert" class="form-control" name="min_stock_alert" id="min_stock_alert" required min="0">
+                                </div>
+                            </div>
                         </div>
 
                         <div class="form-group">
@@ -307,6 +384,8 @@
                                             <th>Netto</th>
                                             <th>Satuan</th>
                                             <th>SKU Code</th>
+                                            <th>Harga Modal (Rp)</th>
+                                            <th>Harga Kategori (Rp)</th>
                                             <th>Harga Jual (Rp)</th>
                                             <th width="50px"></th>
                                         </tr>
@@ -363,6 +442,7 @@
     <script>
         const MEREK_DATA = @json($merek);
         const CATEGORY_DATA = @json($categories);
+        const TIER_DATA = @json($productTiers);
 
         function getMerekCode(id) {
             if (!id) return 'UNK';
@@ -394,6 +474,21 @@
                 const netto = $(this).find('input[name*="[netto]"]').val();
                 const sku = generateSku(merekId, categoryId, productCode, netto);
                 $(this).find('input[name*="[sku]"]').val(sku);
+            });
+        }
+
+        function calculateSellingPrice(row) {
+            const tierMultiplier = parseFloat(row.closest('form').find('.select-tier option:selected').data('multiplier')) || 1.0;
+            const modalPrice = parseFloat(row.find('.raw-modal-variant').val()) || 0;
+            const targetPrice = Math.round(modalPrice * tierMultiplier);
+            
+            row.find('.raw-tier-variant').val(targetPrice);
+            row.find('.rupiah-tier').val(formatRupiah(targetPrice));
+        }
+
+        function recalculateAllPrices(formSelector) {
+            $(formSelector + ' #table-variants tbody tr, ' + formSelector + ' #table-variants-edit tbody tr').each(function() {
+                calculateSellingPrice($(this));
             });
         }
 
@@ -478,9 +573,9 @@
                 },
                 columns: [
                     { data: 'DT_RowIndex', name: 'DT_RowIndex' },
+                    { data: 'merek_name', name: 'merek_name' },
                     { data: 'name', name: 'name' },
                     { data: 'hierarchy', name: 'hierarchy' },
-                    { data: 'merek_name', name: 'merek_name' },
                     { data: 'variant_count', name: 'variant_count' },
                     { data: 'status', name: 'status' },
                     { data: 'photos_preview', name: 'photos_preview' },
@@ -532,7 +627,7 @@
                     <tr>
                         <td><input type="text" name="variants[${variantIndex}][netto]" class="form-control form-control-sm" placeholder="100" required></td>
                         <td>
-                            <select name="variants[${variantIndex}][satuan]" class="form-control form-control-sm" style="height: calc(1.5em + 0.5rem + 2px);" required>
+                            <select name="variants[${variantIndex}][satuan]" class="form-control form-control-sm satuan-input" style="height: calc(1.5em + 0.5rem + 2px);" required>
                                 <option value="">Pilih Satuan</option>
                                 @foreach($netto_attributes as $attr)
                                     <option value="{{ $attr->name }}">{{ $attr->name }}</option>
@@ -540,6 +635,14 @@
                             </select>
                         </td>
                         <td><input type="text" name="variants[${variantIndex}][sku]" class="form-control form-control-sm" placeholder="SKU${variantIndex+1}" required></td>
+                        <td>
+                            <input type="text" class="form-control form-control-sm rupiah-modal" placeholder="Rp 0" required>
+                            <input type="hidden" name="variants[${variantIndex}][price_real]" class="raw-modal-variant">
+                        </td>
+                        <td>
+                            <input type="text" class="form-control form-control-sm rupiah-tier" placeholder="Rp 0" readonly>
+                            <input type="hidden" name="variants[${variantIndex}][price_tier]" class="raw-tier-variant">
+                        </td>
                         <td>
                             <input type="text" class="form-control form-control-sm rupiah-variant" placeholder="Rp 0" required>
                             <input type="hidden" name="variants[${variantIndex}][price]" class="raw-price-variant">
@@ -560,6 +663,18 @@
                 let rawValue = $(this).val().replace(/[^0-9]/g, '');
                 $(this).val(formatRupiah(rawValue));
                 $(this).siblings('.raw-price-variant').val(rawValue);
+            });
+
+            $(document).on('input', '.rupiah-modal', function() {
+                let rawValue = $(this).val().replace(/[^0-9]/g, '');
+                $(this).val(formatRupiah(rawValue));
+                $(this).siblings('.raw-modal-variant').val(rawValue);
+                calculateSellingPrice($(this).closest('tr'));
+            });
+
+            $('.select-tier').on('change', function() {
+                const formId = $(this).closest('modal').attr('id') || $(this).closest('form').closest('div.modal').attr('id');
+                recalculateAllPrices('#' + formId);
             });
 
             // AJAX Form Submission for Create
@@ -611,10 +726,16 @@
                         $.LoadingOverlay("hide");
                     },
                     success: function(data) {
+                        if (data.product_id) {
+                            row.find('.product-id-hidden').val(data.product_id);
+                            row.find('.description-input').val(data.description || ''); 
+                            row.find('.price-input').val(data.price || 0);
+                        }
                         $('#id').val(data.id);
                         $('#name').val(data.name);
                         $('#edit_code').val(data.code);
                         $('#merek_id').val(data.merek_id);
+                        $('#edit-product-tier').val(data.product_tier_id);
                         $('#min_stock_alert').val(data.min_stock_alert);
                         $('#status').val(data.status);
                         
@@ -641,6 +762,14 @@
                                         </select>
                                     </td>
                                     <td><input type="text" name="variants[${index}][sku]" value="${v.sku_code}" class="form-control form-control-sm" required></td>
+                                    <td>
+                                        <input type="text" value="${formatRupiah(v.price_real || v.price)}" class="form-control form-control-sm rupiah-modal" required>
+                                        <input type="hidden" name="variants[${index}][price_real]" value="${v.price_real || v.price}" class="raw-modal-variant">
+                                    </td>
+                                    <td>
+                                        <input type="text" value="${formatRupiah(v.price_tier || 0)}" class="form-control form-control-sm rupiah-tier" readonly>
+                                        <input type="hidden" name="variants[${index}][price_tier]" value="${v.price_tier || 0}" class="raw-tier-variant">
+                                    </td>
                                     <td>
                                         <input type="text" value="${formatRupiah(v.price)}" class="form-control form-control-sm rupiah-variant" required>
                                         <input type="hidden" name="variants[${index}][price]" value="${v.price}" class="raw-price-variant">
@@ -692,6 +821,14 @@
                             </select>
                         </td>
                         <td><input type="text" name="variants[${variantIndexEdit}][sku]" class="form-control form-control-sm" required></td>
+                        <td>
+                            <input type="text" class="form-control form-control-sm rupiah-modal" placeholder="Rp 0" required>
+                            <input type="hidden" name="variants[${variantIndexEdit}][price_real]" class="raw-modal-variant">
+                        </td>
+                        <td>
+                            <input type="text" class="form-control form-control-sm rupiah-tier" placeholder="Rp 0" readonly>
+                            <input type="hidden" name="variants[${variantIndexEdit}][price_tier]" class="raw-tier-variant">
+                        </td>
                         <td>
                             <input type="text" class="form-control form-control-sm rupiah-variant" placeholder="Rp 0" required>
                             <input type="hidden" name="variants[${variantIndexEdit}][price]" class="raw-price-variant">

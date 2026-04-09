@@ -19,6 +19,7 @@ class GoodsReceipt extends Model
         'received_by',
         'notes',
         'status',
+        'warehouse_id',
     ];
 
     protected $casts = [
@@ -27,6 +28,11 @@ class GoodsReceipt extends Model
     ];
 
     // Relationships
+    public function warehouse()
+    {
+        return $this->belongsTo(Warehouse::class);
+    }
+
     public function purchaseOrder()
     {
         return $this->belongsTo(PurchaseOrder::class);

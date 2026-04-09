@@ -3,7 +3,7 @@
 
   PHP Parse error: Syntax error, unexpected ';' on line 1
 
-  at C:\Users\hp 745\Herd\ipos\vendor\psy\psysh\src\Exception\ParseErrorException.php:44
+  at D:\Iman Cangga\Herd\pos-beautylatory\vendor\psy\psysh\src\Exception\ParseErrorException.php:44
      40▕      * @param \PhpParser\Error $e
      41▕      */
      42▕     public static function fromParseError(\PhpParser\Error $e): self
@@ -13,9 +13,9 @@
      46▕ }
      47▕
 
-  1   C:\Users\hp 745\Herd\ipos\vendor\psy\psysh\src\CodeCleaner.php:488
+  1   D:\Iman Cangga\Herd\pos-beautylatory\vendor\psy\psysh\src\CodeCleaner.php:488
       Psy\Exception\ParseErrorException::fromParseError(Object(PhpParser\Error))
 
-  2   C:\Users\hp 745\Herd\ipos\vendor\psy\psysh\src\CodeCleaner.php:269
-      Psy\CodeCleaner::parse("<?php print_r(App\Models\TransactionPayment::all()-;
+  2   D:\Iman Cangga\Herd\pos-beautylatory\vendor\psy\psysh\src\CodeCleaner.php:269
+      Psy\CodeCleaner::parse("<?php print_r(App\Models\Warehouse::all()-;
 ")

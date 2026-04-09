@@ -9,7 +9,7 @@ class ProductVariant extends Model
 {
     use HasFactory;
 
-    protected $fillable = ['product_netto_id', 'variant_name', 'sku_code', 'price', 'price_real', 'stock'];
+    protected $fillable = ['product_netto_id', 'variant_name', 'sku_code', 'price', 'price_real', 'price_tier', 'stock'];
 
     public function netto()
     {

@@ -13,6 +13,7 @@ use App\Models\Transaction;
 use App\Models\TransactionItem;
 use App\Models\Voucher;
 use App\Services\PricingService;
+use App\Services\InvoiceService;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Str;
@@ -23,7 +24,11 @@ class PosController extends Controller
     {
         $customers = Customer::orderBy('name')->get();
         
+        $mainWarehouse = \App\Models\Warehouse::where('type', 'main')->first();
+        $mainWarehouseId = $mainWarehouse ? $mainWarehouse->id : 1;
+
         $batches = ProductBatch::with(['product.merek', 'variant'])
+            ->where('warehouse_id', $mainWarehouseId)
             ->where('qty', '>', 0)
             ->whereHas('product', fn($q) => $q->where('status', 'Y'))
             ->get()
@@ -64,6 +69,8 @@ class PosController extends Controller
 
         $categories = Category::orderBy('name', 'asc')->get();
         $merek = Merek::orderBy('name', 'asc')->get();
+        $warehouses = \App\Models\Warehouse::where('status', 'active')->get();
+        $affiliates = \App\Models\Affiliate::where('is_active', true)->get();
         $isSales = auth()->user()->isSales();
         $posRoutes = [
             'products' => route($isSales ? 'sales.pos.products' : 'admin.pos.products'),
@@ -71,8 +78,7 @@ class PosController extends Controller
             'receipt' => url($isSales ? 'sales/pos/receipt' : 'admin/pos/receipt'),
             'verify_voucher' => route($isSales ? 'sales.pos.verify-voucher' : 'admin.pos.verify-voucher'),
         ];
-        $affiliates = \App\Models\Affiliate::where('is_active', true)->orderBy('name')->get();
-        return view('admin.pos.index', compact('customers', 'batchList', 'categories', 'merek', 'posRoutes', 'affiliates', 'isSales'))->with('sb', 'POS');
+        return view('admin.pos.index', compact('customers', 'batchList', 'categories', 'merek', 'posRoutes', 'affiliates', 'isSales', 'warehouses'))->with('sb', 'POS');
     }
 
     private function getPosChannel()
@@ -90,9 +96,15 @@ class PosController extends Controller
     public function fetchProducts(Request $request)
     {
         $channelSlug = $this->getPosChannel();
+        $mainWarehouse = \App\Models\Warehouse::where('type', 'main')->first();
+        $warehouseId = $mainWarehouse ? $mainWarehouse->id : 1;
 
-        $query = Product::with(['photos', 'category', 'batches' => function($q) {
-            $q->where('qty', '>', 0)->orderBy('id', 'asc');
+        $query = Product::with(['photos', 'category', 'merek', 'batches' => function($q) use ($warehouseId) {
+            $q->where('qty', '>', 0);
+            if ($warehouseId) {
+                $q->where('warehouse_id', $warehouseId);
+            }
+            $q->orderBy('id', 'asc');
         }]);
 
         if ($request->search) {
@@ -109,9 +121,7 @@ class PosController extends Controller
 
         $products = $query->where('status', 'Y')
             ->get()
-            ->map(function($product) use ($channelSlug) {
-                // Strictly prioritize database price_real as requested. 
-                // Fallback to price then to calculation if price_real is not set.
+            ->map(function($product) use ($channelSlug, $warehouseId) {
                 if ($product->price_real > 0) {
                     $product->offline_price = $product->price_real;
                 } elseif ($product->price > 0) {
@@ -119,11 +129,14 @@ class PosController extends Controller
                 } else {
                     $product->offline_price = PricingService::calculateForProduct($product, $channelSlug);
                 }
+                
+                // Calculate stock for the specific warehouse
+                $product->warehouse_stock = $product->batches->sum('qty');
+                
                 return $product;
             })
             ->filter(function($product) {
-                // Only show if has stock AND has a valid price
-                return $product->batches->sum('qty') > 0 && $product->offline_price > 0;
+                return $product->warehouse_stock > 0 && $product->offline_price > 0;
             })
             ->values();
 
@@ -145,6 +158,9 @@ class PosController extends Controller
             'notes' => 'nullable|string',
             'discount_manual' => 'nullable|numeric|min:0',
             'voucher_code' => 'nullable|string|exists:vouchers,code',
+            'generate_invoice' => 'nullable|boolean',
+            'created_at' => 'nullable|date',
+            'warehouse_id' => 'required|exists:warehouses,id',
         ]);
 
         if ($validator->fails()) {
@@ -153,6 +169,9 @@ class PosController extends Controller
 
         try {
             return DB::transaction(function() use ($request) {
+                $mainWarehouse = \App\Models\Warehouse::where('type', 'main')->first();
+                $warehouseId = $mainWarehouse ? $mainWarehouse->id : 1;
+
                 $totalAmount = 0;
                 $itemsToCreate = [];
                 $affiliateFeeTotal = 0;
@@ -310,7 +329,15 @@ class PosController extends Controller
                     'affiliate_id' => $affiliate ? $affiliate->id : null,
                     'affiliate_fee_total' => $affiliateFeeTotal,
                     'affiliate_fee_mode' => $request->affiliate_fee_mode,
+                    'created_at' => $request->created_at ? \Carbon\Carbon::parse($request->created_at)->setTimeFrom(now()) : now(),
+                    'warehouse_id' => $warehouseId,
                 ]);
+
+                if ($request->generate_invoice) {
+                    $transaction->update([
+                        'invoice_number' => InvoiceService::generate()
+                    ]);
+                }
 
                 foreach ($itemsToCreate as $itemData) {
                     $itemData['transaction_id'] = $transaction->id;
@@ -320,7 +347,8 @@ class PosController extends Controller
                 return response()->json([
                     'success' => true, 
                     'message' => 'Transaksi berhasil disimpan',
-                    'transaction_id' => $transaction->id
+                    'transaction_id' => $transaction->id,
+                    'invoice_number' => $transaction->invoice_number
                 ]);
             });
         } catch (\Exception $e) {

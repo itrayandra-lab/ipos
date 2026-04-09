@@ -119,7 +119,7 @@ Route::prefix('admin')->middleware(['auth', 'role:admin'])->group(function () {
                 Route::prefix('products')->group(function () {
                     Route::get('/', [ProductAdmin::class , 'index']);
                     Route::post('/', [ProductAdmin::class , 'create']);
-                    Route::get('/all', [ProductAdmin::class , 'getall']);
+                    Route::get('/all', [ProductAdmin::class , 'getall'])->name('admin.products.all');
                     Route::get('/get-pricing/{id}', [ProductAdmin::class , 'getPricing']);
                     Route::post('/sync-price', [ProductAdmin::class , 'syncPrice'])->name('admin.products.sync-price');
                     Route::post('/get', [ProductAdmin::class , 'get']);
@@ -143,6 +143,7 @@ Route::prefix('admin')->middleware(['auth', 'role:admin'])->group(function () {
                     Route::post('/update', [\App\Http\Controllers\Admin\ManageMaster\StockController::class , 'update']);
                     Route::delete('/', [\App\Http\Controllers\Admin\ManageMaster\StockController::class , 'delete']);
                     Route::get('/variants/{product_id}', [\App\Http\Controllers\Admin\ManageMaster\StockController::class , 'getVariants']);
+                    Route::post('/detail', [\App\Http\Controllers\Admin\ManageMaster\StockController::class , 'getDetail']);
                 }
                 );
 
@@ -163,6 +164,16 @@ Route::prefix('admin')->middleware(['auth', 'role:admin'])->group(function () {
                     Route::post('/get', [AttributeAdmin::class , 'get'])->name('admin.manage_master.attributes.get');
                     Route::post('/update', [AttributeAdmin::class , 'update'])->name('admin.manage_master.attributes.update');
                     Route::delete('/', [AttributeAdmin::class , 'delete'])->name('admin.manage_master.attributes.delete');
+                }
+                );
+
+                Route::prefix('product-tiers')->group(function () {
+                    Route::get('/', [\App\Http\Controllers\Admin\ManageMaster\ProductTierController::class , 'index']);
+                    Route::post('/', [\App\Http\Controllers\Admin\ManageMaster\ProductTierController::class , 'create']);
+                    Route::get('all', [\App\Http\Controllers\Admin\ManageMaster\ProductTierController::class , 'getall']);
+                    Route::post('get', [\App\Http\Controllers\Admin\ManageMaster\ProductTierController::class , 'get']);
+                    Route::post('update', [\App\Http\Controllers\Admin\ManageMaster\ProductTierController::class , 'update']);
+                    Route::delete('/', [\App\Http\Controllers\Admin\ManageMaster\ProductTierController::class , 'delete']);
                 }
                 );
             }
@@ -236,6 +247,7 @@ Route::prefix('admin')->middleware(['auth', 'role:admin'])->group(function () {
             Route::put('{id}', [TransactionAdmin::class , 'update'])->name('admin.transactions.update');
             Route::delete('{id}', [TransactionAdmin::class , 'destroy'])->name('admin.transactions.destroy');
             Route::get('print-struk/{id}', [TransactionAdmin::class , 'printStruk'])->name('admin.transactions.print_struk');
+            Route::post('generate-invoice/{id}', [TransactionAdmin::class , 'generateInvoice'])->name('admin.transactions.generate_invoice');
         }
         );
 
@@ -314,6 +326,8 @@ Route::prefix('admin')->middleware(['auth', 'role:admin'])->group(function () {
                     Route::get('/purchase-orders/products', 'getProducts')->name('admin.purchasing.purchase_orders.get_products');
                     Route::post('/purchase-orders', 'store')->name('admin.purchasing.purchase_orders.store');
                     Route::post('/purchase-orders/delete', 'delete')->name('admin.purchasing.purchase_orders.delete');
+                    Route::get('/purchase-orders/{id}/edit', 'edit')->name('admin.purchasing.purchase_orders.edit');
+                    Route::put('/purchase-orders/{id}', 'update')->name('admin.purchasing.purchase_orders.update');
                     Route::get('/purchase-orders/{id}', 'show')->name('admin.purchasing.purchase_orders.show');
                     Route::get('/purchase-orders/{id}/print', 'print')->name('admin.purchasing.purchase_orders.print');
                 }
@@ -329,6 +343,41 @@ Route::prefix('admin')->middleware(['auth', 'role:admin'])->group(function () {
                     Route::get('/goods-receipts/{id}', 'show')->name('admin.purchasing.goods_receipts.show');
                 }
                 );
+
+                // Stock Movements
+                Route::controller(\App\Http\Controllers\Admin\Inventory\StockMovementController::class)->group(function () {
+                    Route::get('/stock-movements', 'index')->name('admin.stock_movements.index');
+                    Route::get('/stock-movements/create', 'create')->name('admin.stock_movements.create');
+                    Route::get('/stock-movements/all', 'getall')->name('admin.stock_movements.getall');
+                    Route::post('/stock-movements', 'store')->name('admin.stock_movements.store');
+                    Route::get('/stock-movements/{id}', 'show')->name('admin.stock_movements.show');
+                    Route::post('/stock-movements/{id}/ship', 'ship')->name('admin.stock_movements.ship');
+                    Route::post('/stock-movements/{id}/receive', 'receive')->name('admin.stock_movements.receive');
+                });
+
+                // Warehouses
+                Route::prefix('settings')->group(function () {
+                    Route::controller(\App\Http\Controllers\Admin\Inventory\WarehouseController::class)->group(function () {
+                        Route::get('/warehouses', 'index')->name('admin.settings.warehouses.index');
+                        Route::get('/warehouses/all', 'getall')->name('admin.settings.warehouses.getall');
+                        Route::post('/warehouses', 'store')->name('admin.settings.warehouses.store');
+                        Route::post('/warehouses/get', 'get')->name('admin.settings.warehouses.get');
+                        Route::post('/warehouses/update', 'update')->name('admin.settings.warehouses.update');
+                        Route::delete('/warehouses/delete', 'delete')->name('admin.settings.warehouses.delete');
+                    });
+                });
+
+                // Warehouse Settlements
+                Route::controller(\App\Http\Controllers\Admin\Inventory\WarehouseSettlementController::class)->group(function () {
+                    Route::get('/settlements', 'index')->name('admin.settlements.index');
+                    Route::get('/settlements/all', 'getall')->name('admin.settlements.getall');
+                    Route::get('/settlements/create', 'create')->name('admin.settlements.create');
+                    Route::post('/settlements', 'store')->name('admin.settlements.store');
+                    Route::get('/settlements/{id}', 'show')->name('admin.settlements.show');
+                    Route::post('/settlements/{id}/submit', 'submit')->name('admin.settlements.submit');
+                    Route::post('/settlements/{id}/verify', 'verify')->name('admin.settlements.verify');
+                    Route::post('/settlements/{id}/reject', 'reject')->name('admin.settlements.reject');
+                });
             }
             );
         });

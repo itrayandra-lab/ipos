@@ -11,9 +11,41 @@ use App\Models\TransactionItem;
 use Yajra\DataTables\Facades\DataTables;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
+use App\Services\InvoiceService;
 
 class TransactionController extends Controller
 {
+    public function generateInvoice(Request $request, $id)
+    {
+        $transaction = Transaction::findOrFail($id);
+
+        if ($transaction->invoice_number) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Transaksi sudah memiliki nomor invoice: ' . $transaction->invoice_number
+            ], 400);
+        }
+
+        try {
+            DB::transaction(function () use ($transaction) {
+                $transaction->update([
+                    'invoice_number' => InvoiceService::generate()
+                ]);
+            });
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Invoice berhasil dibuat: ' . $transaction->invoice_number,
+                'invoice_number' => $transaction->invoice_number
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Gagal membuat invoice: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
     public function index()
     {
         return view('admin.transaction.index')->with([
@@ -29,6 +61,7 @@ class TransactionController extends Controller
             'transactions.total_amount',
             'transactions.payment_status',
             'transactions.delivery_type',
+            'transactions.invoice_number',
             'transactions.created_at',
             'users.name as user_name'
         )
@@ -59,6 +92,13 @@ class TransactionController extends Controller
                 return $transaction->user_name;
             })
             ->addColumn('action', function ($transaction) {
+                $invoiceBtn = '';
+                if (!$transaction->invoice_number) {
+                    $invoiceBtn = '<li><button type="button" onclick="generateInvoice(' . $transaction->id . ')" class="dropdown-item text-primary font-weight-bold"><i class="fas fa-file-invoice"></i> Buat Invoice Baru</button></li>';
+                } else {
+                    $invoiceBtn = '<li><a href="' . route('admin.sales.invoices.print', $transaction->id) . '" target="_blank" class="dropdown-item text-success"><i class="fas fa-print"></i> Cetak Invoice</a></li>';
+                }
+
                 return '<div class="dropdown d-inline dropleft">
                     <button type="button" class="btn btn-primary btn-sm dropdown-toggle" data-toggle="dropdown">
                         Action
@@ -67,6 +107,8 @@ class TransactionController extends Controller
                         <li><a href="' . url('admin/transactions/show/'. $transaction->id) . '" class="dropdown-item">Detail</a></li>
                         <li><a href="' . route('admin.transactions.edit', $transaction->id) . '" class="dropdown-item">Edit</a></li>
                         <li><a href="' . route('admin.transactions.print_struk', $transaction->id) . '" target="_blank" class="dropdown-item">Print Struk</a></li>
+                        ' . $invoiceBtn . '
+                        <div class="dropdown-divider"></div>
                         <li><button type="button" onclick="deleteTransaction(' . $transaction->id . ')" class="dropdown-item text-danger">Hapus</button></li>
                     </ul>
                 </div>';

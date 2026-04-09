@@ -46,11 +46,22 @@
                                             </select>
                                         </div>
                                     </div>
-                                    <div class="col-md-4">
+                                    <div class="col-md-3">
                                         <div class="form-group">
                                             <label>No. Surat Jalan Supplier <span class="text-danger">*</span></label>
                                             <input type="text" name="delivery_note_number" class="form-control" placeholder="Input nomor surat jalan fisik..." required>
                                         </div>
+                                        <div class="form-group">
+                                            <label>Gudang Penerimaan <span class="text-danger">*</span></label>
+                                            <select name="warehouse_id" id="warehouse_id" class="form-control select2" required>
+                                                <option value="">Pilih Gudang</option>
+                                                @foreach($warehouses as $wh)
+                                                    <option value="{{ $wh->id }}">{{ $wh->name }}</option>
+                                                @endforeach
+                                            </select>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-3">
                                         <div class="form-group">
                                             <label>Supplier <span class="text-danger">*</span></label>
                                             <select name="supplier_id" id="supplier_id" class="form-control select2" required>
@@ -60,12 +71,12 @@
                                                 @endforeach
                                             </select>
                                         </div>
-                                    </div>
-                                    <div class="col-md-4">
                                         <div class="form-group">
                                             <label>Tanggal Surat Jalan Supplier <span class="text-danger">*</span></label>
                                             <input type="date" name="delivery_date" value="{{ date('Y-m-d') }}" class="form-control" required>
                                         </div>
+                                    </div>
+                                    <div class="col-md-3">
                                         <div class="form-group">
                                             <label>Tanggal Diterima <span class="text-danger">*</span></label>
                                             <input type="date" name="received_date" value="{{ date('Y-m-d') }}" class="form-control" required>
@@ -241,6 +252,9 @@
             data: { po_id: poId },
             success: function(res) {
                 $('#supplier_id').val(res.supplier_id).trigger('change');
+                if (res.warehouse_id) {
+                    $('#warehouse_id').val(res.warehouse_id).trigger('change');
+                }
                 $('#table-items tbody').empty();
                 res.items.forEach((item, index) => {
                     let html = `

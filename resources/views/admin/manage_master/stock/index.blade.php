@@ -34,6 +34,14 @@
                     <div class="card">
                         <div class="card-header">
                             <h4>Daftar Stok Produk</h4>
+                            <div class="card-header-action">
+                                <div class="btn-group" id="warehouse-tabs" role="group">
+                                    <button type="button" class="btn btn-outline-primary btn-sm active" data-warehouse="">Semua Gudang</button>
+                                    @foreach($warehouses as $wh)
+                                        <button type="button" class="btn btn-outline-primary btn-sm" data-warehouse="{{ $wh->id }}">{{ $wh->name }}</button>
+                                    @endforeach
+                                </div>
+                            </div>
                         </div>
                         <div class="card-body">
                             <div class="table-responsive">
@@ -42,11 +50,10 @@
                                         <tr>
                                             <th>No</th>
                                             <th>Produk</th>
+                                            <th>Gudang</th>
                                             <th>Netto</th>
-                                            <th>No Batch</th>
-                                            <th>Stok Awal</th>
-                                            <th>Sisa Stok</th>
-                                            <th>Tgl Kadaluarsa</th>
+                                            <th class="text-center">Jml Batch</th>
+                                            <th class="text-right">Total Sisa Stok</th>
                                             <th>Action</th>
                                         </tr>
                                     </thead>
@@ -60,89 +67,180 @@
     </section>
 </div>
 
-<!-- Modal Add -->
+<!-- Modal Detail (Audit Card) -->
+<div class="modal fade" id="modal-detail" tabindex="-1" role="dialog">
+    <div class="modal-dialog modal-xl" role="document">
+        <div class="modal-content">
+            <div class="modal-header bg-primary text-white">
+                <h5 class="modal-title">Laporan Audit Stok: <span id="det-title-product"></span></h5>
+                <button type="button" class="close text-white" data-dismiss="modal"><span>&times;</span></button>
+            </div>
+            <div class="modal-body">
+                <div class="row mb-3">
+                    <div class="col-md-6">
+                        <table class="table table-sm table-borderless">
+                            <tr><th width="120">Produk</th><td>: <span id="det-info-name"></span></td></tr>
+                            <tr><th>Lokasi Gudang</th><td>: <span id="det-info-warehouse" class="badge badge-info"></span></td></tr>
+                        </table>
+                    </div>
+                </div>
+
+                <ul class="nav nav-tabs" id="auditTab" role="tablist">
+                    <li class="nav-item">
+                        <a class="nav-link active" id="batch-tab" data-toggle="tab" href="#tab-batch" role="tab">Rincian Batch</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" id="incoming-tab" data-toggle="tab" href="#tab-incoming" role="tab">Riwayat Masuk (Supplier)</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" id="outgoing-tab" data-toggle="tab" href="#tab-outgoing" role="tab">Riwayat Keluar (Penjualan)</a>
+                    </li>
+                </ul>
+                <div class="tab-content pt-3" id="auditTabContent">
+                    <!-- Tab Batches -->
+                    <div class="tab-pane fade show active" id="tab-batch" role="tabpanel">
+                        <div class="table-responsive">
+                            <table class="table table-sm table-striped" id="table-det-batches">
+                                <thead>
+                                    <tr class="bg-light">
+                                        <th>No Batch</th>
+                                        <th>Exp Date</th>
+                                        <th class="text-right">Qty Awal</th>
+                                        <th class="text-right text-primary">Sisa Stok</th>
+                                        <th class="text-center">Action</th>
+                                    </tr>
+                                </thead>
+                                <tbody></tbody>
+                            </table>
+                        </div>
+                    </div>
+                    <!-- Tab Incoming -->
+                    <div class="tab-pane fade" id="tab-incoming" role="tabpanel">
+                        <div class="table-responsive">
+                            <table class="table table-sm table-hover" id="table-det-incoming">
+                                <thead>
+                                    <tr class="bg-light">
+                                        <th>Tipe</th>
+                                        <th>No. Ref / SJ</th>
+                                        <th>Asal / Supplier</th>
+                                        <th>Tgl Terima</th>
+                                    </tr>
+                                </thead>
+                                <tbody></tbody>
+                            </table>
+                        </div>
+                    </div>
+                    <!-- Tab Outgoing -->
+                    <div class="tab-pane fade" id="tab-outgoing" role="tabpanel">
+                        <div class="table-responsive">
+                            <table class="table table-sm table-hover" id="table-det-outgoing">
+                                <thead>
+                                    <tr class="bg-light">
+                                        <th>Tipe</th>
+                                        <th>No. Referensi</th>
+                                        <th>Tujuan / Customer</th>
+                                        <th class="text-right">Qty Keluar</th>
+                                        <th>Tgl Transaksi</th>
+                                    </tr>
+                                </thead>
+                                <tbody></tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-dismiss="modal">Tutup Laporan</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal Add (Restored) -->
 <div class="modal fade" id="modal-add" tabindex="-1" role="dialog">
     <div class="modal-dialog" role="document">
         <div class="modal-content">
             <div class="modal-header">
                 <h5 class="modal-title">Tambah Batch Stok</h5>
-                <button type="button" class="close" data-dismiss="modal">
-                    <span>&times;</span>
-                </button>
+                <button type="button" class="close" data-dismiss="modal"><span>&times;</span></button>
             </div>
             <form id="form-add">
                 @csrf
                 <div class="modal-body">
                     <div class="form-group">
-                        <label>Produk <span class="text-danger">*</span></label>
-                        <select class="form-control select2" name="product_id" id="product-add" required>
-                            <option value="">Pilih Produk</option>
-                            @foreach($products as $product)
-                                <option value="{{ $product->id }}">{{ $product->name }}</option>
+                        <label>Gudang <span class="text-danger">*</span></label>
+                        <select class="form-control select2" name="warehouse_id" required>
+                            @foreach($warehouses as $wh)
+                                <option value="{{ $wh->id }}" {{ $wh->type == 'main' ? 'selected' : '' }}>{{ $wh->name }}</option>
                             @endforeach
                         </select>
                     </div>
                     <div class="form-group">
-                        <label>Varian</label>
+                        <label>Produk <span class="text-danger">*</span></label>
+                        <select class="form-control select2" name="product_id" id="product-add" required>
+                            <option value="">Pilih Produk</option>
+                            @foreach($products as $product)
+                                <option value="{{ $product->id }}">{{ $product->merek ? $product->merek->name . ' ' : '' }}{{ $product->name }}</option>
+                            @endforeach
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Varian (Netto)</label>
                         <select class="form-control select2" name="product_variant_id" id="variant-add">
                             <option value="">Pilih Varian</option>
                         </select>
                     </div>
-                    <div class="form-group">
-                        <label>Nomor Batch <span class="text-danger">*</span></label>
-                        <input type="text" class="form-control" name="batch_no" placeholder="Contoh: BATCH001" required>
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label>Nomor Batch <span class="text-danger">*</span></label>
+                                <input type="text" class="form-control" name="batch_no" required>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label>Tgl Kadaluarsa</label>
+                                <input type="date" class="form-control" name="expiry_date">
+                            </div>
+                        </div>
                     </div>
                     <div class="form-group">
-                        <label>Tanggal Kadaluarsa</label>
-                        <input type="date" class="form-control" name="expiry_date">
-                    </div>
-                    <div class="form-group">
-                        <label>Jumlah Stok <span class="text-danger">*</span></label>
-                        <input type="number" class="form-control" name="qty" placeholder="0" min="1" required>
+                        <label>Qty Masuk <span class="text-danger">*</span></label>
+                        <input type="number" class="form-control" name="qty" required min="1">
                     </div>
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary" data-dismiss="modal">Batal</button>
-                    <button type="submit" class="btn btn-primary">Simpan</button>
+                    <button type="submit" class="btn btn-primary">Simpan Stok</button>
                 </div>
             </form>
         </div>
     </div>
 </div>
 
-<!-- Modal Edit -->
+<!-- Modal Edit (Restored) -->
 <div class="modal fade" id="modal-edit" tabindex="-1" role="dialog">
     <div class="modal-dialog" role="document">
         <div class="modal-content">
             <div class="modal-header">
-                <h5 class="modal-title">Edit Batch Stok</h5>
-                <button type="button" class="close" data-dismiss="modal">
-                    <span>&times;</span>
-                </button>
+                <h5 class="modal-title">Edit Batch</h5>
+                <button type="button" class="close" data-dismiss="modal"><span>&times;</span></button>
             </div>
             <form id="form-edit">
                 @csrf
                 <input type="hidden" name="id" id="edit-id">
                 <div class="modal-body">
                     <div class="form-group">
-                        <label>Produk</label>
-                        <input type="text" class="form-control" id="edit-product" readonly>
-                    </div>
-                    <div class="form-group">
-                        <label>Varian</label>
-                        <input type="text" class="form-control" id="edit-variant" readonly>
-                    </div>
-                    <div class="form-group">
-                        <label>Nomor Batch <span class="text-danger">*</span></label>
+                        <label>No Batch</label>
                         <input type="text" class="form-control" name="batch_no" id="edit-batch-no" required>
                     </div>
                     <div class="form-group">
-                        <label>Tanggal Kadaluarsa</label>
+                        <label>Tgl Kadaluarsa</label>
                         <input type="date" class="form-control" name="expiry_date" id="edit-expiry">
                     </div>
                     <div class="form-group">
-                        <label>Jumlah Stok <span class="text-danger">*</span></label>
-                        <input type="number" class="form-control" name="qty" id="edit-qty" min="0" required>
+                        <label>Qty Awal</label>
+                        <input type="number" class="form-control" name="qty" id="edit-qty" required>
                     </div>
                 </div>
                 <div class="modal-footer">
@@ -158,60 +256,119 @@
 @push('scripts')
 <script>
     let table;
+    let activeWarehouseId = '';
 
     $(document).ready(function() {
-        // Initialize DataTable
         table = $('#table-stock').DataTable({
             processing: true,
             serverSide: true,
-            ajax: '{{ url("admin/manage-master/stock/all") }}',
+            ajax: {
+                url: '{{ url("admin/manage-master/stock/all") }}',
+                data: function(d) { d.warehouse_id = activeWarehouseId; }
+            },
             columns: [
                 { data: 'DT_RowIndex', name: 'DT_RowIndex', orderable: false, searchable: false },
-                { data: 'product_name', name: 'product.name' },
-                { data: 'netto', name: 'netto', orderable: false },
-                { data: 'batch_no', name: 'batch_no' },
-                { data: 'qty', name: 'qty' },
-                { data: 'current_stock', name: 'current_stock', orderable: false },
-
-                { 
-                    data: 'expiry_date', 
-                    name: 'expiry_date',
-                    render: function(data) {
-                        return data ? new Date(data).toLocaleDateString('id-ID') : '-';
-                    }
-                },
+                { data: 'product_name', name: 'product_name' },
+                { data: 'warehouse_name', name: 'warehouse_name' },
+                { data: 'netto', name: 'netto', orderable: false, searchable: false },
+                { data: 'batch_count', name: 'batch_count', className: 'text-center', searchable: false },
+                { data: 'total_current_stock', name: 'total_current_stock', className: 'text-right font-weight-bold', searchable: false },
                 { data: 'action', name: 'action', orderable: false, searchable: false }
             ]
         });
 
-        // Initialize Select2
-        $('#product-add, #variant-add').select2({
-            theme: 'bootstrap4',
-            width: '100%',
-            dropdownParent: $('#modal-add')
+        $('#warehouse-tabs button').on('click', function() {
+            $('#warehouse-tabs button').removeClass('active');
+            $(this).addClass('active');
+            activeWarehouseId = $(this).data('warehouse');
+            table.ajax.reload();
         });
 
+        $('.select2').each(function() {
+            $(this).select2({ theme: 'bootstrap4', width: '100%', dropdownParent: $(this).closest('.modal') });
+        });
 
-
-        // Load variants when product selected
         $('#product-add').on('change', function() {
-            let productId = $(this).val();
+            let id = $(this).val();
             $('#variant-add').html('<option value="">Pilih Varian</option>');
-            
-            if (productId) {
-                $.get('{{ url("admin/manage-master/stock/variants") }}/' + productId, function(res) {
-                    if (res.success && res.data.length > 0) {
-                        res.data.forEach(function(variant) {
-                            let satuan = variant.satuan ? variant.satuan : '';
-                            let displayText = `${variant.netto_value} ${satuan}`;
-                            $('#variant-add').append(`<option value="${variant.id}">${displayText}</option>`);
-                        });
-                    }
+            if(id) {
+                $.get('{{ url("admin/manage-master/stock/variants") }}/' + id, function(res) {
+                    res.data.forEach(v => {
+                        $('#variant-add').append(`<option value="${v.id}">${v.netto_value} ${v.satuan}</option>`);
+                    });
                 });
             }
         });
 
-        // Add form submit
+        // Detail Audit Button
+        $(document).on('click', '.btn-detail', function() {
+            let data = $(this).data();
+            $.post('{{ url("admin/manage-master/stock/detail") }}', { 
+                _token: '{{ csrf_token() }}', 
+                product_id: data.product_id, 
+                variant_id: data.variant_id, 
+                warehouse_id: data.warehouse_id 
+            }, function(res) {
+                if (res.success) {
+                    $('#det-info-name').text(res.product.name);
+                    $('#det-info-warehouse').text(res.product.warehouse);
+                    
+                    // Render Batches
+                    $('#table-det-batches tbody').empty();
+                    res.batches.forEach(b => {
+                        $('#table-det-batches tbody').append(`
+                            <tr>
+                                <td><b>${b.batch_no}</b></td>
+                                <td>${b.expiry_date ? new Date(b.expiry_date).toLocaleDateString('id-ID') : '-'}</td>
+                                <td class="text-right">${b.qty}</td>
+                                <td class="text-right text-primary font-weight-bold">${b.current_qty}</td>
+                                <td class="text-center">
+                                    <button class="btn btn-sm btn-info btn-edit-batch" data-id="${b.id}"><i class="fas fa-edit"></i></button>
+                                    <button class="btn btn-sm btn-danger btn-delete-batch" data-id="${b.id}"><i class="fas fa-trash"></i></button>
+                                </td>
+                            </tr>
+                        `);
+                    });
+
+                    // Render Incoming
+                    $('#table-det-incoming tbody').empty();
+                    if(res.incoming.length) {
+                        res.incoming.forEach(i => {
+                            let badge = i.type === 'Supplier' ? 'badge-primary' : 'badge-dark';
+                            $('#table-det-incoming tbody').append(`
+                                <tr>
+                                    <td><span class="badge ${badge}">${i.type}</span></td>
+                                    <td class="font-weight-bold">${i.ref_no}</td>
+                                    <td>${i.source}</td>
+                                    <td>${new Date(i.date).toLocaleDateString('id-ID')}</td>
+                                </tr>
+                            `);
+                        });
+                    } else { $('#table-det-incoming tbody').append('<tr><td colspan="4" class="text-center text-muted">Tidak ada data incoming</td></tr>'); }
+
+                    // Render Outgoing
+                    $('#table-det-outgoing tbody').empty();
+                    if(res.outgoing.length) {
+                        res.outgoing.forEach(o => {
+                            let badge = o.type === 'Penjualan' ? 'badge-success' : 'badge-info';
+                            $('#table-det-outgoing tbody').append(`
+                                <tr>
+                                    <td><span class="badge ${badge}">${o.type}</span></td>
+                                    <td class="font-weight-bold">${o.ref_no}</td>
+                                    <td>${o.destination}</td>
+                                    <td class="text-right">${o.qty}</td>
+                                    <td>${new Date(o.date).toLocaleString('id-ID')}</td>
+                                </tr>
+                            `);
+                        });
+                    } else { $('#table-det-outgoing tbody').append('<tr><td colspan="5" class="text-center text-muted">Tidak ada data outgoing</td></tr>'); }
+
+                    $('#modal-detail').modal('show');
+                }
+            });
+        });
+
+        // Add
         $('#form-add').on('submit', function(e) {
             e.preventDefault();
             $.ajax({
@@ -219,38 +376,27 @@
                 method: 'POST',
                 data: $(this).serialize(),
                 success: function(res) {
-                    if (res.success) {
-                        $('#modal-add').modal('hide');
-                        $('#form-add')[0].reset();
-                        $('.select2').val('').trigger('change');
-                        table.ajax.reload();
-                        iziToast.success({ title: 'Berhasil', message: res.message, position: 'topRight' });
-                    }
-                },
-                error: function(err) {
-                    iziToast.error({ title: 'Error', message: err.responseJSON?.message || 'Terjadi kesalahan', position: 'topRight' });
+                    $('#modal-add').modal('hide');
+                    table.ajax.reload();
+                    iziToast.success({ title: 'Berhasil', message: res.message });
                 }
             });
         });
 
-        // Edit button
-        $(document).on('click', '.btn-edit', function() {
+        // Edit inside modal
+        $(document).on('click', '.btn-edit-batch', function() {
             let id = $(this).data('id');
             $.post('{{ url("admin/manage-master/stock/get") }}', { _token: '{{ csrf_token() }}', id: id }, function(res) {
-                if (res.success) {
-                    let data = res.data;
-                    $('#edit-id').val(data.id);
-                    $('#edit-product').val(data.product ? data.product.name : '-');
-                    $('#edit-variant').val(data.variant ? (data.variant.netto ? data.variant.netto.netto_value : '') + ' - ' + data.variant.sku_code : '-');
-                    $('#edit-batch-no').val(data.batch_no);
-                    $('#edit-expiry').val(data.expiry_date);
-                    $('#edit-qty').val(data.qty);
+                if(res.success) {
+                    $('#edit-id').val(res.data.id);
+                    $('#edit-batch-no').val(res.data.batch_no);
+                    $('#edit-expiry').val(res.data.expiry_date ? res.data.expiry_date.split('T')[0] : '');
+                    $('#edit-qty').val(res.data.qty);
                     $('#modal-edit').modal('show');
                 }
             });
         });
 
-        // Edit form submit
         $('#form-edit').on('submit', function(e) {
             e.preventDefault();
             $.ajax({
@@ -258,41 +404,28 @@
                 method: 'POST',
                 data: $(this).serialize(),
                 success: function(res) {
-                    if (res.success) {
-                        $('#modal-edit').modal('hide');
-                        table.ajax.reload();
-                        iziToast.success({ title: 'Berhasil', message: res.message, position: 'topRight' });
-                    }
-                },
-                error: function(err) {
-                    iziToast.error({ title: 'Error', message: err.responseJSON?.message || 'Terjadi kesalahan', position: 'topRight' });
+                    $('#modal-edit').modal('hide');
+                    iziToast.success({ title: 'Berhasil', message: res.message });
+                    // Re-trigger detail refresh or just reload table
+                    table.ajax.reload();
                 }
             });
         });
 
-        // Delete button
-        $(document).on('click', '.btn-delete', function() {
+        // Delete inside modal
+        $(document).on('click', '.btn-delete-batch', function() {
             let id = $(this).data('id');
-            swal({
-                title: 'Konfirmasi',
-                text: 'Apakah Anda yakin ingin menghapus batch ini?',
-                icon: 'warning',
-                buttons: true,
-                dangerMode: true,
-            }).then((willDelete) => {
+            swal({ title: 'Hapus Batch?', text: 'Data tidak bisa dikembalikan', icon: 'warning', buttons: true, dangerMode: true })
+            .then((willDelete) => {
                 if (willDelete) {
                     $.ajax({
                         url: '{{ url("admin/manage-master/stock") }}',
                         method: 'DELETE',
                         data: { _token: '{{ csrf_token() }}', id: id },
                         success: function(res) {
-                            if (res.success) {
-                                table.ajax.reload();
-                                iziToast.success({ title: 'Berhasil', message: res.message, position: 'topRight' });
-                            }
-                        },
-                        error: function(err) {
-                            iziToast.error({ title: 'Error', message: err.responseJSON?.message || 'Terjadi kesalahan', position: 'topRight' });
+                            table.ajax.reload();
+                            $('#modal-detail').modal('hide');
+                            iziToast.success({ title: 'Berhasil', message: res.message });
                         }
                     });
                 }

@@ -198,6 +198,52 @@
                     });
                 }
             };
+
+            // Generate Invoice
+            window.generateInvoice = function(id) {
+                if (confirm('Apakah Anda yakin ingin membuat nomor invoice formal untuk transaksi ini?')) {
+                    $.ajax({
+                        url: "{{ url('admin/transactions/generate-invoice') }}/" + id,
+                        type: 'POST',
+                        data: {
+                            _token: "{{ csrf_token() }}"
+                        },
+                        beforeSend: function() {
+                            $.LoadingOverlay("show");
+                        },
+                        complete: function() {
+                            $.LoadingOverlay("hide");
+                        },
+                        success: function(response) {
+                            if (response.success) {
+                                table.ajax.reload();
+                                iziToast.success({
+                                    title: 'Berhasil',
+                                    message: response.message,
+                                    position: 'topRight'
+                                });
+                                // Automatically open print view for the new invoice
+                                var printUrl = "{{ route('admin.sales.invoices.print', ':id') }}".replace(':id', id);
+                                window.open(printUrl, '_blank');
+                            } else {
+                                iziToast.error({
+                                    title: 'Gagal',
+                                    message: response.message,
+                                    position: 'topRight'
+                                });
+                            }
+                        },
+                        error: function(xhr) {
+                            var msg = xhr.responseJSON ? xhr.responseJSON.message : 'Terjadi kesalahan sistem';
+                            iziToast.error({
+                                title: 'Gagal',
+                                message: msg,
+                                position: 'topRight'
+                            });
+                        }
+                    });
+                }
+            };
         });
     </script>
 @endsection

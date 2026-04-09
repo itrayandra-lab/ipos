@@ -40,6 +40,7 @@ class Transaction extends Model
         'affiliate_fee_total',
         'affiliate_fee_mode',
         'created_at',
+        'warehouse_id',
     ];
 
     protected $casts = [
@@ -71,5 +72,10 @@ class Transaction extends Model
     public function bankAccount()
     {
         return $this->belongsTo(BankAccount::class);
+    }
+
+    public function warehouse()
+    {
+        return $this->belongsTo(Warehouse::class);
     }
 }

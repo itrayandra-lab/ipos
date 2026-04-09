@@ -47,15 +47,20 @@
                 </a>
             </li>
 
-            <li class="nav-item dropdown {{ ($sb == 'Product' || $sb == 'Stock' || $sb == 'Merek' || $sb == 'Categories' || $sb == 'Sub Categories' || $sb == 'ProductTypes') ? 'active' : '' }}">
-                <a href="#" class="nav-link has-dropdown"><i class="fas fa-boxes"></i> <span>Produk</span></a>
+            <li class="nav-item dropdown {{ ($sb == 'Product' || $sb == 'Merek') ? 'active' : '' }}">
+                <a href="#" class="nav-link has-dropdown"><i class="fas fa-box"></i> <span>Produk</span></a>
                 <ul class="dropdown-menu">
                     <li class="{{ $sb == 'Merek' ? 'active' : '' }}"><a class="nav-link" href="{{ url('admin/manage-master/merek') }}">Merek</a></li>
                     <li class="{{ $sb == 'Product' ? 'active' : '' }}"><a class="nav-link" href="{{ url('admin/manage-master/products') }}">Produk</a></li>
-                    <li class="{{ $sb == 'Stock' ? 'active' : '' }}"><a class="nav-link" href="{{ url('admin/manage-master/stock') }}">Stok</a></li>
-                    <li class="{{ $sb == 'Categories' ? 'active' : '' }}"><a class="nav-link" href="{{ url('admin/manage-master/categories') }}">Kategori Utama</a></li>
-                    <li class="{{ $sb == 'Sub Categories' ? 'active' : '' }}"><a class="nav-link" href="{{ url('admin/manage-master/sub-categories') }}">Sub Kategori</a></li>
-                    <li class="{{ $sb == 'ProductTypes' ? 'active' : '' }}"><a class="nav-link" href="{{ url('admin/manage-master/product-types') }}">Tipe Produk</a></li>
+                </ul>
+            </li>
+
+            <li class="nav-item dropdown {{ ($sb == 'Stock' || $sb == 'StockMovement' || $sb == 'Settlement') ? 'active' : '' }}">
+                <a href="#" class="nav-link has-dropdown"><i class="fas fa-boxes"></i> <span>Manajemen Stok</span></a>
+                <ul class="dropdown-menu">
+                    <li class="{{ $sb == 'Stock' ? 'active' : '' }}"><a class="nav-link" href="{{ url('admin/manage-master/stock') }}">Stok Barang</a></li>
+                    <li class="{{ $sb == 'StockMovement' ? 'active' : '' }}"><a class="nav-link" href="{{ route('admin.stock_movements.index') }}">Stock Movement</a></li>
+                    <li class="{{ $sb == 'Settlement' ? 'active' : '' }}"><a class="nav-link" href="{{ route('admin.settlements.index') }}">Settlement Gudang</a></li>
                 </ul>
             </li>
 
@@ -93,11 +98,16 @@
                 </ul>
             </li>
 
-            <li class="nav-item dropdown {{ ($sb == 'Settings' || $sb == 'Attribute Groups' || $sb == 'Attributes') ? 'active' : '' }}">
+            <li class="nav-item dropdown {{ ($sb == 'Settings' || $sb == 'Attribute Groups' || $sb == 'Attributes' || $sb == 'Categories' || $sb == 'Sub Categories' || $sb == 'ProductTypes' || $sb == 'ProductTier') ? 'active' : '' }}">
                 <a href="#" class="nav-link has-dropdown"><i class="fas fa-cogs"></i><span>Pengaturan</span></a>
                 <ul class="dropdown-menu">
+                    <li class="{{ $sb == 'Categories' ? 'active' : '' }}"><a class="nav-link" href="{{ url('admin/manage-master/categories') }}">Kategori Utama</a></li>
+                    <li class="{{ $sb == 'Sub Categories' ? 'active' : '' }}"><a class="nav-link" href="{{ url('admin/manage-master/sub-categories') }}">Sub Kategori</a></li>
+                    <li class="{{ $sb == 'ProductTypes' ? 'active' : '' }}"><a class="nav-link" href="{{ url('admin/manage-master/product-types') }}">Tipe Produk</a></li>
+                    <li class="{{ $sb == 'ProductTier' ? 'active' : '' }}"><a class="nav-link" href="{{ url('admin/manage-master/product-tiers') }}">Tier Harga</a></li>
                     <li class="{{ $sb == 'Attribute Groups' ? 'active' : '' }}"><a class="nav-link" href="{{ route('admin.manage_master.attribute_groups.index') }}">Grup Atribut</a></li>
                     <li class="{{ $sb == 'Attributes' ? 'active' : '' }}"><a class="nav-link" href="{{ route('admin.manage_master.attributes.index') }}">Data Atribut</a></li>
+                    <li class="{{ $sb == 'Warehouse' ? 'active' : '' }}"><a class="nav-link" href="{{ route('admin.settings.warehouses.index') }}">Data Gudang</a></li>
                     <li class="{{ Request::is('admin/settings/channels') ? 'active' : '' }}"><a class="nav-link" href="{{ route('admin.settings.channels') }}">Saluran Penjualan</a></li>
                     <li class="{{ Request::is('admin/settings/store') ? 'active' : '' }}"><a class="nav-link" href="{{ route('admin.settings.store') }}">Toko</a></li>
                     <li class="{{ Request::is('admin/settings/bank-accounts*') ? 'active' : '' }}"><a class="nav-link" href="{{ route('admin.settings.bank_accounts') }}">Rekening Bank</a></li>
@@ -107,7 +117,6 @@
                 <a class="nav-link" href="{{ route('admin.pos.index') }}">
                     <i class="fas fa-desktop"></i> <span>Tampilan Kasir</span>
                 </a>
-            </li>/a>
             </li>
         </ul>
         <div class="hide-sidebar-mini mt-4 mb-4 p-3">

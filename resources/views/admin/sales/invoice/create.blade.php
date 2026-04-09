@@ -16,6 +16,14 @@
     #items-table th, #items-table td {
         vertical-align: middle !important;
     }
+    .satuan-input {
+        padding: 5px !important;
+    }
+    /* Fixed width for Produk column */
+    #items-table th:first-child,
+    #items-table td:first-child {
+        min-width: 350px !important;
+    }
 </style>
 @endpush
 
@@ -197,9 +205,9 @@
                             <table class="table table-bordered" id="items-table">
                                 <thead class="bg-light">
                                     <tr>
-                                        <th style="width: 40%">Produk & Varian</th>
+                                        <th style="width: 200px !important; min-width: 200px !important;">Produk & Varian</th>
                                         <th style="width:15%">Qty</th>
-                                        <th style="width:20%">Harga Satuan (Rp)</th>
+                                        <th style="width:20%">Harga (Rp)</th>
                                         <th style="width:20%">Total</th>
                                         <th style="width:5%"></th>
                                     </tr>
@@ -388,8 +396,8 @@ const batchData = @json($batchList);
         const idx = rowIndex++;
         const row = `
         <tr>
-            <td>
-                <select name="items[${idx}][product_batch_id]" class="form-control select2-items batch-select" required>
+            <td style="width: 200px !important; min-width: 200px !important;">
+                <select name="items[${idx}][product_batch_id]" class="form-control select2-items batch-select" required style="width: 100% !important;">
                     ${buildBatchOptions()}
                 </select>
             </td>

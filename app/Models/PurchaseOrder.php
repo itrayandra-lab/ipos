@@ -24,6 +24,7 @@ class PurchaseOrder extends Model
         'notes',
         'status',
         'created_by',
+        'warehouse_id',
     ];
 
     protected $casts = [
@@ -32,6 +33,11 @@ class PurchaseOrder extends Model
     ];
 
     // Relationships
+    public function warehouse()
+    {
+        return $this->belongsTo(Warehouse::class);
+    }
+
     public function supplier()
     {
         return $this->belongsTo(Supplier::class);
