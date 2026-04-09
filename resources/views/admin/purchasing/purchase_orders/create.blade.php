@@ -192,17 +192,26 @@
                                                 </div>
                                             </div>
                                             <div class="form-group row mb-2">
-                                                <label class="col-sm-4 col-form-label">Pajak (PPN %)</label>
-                                                <div class="col-sm-3">
-                                                    <input type="number" name="tax_percentage" id="tax_percentage"
-                                                        class="form-control text-right" value="11">
-                                                </div>
-                                                <div class="col-sm-5">
-                                                    <input type="text" id="display-tax-amount"
-                                                        class="form-control text-right" readonly value="0">
-                                                    <input type="hidden" name="tax_amount" id="input-tax-amount" value="0">
-                                                </div>
-                                            </div>
+                                                 <label class="col-sm-4 col-form-label">Aktifkan PPN</label>
+                                                 <div class="col-sm-8 d-flex align-items-center">
+                                                     <div class="custom-control custom-switch">
+                                                         <input type="checkbox" class="custom-control-input" id="tax_enable">
+                                                         <label class="custom-control-label" for="tax_enable"></label>
+                                                     </div>
+                                                 </div>
+                                             </div>
+                                             <div class="form-group row mb-2" id="tax_percentage_container" style="display:none;">
+                                                 <label class="col-sm-4 col-form-label">Pajak (PPN %)</label>
+                                                 <div class="col-sm-3">
+                                                     <input type="number" name="tax_percentage" id="tax_percentage"
+                                                         class="form-control text-right" value="11">
+                                                 </div>
+                                                 <div class="col-sm-5">
+                                                     <input type="text" id="display-tax-amount"
+                                                         class="form-control text-right" readonly value="0">
+                                                     <input type="hidden" name="tax_amount" id="input-tax-amount" value="0">
+                                                 </div>
+                                             </div>
                                             <div class="form-group row mb-0">
                                                 <label class="col-sm-4 col-form-label font-weight-bold">Grand Total</label>
                                                 <div class="col-sm-8">
@@ -286,6 +295,15 @@
                 calculateTotal();
             });
 
+            $('#tax_enable').on('change', function() {
+                if ($(this).is(':checked')) {
+                    $('#tax_percentage_container').show();
+                } else {
+                    $('#tax_percentage_container').hide();
+                }
+                calculateTotal();
+            });
+
             $('#form-po').on('submit', function (e) {
                 e.preventDefault();
                 submitPO();
@@ -317,6 +335,9 @@
                         // Pre-process quantities and prices back to standard numeric format
                         if (['subtotal', 'discount_amount', 'tax_amount', 'total', 'price', 'qty'].some(key => item.name.includes(key))) {
                             item.value = parseNumberId(item.value);
+                        }
+                        if (item.name === 'tax_percentage' && !$('#tax_enable').is(':checked')) {
+                            item.value = 0;
                         }
                     });
                     return serialized;
@@ -445,7 +466,10 @@
             $('#input-discount-amount').val(discountAmount);
             // Not visually display discount amount in this version yet, but we have fields for it
 
-            let taxPercentage = parseFloat($('#tax_percentage').val()) || 0;
+            let taxPercentage = 0;
+            if ($('#tax_enable').is(':checked')) {
+                taxPercentage = parseFloat($('#tax_percentage').val()) || 0;
+            }
             let taxAmount = (subtotal - discountAmount) * (taxPercentage / 100);
 
             $('#input-tax-amount').val(taxAmount);

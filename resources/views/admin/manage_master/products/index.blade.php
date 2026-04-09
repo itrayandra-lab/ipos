@@ -218,8 +218,8 @@
                                             <th>Netto</th>
                                             <th>Satuan</th>
                                             <th>SKU Code</th>
-                                            <th>Harga Modal (Rp)</th>
-                                            <th>Harga Kategori (Rp)</th>
+                                            <th class="d-none">Harga Modal (Rp)</th>
+                                            <th class="d-none">Harga Kategori (Rp)</th>
                                             <th>Harga Jual (Rp)</th>
                                             <th width="50px"></th>
                                         </tr>
@@ -236,13 +236,11 @@
                                                 </select>
                                             </td>
                                             <td><input type="text" name="variants[0][sku]" class="form-control form-control-sm" placeholder="SKU001" required></td>
-                                            <td>
-                                                <input type="text" class="form-control form-control-sm rupiah-modal" placeholder="Rp 0" required>
-                                                <input type="hidden" name="variants[0][price_real]" class="raw-modal-variant">
+                                            <td class="d-none">
+                                                <input type="hidden" name="variants[0][price_real]" value="0">
                                             </td>
-                                            <td>
-                                                <input type="text" class="form-control form-control-sm rupiah-tier" placeholder="Rp 0" readonly>
-                                                <input type="hidden" name="variants[0][price_tier]" class="raw-tier-variant">
+                                            <td class="d-none">
+                                                <input type="hidden" name="variants[0][price_tier]" value="0">
                                             </td>
                                             <td>
                                                 <input type="text" class="form-control form-control-sm rupiah-variant" placeholder="Rp 0" required>
@@ -384,8 +382,8 @@
                                             <th>Netto</th>
                                             <th>Satuan</th>
                                             <th>SKU Code</th>
-                                            <th>Harga Modal (Rp)</th>
-                                            <th>Harga Kategori (Rp)</th>
+                                            <th class="d-none">Harga Modal (Rp)</th>
+                                            <th class="d-none">Harga Kategori (Rp)</th>
                                             <th>Harga Jual (Rp)</th>
                                             <th width="50px"></th>
                                         </tr>
@@ -635,13 +633,11 @@
                             </select>
                         </td>
                         <td><input type="text" name="variants[${variantIndex}][sku]" class="form-control form-control-sm" placeholder="SKU${variantIndex+1}" required></td>
-                        <td>
-                            <input type="text" class="form-control form-control-sm rupiah-modal" placeholder="Rp 0" required>
-                            <input type="hidden" name="variants[${variantIndex}][price_real]" class="raw-modal-variant">
+                        <td class="d-none">
+                            <input type="hidden" name="variants[${variantIndex}][price_real]" value="0">
                         </td>
-                        <td>
-                            <input type="text" class="form-control form-control-sm rupiah-tier" placeholder="Rp 0" readonly>
-                            <input type="hidden" name="variants[${variantIndex}][price_tier]" class="raw-tier-variant">
+                        <td class="d-none">
+                            <input type="hidden" name="variants[${variantIndex}][price_tier]" value="0">
                         </td>
                         <td>
                             <input type="text" class="form-control form-control-sm rupiah-variant" placeholder="Rp 0" required>
@@ -762,13 +758,11 @@
                                         </select>
                                     </td>
                                     <td><input type="text" name="variants[${index}][sku]" value="${v.sku_code}" class="form-control form-control-sm" required></td>
-                                    <td>
-                                        <input type="text" value="${formatRupiah(v.price_real || v.price)}" class="form-control form-control-sm rupiah-modal" required>
-                                        <input type="hidden" name="variants[${index}][price_real]" value="${v.price_real || v.price}" class="raw-modal-variant">
+                                    <td class="d-none">
+                                        <input type="hidden" name="variants[${index}][price_real]" value="${v.price_real || 0}">
                                     </td>
-                                    <td>
-                                        <input type="text" value="${formatRupiah(v.price_tier || 0)}" class="form-control form-control-sm rupiah-tier" readonly>
-                                        <input type="hidden" name="variants[${index}][price_tier]" value="${v.price_tier || 0}" class="raw-tier-variant">
+                                    <td class="d-none">
+                                        <input type="hidden" name="variants[${index}][price_tier]" value="${v.price_tier || 0}">
                                     </td>
                                     <td>
                                         <input type="text" value="${formatRupiah(v.price)}" class="form-control form-control-sm rupiah-variant" required>

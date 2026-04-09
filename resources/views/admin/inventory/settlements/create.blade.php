@@ -138,10 +138,18 @@
         $('#select-product').select2({
             dropdownParent: $('#modal-add-product'),
             ajax: {
-                url: "{{ route('admin.products.all') }}",
+                url: "{{ route('admin.products.search') }}",
                 delay: 250,
                 data: function(params) {
-                    return { search: params.term };
+                    let whId = $('select[name="warehouse_id"]').val();
+                    if (!whId) {
+                        swal('Peringatan', 'Silakan pilih gudang cabang terlebih dahulu', 'warning');
+                        return false;
+                    }
+                    return { 
+                        search: params.term,
+                        warehouse_id: whId
+                    };
                 },
                 processResults: function(data) {
                     return {

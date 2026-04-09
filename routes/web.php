@@ -120,6 +120,7 @@ Route::prefix('admin')->middleware(['auth', 'role:admin'])->group(function () {
                     Route::get('/', [ProductAdmin::class , 'index']);
                     Route::post('/', [ProductAdmin::class , 'create']);
                     Route::get('/all', [ProductAdmin::class , 'getall'])->name('admin.products.all');
+                    Route::get('/search', [ProductAdmin::class , 'search'])->name('admin.products.search');
                     Route::get('/get-pricing/{id}', [ProductAdmin::class , 'getPricing']);
                     Route::post('/sync-price', [ProductAdmin::class , 'syncPrice'])->name('admin.products.sync-price');
                     Route::post('/get', [ProductAdmin::class , 'get']);

@@ -35,6 +35,34 @@ class ProductController extends Controller
         ]);
     }
 
+    public function search(Request $request)
+    {
+        $warehouseId = $request->warehouse_id;
+        $search = $request->search;
+
+        $query = Product::with(['merek', 'variants'])
+            ->where('status', 'Y');
+
+        if ($warehouseId) {
+            $query->whereHas('batches', function($q) use ($warehouseId) {
+                $q->where('warehouse_id', $warehouseId);
+            });
+        }
+
+        if ($search) {
+            $query->where(function($q) use ($search) {
+                $q->where('name', 'like', "%{$search}%")
+                  ->orWhereHas('merek', function($mq) use ($search) {
+                      $mq->where('name', 'like', "%{$search}%");
+                  });
+            });
+        }
+
+        $products = $query->limit(20)->get();
+
+        return response()->json($products);
+    }
+
     public function getall(Request $request)
     {
         $query = Product::with(['merek', 'photos', 'category', 'subCategory', 'productType', 'productTier', 'variants'])
@@ -175,8 +203,8 @@ class ProductController extends Controller
                     'sku_code' => $generatedSku,
                     'variant_name' => $variantName,
                     'price' => $v['price'],
-                    'price_real' => $v['price_real'] ?? $v['price'],
-                    'price_tier' => $v['price_tier'] ?? null,
+                    'price_real' => (!empty($v['price_real']) && $v['price_real'] > 0) ? $v['price_real'] : null,
+                    'price_tier' => (!empty($v['price_tier']) && $v['price_tier'] > 0) ? $v['price_tier'] : null,
                 ]);
             }
             catch (\Illuminate\Database\QueryException $e) {
@@ -313,8 +341,8 @@ class ProductController extends Controller
                 [
                     'variant_name' => $variantName,
                     'price' => $v['price'],
-                    'price_real' => $v['price_real'] ?? $v['price'],
-                    'price_tier' => $v['price_tier'] ?? null,
+                    'price_real' => (!empty($v['price_real']) && $v['price_real'] > 0) ? $v['price_real'] : null,
+                    'price_tier' => (!empty($v['price_tier']) && $v['price_tier'] > 0) ? $v['price_tier'] : null,
                 ]
                 );
                 $existingVariantIds[] = $variant->id;
