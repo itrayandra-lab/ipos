@@ -560,7 +560,7 @@ class SalesDocumentController extends Controller
     {
         $customers = Customer::orderBy('name')->get();
         
-        $batches = ProductBatch::with(['product.merek', 'variant'])
+        $batches = ProductBatch::with(['product.merek', 'variant.netto'])
             ->where('qty', '>', 0)
             ->whereHas('product', fn($q) => $q->where('status', 'Y'))
             ->get();
@@ -571,12 +571,14 @@ class SalesDocumentController extends Controller
             $merekName   = ($product && $product->merek) ? trim($product->merek->name) : '';
             $productName = trim($product->name ?? '');
             $variantName = $batch->variant ? trim($batch->variant->variant_name) : '';
+            $nettoName   = ($batch->variant && $batch->variant->netto) ? $batch->variant->netto->name : '';
             
             $labelText = implode(' ', array_filter([$merekName, $productName, $variantName]));
             $batchList[] = [
                 'id'        => $batch->id,
                 'text'      => $labelText . ' (' . $batch->batch_no . ' - ' . $batch->qty . ')',
                 'stock'     => $batch->qty,
+                'netto'     => $nettoName,
             ];
         }
 
@@ -748,12 +750,14 @@ class SalesDocumentController extends Controller
                 }
             }
             $labelText = implode(' ', array_unique($finalParts));
+            $nettoName = ($batch->variant && $batch->variant->netto) ? $batch->variant->netto->name : '';
             $batchList[] = [
                 'id'        => $batch->id,
                 'text'      => $labelText . ' (' . $batch->batch_no . ' - ' . $batch->qty . ')',
                 'price'     => $batch->variant->price ?? ($product->price_real > 0 ? $product->price_real : $product->price),
                 'stock'     => $batch->qty,
                 'buy_price' => $batch->buy_price ?? 0,
+                'netto'     => $nettoName,
             ];
         }
 

@@ -4,7 +4,7 @@
 <div class="main-content">
     <section class="section">
         <div class="section-header">
-            <h1>Detail Surat Jalan</h1>
+            <h1><i class="fas fa-file-invoice mr-2 text-primary"></i> Detail Surat Jalan</h1>
             <div class="section-header-breadcrumb">
                 <div class="breadcrumb-item"><a href="{{ url('admin') }}">Dashboard</a></div>
                 <div class="breadcrumb-item"><a href="{{ route('admin.sales.delivery_notes.index') }}">Surat Jalan</a></div>
@@ -24,11 +24,11 @@
 
             <div class="row">
                 <div class="col-12 col-md-8">
-                    <div class="card card-primary">
-                        <div class="card-header">
-                            <h4>Rincian Barang</h4>
+                    <div class="card card-primary shadow-sm">
+                        <div class="card-header border-bottom">
+                            <h4><i class="fas fa-boxes mr-2"></i> Rincian Barang</h4>
                             <div class="card-header-action">
-                                <a href="{{ route('admin.sales.delivery_notes.print', $deliveryNote->id) }}" target="_blank" class="btn btn-primary">
+                                <a href="{{ route('admin.sales.delivery_notes.print', $deliveryNote->id) }}" target="_blank" class="btn btn-primary shadow-sm">
                                     <i class="fas fa-print"></i> Cetak Surat Jalan
                                 </a>
                             </div>
@@ -36,7 +36,7 @@
                         <div class="card-body p-0">
                             <div class="table-responsive">
                                 <table class="table table-striped table-md">
-                                    <thead>
+                                    <thead class="bg-light text-uppercase" style="font-size: 10px; letter-spacing: 1px;">
                                         <tr>
                                             <th style="width: 50px">#</th>
                                             <th>Item & Deskripsi</th>
@@ -86,9 +86,13 @@
                         </div>
                         <div class="card-footer bg-whitesmoke">
                             <div class="row">
-                                <div class="col-md-6">
-                                    <label class="font-weight-bold text-muted small text-uppercase">Catatan</label>
-                                    <p>{{ $deliveryNote->notes ?? '-' }}</p>
+                                <div class="col-md-12">
+                                    <label class="font-weight-bold text-muted small text-uppercase mb-2 d-block">
+                                        <i class="fas fa-sticky-note mr-1"></i> Catatan / Keterangan
+                                    </label>
+                                    <div class="p-3 bg-white border rounded" style="min-height: 60px;">
+                                        {{ $deliveryNote->notes ?? '-' }}
+                                    </div>
                                 </div>
                             </div>
                         </div>
@@ -96,47 +100,57 @@
                 </div>
 
                 <div class="col-12 col-md-4">
-                    <div class="card card-secondary">
-                        <div class="card-header">
-                            <h4>Informasi Pengiriman</h4>
+                    <div class="card card-secondary shadow-sm">
+                        <div class="card-header border-bottom">
+                            <h4><i class="fas fa-info-circle mr-2"></i> Info Pengiriman</h4>
                         </div>
                         <div class="card-body">
-                            <div class="mb-4 text-center">
-                                <label class="font-weight-bold text-muted small text-uppercase d-block">Nomor Surat Jalan</label>
-                                <div class="h5 font-weight-bold text-primary">{{ $deliveryNote->delivery_note_no }}</div>
+                            <div class="mb-4 text-center pb-3 border-bottom">
+                                <label class="font-weight-bold text-muted small text-uppercase d-block mb-2">Nomor Surat Jalan</label>
+                                <div class="h5 font-weight-bold text-primary mb-0">{{ $deliveryNote->delivery_note_no }}</div>
                             </div>
 
-                            <div class="row mb-3">
+                            <div class="row mb-4">
                                 <div class="col-6">
-                                    <label class="text-muted small text-uppercase mb-0">Tipe</label>
+                                    <label class="text-muted small text-uppercase mb-1 d-block">Tipe</label>
                                     <div class="font-weight-bold">
-                                        <span class="badge badge-{{ $deliveryNote->delivery_type === 'pickup' ? 'info' : 'primary' }}">
+                                        <span class="badge badge-{{ $deliveryNote->delivery_type === 'pickup' ? 'info' : 'primary' }} px-3">
                                             {{ strtoupper($deliveryNote->delivery_type) }}
                                         </span>
                                     </div>
                                 </div>
                                 <div class="col-6">
-                                    <label class="text-muted small text-uppercase mb-0">Tanggal</label>
-                                    <div class="font-weight-bold">{{ \Carbon\Carbon::parse($deliveryNote->transaction_date)->format('d/m/Y') }}</div>
+                                    <label class="text-muted small text-uppercase mb-1 d-block">Tanggal</label>
+                                    <div class="font-weight-bold text-dark"><i class="fas fa-calendar-day mr-1 text-muted"></i> {{ \Carbon\Carbon::parse($deliveryNote->transaction_date)->format('d/m/Y') }}</div>
                                 </div>
                             </div>
 
-                            <hr class="my-4">
-
                             <div class="mb-4">
-                                <label class="font-weight-bold text-muted small text-uppercase">Penerima / Customer</label>
-                                <div class="h6 mb-0">{{ $deliveryNote->customer_name ?? ($deliveryNote->customer->name ?? 'Pelanggan Umum') }}</div>
-                                <div class="text-muted small">{{ $deliveryNote->customer_phone ?? ($deliveryNote->customer->phone ?? '-') }}</div>
+                                <label class="font-weight-bold text-muted small text-uppercase d-block mb-1">
+                                    <i class="fas fa-user mr-1"></i> Penerima / Customer
+                                </label>
+                                <div class="h6 mb-1 text-primary">{{ $deliveryNote->customer_name ?? ($deliveryNote->customer->name ?? 'Pelanggan Umum') }}</div>
+                                <div class="text-muted small"><i class="fas fa-phone-alt mr-1"></i> {{ $deliveryNote->customer_phone ?? ($deliveryNote->customer->phone ?? '-') }}</div>
                             </div>
 
                             <div class="mb-4">
-                                <label class="font-weight-bold text-muted small text-uppercase">Alamat Pengiriman</label>
-                                <div class="text-muted small">{{ $deliveryNote->delivery_address ?? '-' }}</div>
+                                <label class="font-weight-bold text-muted small text-uppercase d-block mb-1">
+                                    <i class="fas fa-map-marker-alt mr-1"></i> Alamat Pengiriman
+                                </label>
+                                <div class="text-muted small bg-light p-2 rounded border-left" style="border-left-width: 4px !important; border-left-color: #6777ef !important;">
+                                    {{ $deliveryNote->delivery_address ?? 'Tidak ada alamat tercatat.' }}
+                                </div>
                             </div>
 
                             <div class="mb-0 border-top pt-3 text-muted small">
-                                <div>Dibuat Oleh: <strong>{{ $deliveryNote->user->name ?? '-' }}</strong></div>
-                                <div class="mt-1">Waktu: {{ \Carbon\Carbon::parse($deliveryNote->created_at)->format('d/m/Y H:i') }}</div>
+                                <div class="d-flex justify-content-between">
+                                    <span>Dibuat Oleh:</span>
+                                    <span class="font-weight-bold">{{ $deliveryNote->user->name ?? '-' }}</span>
+                                </div>
+                                <div class="d-flex justify-content-between mt-1">
+                                    <span>Waktu:</span>
+                                    <span>{{ \Carbon\Carbon::parse($deliveryNote->created_at)->format('d/m/Y H:i') }}</span>
+                                </div>
                             </div>
                         </div>
                         <div class="card-footer border-top text-center">
