@@ -544,10 +544,11 @@ class SalesDocumentController extends Controller
                         return \Carbon\Carbon::parse($row->transaction_date)->format('d/m/Y');
                     })
                     ->addColumn('action', function ($row) {
-                        $printBtn = '<a href="' . route('admin.sales.delivery_notes.print', $row->id) . '" target="_blank" class="btn btn-sm btn-primary" title="Cetak Surat Jalan"><i class="fas fa-print"></i></a>';
+                        $showBtn = '<a href="' . route('admin.sales.delivery_notes.show', $row->id) . '" class="btn btn-sm btn-info" title="Detail"><i class="fas fa-eye"></i></a>';
+                        $printBtn = '<a href="' . route('admin.sales.delivery_notes.print', $row->id) . '" target="_blank" class="btn btn-sm btn-primary ml-1" title="Cetak Surat Jalan"><i class="fas fa-print"></i></a>';
                         $editBtn = '<a href="' . route('admin.sales.delivery_notes.edit', $row->id) . '" class="btn btn-sm btn-warning ml-1" title="Edit"><i class="fas fa-edit"></i></a>';
                         $deleteBtn = '<button type="button" onclick="deleteDeliveryNote(' . $row->id . ')" class="btn btn-sm btn-danger ml-1" title="Hapus"><i class="fas fa-trash"></i></button>';
-                        return $printBtn . ' ' . $editBtn . ' ' . $deleteBtn;
+                        return $showBtn . ' ' . $printBtn . ' ' . $editBtn . ' ' . $deleteBtn;
                     })
                     ->rawColumns(['action'])
                     ->make(true);
@@ -662,6 +663,14 @@ class SalesDocumentController extends Controller
         } catch (\Exception $e) {
             return redirect()->back()->with('error', $e->getMessage())->withInput();
         }
+    }
+
+    public function showDeliveryNote($id)
+    {
+        $deliveryNote = \App\Models\DeliveryNote::with(['user', 'customer', 'items.product.merek', 'items.batch.variant.netto'])
+            ->findOrFail($id);
+        $setting = StoreSetting::getActiveSetting();
+        return view('admin.sales.delivery_note.show', compact('deliveryNote', 'setting'))->with('sb', 'SalesDeliveryNotes');
     }
 
     public function printDeliveryNote($id)
