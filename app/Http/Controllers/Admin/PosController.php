@@ -423,4 +423,21 @@ class PosController extends Controller
         $transaction = Transaction::with(['items.product', 'user'])->findOrFail($id);
         return view('admin.pos.receipt', compact('transaction'));
     }
+
+    public function searchInvitation(Request $request)
+    {
+        $phone = $request->get('phone', '');
+        if (strlen($phone) < 3) {
+            return response()->json(['status' => 'error', 'data' => []]);
+        }
+
+        try {
+            $response = \Illuminate\Support\Facades\Http::timeout(5)
+                ->get('http://invitation-apotek.test/api-search.php', ['phone' => $phone]);
+
+            return response()->json($response->json());
+        } catch (\Exception $e) {
+            return response()->json(['status' => 'error', 'data' => [], 'message' => $e->getMessage()]);
+        }
+    }
 }

@@ -303,6 +303,7 @@ Route::prefix('admin')->middleware(['auth', 'role:admin'])->group(function () {
             Route::post('/verify-voucher', [PosAdmin::class , 'verifyVoucher'])->name('admin.pos.verify-voucher');
             Route::post('/', [PosAdmin::class , 'store'])->name('admin.pos.store');
             Route::get('/receipt/{id}', [PosAdmin::class , 'printReceipt'])->name('admin.pos.receipt');
+            Route::get('/search-invitation', [PosAdmin::class , 'searchInvitation'])->name('admin.pos.search_invitation');
         }
         );
 

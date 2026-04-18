@@ -193,8 +193,23 @@
                     </div>
                 </div>
                 <div class="form-group border-top pt-3 mt-3">
-                    <label class="font-weight-bold text-dark">Diskon Manual (Nominal Rp)</label>
-                    <input type="number" id="discount-manual" class="form-control form-control-lg" placeholder="0">
+                    <div class="d-flex justify-content-between align-items-center mb-1">
+                        <label class="font-weight-bold text-dark mb-0">Diskon Manual</label>
+                        <div class="btn-group btn-group-sm" role="group">
+                            <button type="button" class="btn btn-primary" id="btn-discount-nominal">Rp</button>
+                            <button type="button" class="btn btn-outline-primary" id="btn-discount-persen">%</button>
+                        </div>
+                    </div>
+                    <div class="input-group">
+                        <input type="number" id="discount-manual-input" class="form-control form-control-lg" placeholder="0" min="0">
+                        <div class="input-group-append">
+                            <span class="input-group-text" id="discount-unit-label">Rp</span>
+                        </div>
+                    </div>
+                    <small class="text-muted" id="discount-persen-info" style="display:none;">
+                        = Rp <span id="discount-persen-nominal">0</span>
+                    </small>
+                    <input type="hidden" id="discount-manual" value="0">
                 </div>
                 <div class="alert alert-light mt-4">
                     <div class="d-flex justify-content-between mb-1">
@@ -230,12 +245,13 @@
                 <div class="form-group mb-4">
                     <label class="font-weight-bold text-dark">Search WA Pelanggan (Cepat)</label>
                     <div class="input-group">
-                        <input type="text" id="customer-phone" class="form-control form-control-lg" placeholder="08xxxxxxxx">
+                        <input type="text" id="customer-phone" class="form-control form-control-lg" placeholder="08xxxxxxxx" autocomplete="new-password" spellcheck="false" autocorrect="off"  autocapitalize="off">
                         <div class="input-group-append">
                             <span class="input-group-text bg-white"><i class="fab fa-whatsapp text-success h5 mb-0"></i></span>
                         </div>
                     </div>
                     <small class="text-muted">Ketik nomor WA untuk mencari secara otomatis.</small>
+                    <div id="wa-suggestions" class="list-group mt-1" style="display:none; position:relative; z-index:999;"></div>
                 </div>
 
                 <div class="border-top pt-3">
@@ -505,6 +521,62 @@
             location.reload();
         });
 
+        // Modal: Discount Manual Toggle (Nominal / Persen)
+        let discountMode = 'nominal'; // 'nominal' or 'persen'
+
+        $('#btn-discount-nominal').on('click', function() {
+            discountMode = 'nominal';
+            $(this).removeClass('btn-outline-primary').addClass('btn-primary');
+            $('#btn-discount-persen').removeClass('btn-primary').addClass('btn-outline-primary');
+            $('#discount-unit-label').text('Rp');
+            $('#discount-persen-info').hide();
+            $('#discount-manual-input').val('').attr('placeholder', '0').attr('max', '');
+            $('#discount-manual').val(0);
+            updateTotals();
+        });
+
+        $('#btn-discount-persen').on('click', function() {
+            discountMode = 'persen';
+            $(this).removeClass('btn-outline-primary').addClass('btn-primary');
+            $('#btn-discount-nominal').removeClass('btn-primary').addClass('btn-outline-primary');
+            $('#discount-unit-label').text('%');
+            $('#discount-persen-info').show();
+            $('#discount-manual-input').val('').attr('placeholder', '0').attr('max', '100');
+            $('#discount-manual').val(0);
+            updateTotals();
+        });
+
+        $('#discount-manual-input').on('input', function() {
+            let val = parseFloat($(this).val()) || 0;
+            if (discountMode === 'persen') {
+                if (val > 100) { $(this).val(100); val = 100; }
+                let subtotal = getSubtotal();
+                let nominal = Math.round(subtotal * val / 100);
+                $('#discount-persen-nominal').text(nominal.toLocaleString('id-ID'));
+                $('#discount-manual').val(nominal);
+            } else {
+                $('#discount-manual').val(val);
+            }
+            updateTotals();
+        });
+
+        // Reset discount input saat modal dibuka
+        $('#modal-discount').on('show.bs.modal', function() {
+            let currentNominal = parseFloat($('#discount-manual').val()) || 0;
+            if (discountMode === 'nominal') {
+                $('#discount-manual-input').val(currentNominal > 0 ? currentNominal : '');
+            }
+            // Update info persen jika mode persen aktif
+            if (discountMode === 'persen') {
+                let subtotal = getSubtotal();
+                let pct = parseFloat($('#discount-manual-input').val()) || 0;
+                let nominal = Math.round(subtotal * pct / 100);
+                $('#discount-persen-nominal').text(nominal.toLocaleString('id-ID'));
+                $('#discount-manual').val(nominal);
+                updateTotals();
+            }
+        });
+
         // Modal: Discount Sync
         $('#voucher-code, #discount-manual').on('input', function() {
             updateTotals();
@@ -515,32 +587,98 @@
         let lookupTimer;
         $('#customer-phone').on('input', function() {
             clearTimeout(lookupTimer);
-            let phone = $(this).val();
-            if (phone.length < 8) {
+            let phone = $(this).val().trim();
+            let $suggestions = $('#wa-suggestions');
+
+            if (phone.length < 3) {
+                $suggestions.hide().empty();
                 $('#customer-id').val('');
                 $('#summary-customer').text('Umum');
                 return;
             }
 
             lookupTimer = setTimeout(function() {
-                $.ajax({
+                let internalReq = $.ajax({
                     url: '{{ route("admin.customers.check") }}',
                     method: 'GET',
-                    data: { phone: phone },
-                    success: function(res) {
-                        if (res.success) {
-                            $('#customer-id').val(res.data.id);
-                            $('#customer-name').val(res.data.name);
-                            $('#customer-email').val(res.data.email);
-                            $('#summary-customer').text(res.data.name);
-                            iziToast.info({ title: 'Info', message: 'Customer: ' + res.data.name, position: 'topRight', timeout: 2000 });
-                        } else {
-                            $('#customer-id').val('');
-                            $('#summary-customer').text('Umum');
-                        }
-                    }
+                    data: { phone: phone }
                 });
-            }, 500);
+
+                let invitationReq = $.ajax({
+                    url: '{{ route("admin.pos.search_invitation") }}',
+                    method: 'GET',
+                    data: { phone: phone }
+                });
+
+                $.when(
+                    internalReq.then(function(d) { return d; }, function() { return null; }),
+                    invitationReq.then(function(d) { return d; }, function() { return null; })
+                ).done(function(internal, invitation) {
+                    let suggestions = [];
+
+                    // Internal DB results
+                    if (internal && internal.success) {
+                        suggestions.push({
+                            name: internal.data.name,
+                            phone: internal.data.phone || phone,
+                            email: internal.data.email || '',
+                            id: internal.data.id,
+                            source: 'pelanggan'
+                        });
+                    }
+
+                    // Invitation API results
+                    if (invitation && invitation.status === 'success' && invitation.data.length > 0) {
+                        let seen = {};
+                        invitation.data.forEach(function(item) {
+                            let key = item.phone + '|' + item.name;
+                            if (seen[key]) return;
+                            seen[key] = true;
+                            let duplicate = suggestions.some(function(s) { return s.phone && s.phone === item.phone; });
+                            suggestions.push({
+                                name: item.name,
+                                phone: item.phone || phone,
+                                email: '',
+                                id: duplicate ? suggestions.find(function(s) { return s.phone === item.phone; }).id : null,
+                                source: duplicate ? 'pelanggan' : 'undangan'
+                            });
+                        });
+                    }
+
+                    $suggestions.empty();
+                    if (suggestions.length === 0) {
+                        $suggestions.hide();
+                        return;
+                    }
+
+                    suggestions.forEach(function(s) {
+                        let badge = s.source === 'pelanggan'
+                            ? '<span class="badge badge-success ml-1">pelanggan</span>'
+                            : '<span class="badge badge-warning ml-1">undangan</span>';
+                        let $item = $('<a href="#" class="list-group-item list-group-item-action py-2"></a>');
+                        $item.html('<i class="fab fa-whatsapp text-success mr-1"></i> <strong>' + s.name + '</strong> <small class="text-muted ml-1">' + s.phone + '</small>' + badge);
+                        $item.on('click', function(e) {
+                            e.preventDefault();
+                            $('#customer-phone').val(s.phone);
+                            $('#customer-name').val(s.name);
+                            $('#customer-email').val(s.email);
+                            $('#customer-id').val(s.id || '');
+                            $('#summary-customer').text(s.name);
+                            $suggestions.hide().empty();
+                            iziToast.info({ title: 'Info', message: 'Customer: ' + s.name, position: 'topRight', timeout: 2000 });
+                        });
+                        $suggestions.append($item);
+                    });
+                    $suggestions.show();
+                });
+            }, 400);
+        });
+
+        // Hide suggestions when clicking outside
+        $(document).on('click', function(e) {
+            if (!$(e.target).closest('#customer-phone, #wa-suggestions').length) {
+                $('#wa-suggestions').hide();
+            }
         });
 
         $('#btn-save-customer-ajax').on('click', function() {
@@ -946,6 +1084,16 @@
     function removeFromCart(id) { cart = cart.filter(item => item.batch_id != id); saveCart(); renderCart(); }
     function clearCart() { cart = []; saveCart(); renderCart(); }
     function saveCart() { localStorage.setItem('pos_cart', JSON.stringify(cart)); }
+
+    function getSubtotal() {
+        let subtotal = 0;
+        cart.forEach(item => {
+            let itemPrice = parseFloat(item.price);
+            let itemMarkup = getProductMarkup(item.product_id, itemPrice);
+            subtotal += (itemPrice + itemMarkup) * item.qty;
+        });
+        return subtotal;
+    }
 
     function updateTotals() {
         let discountManual = parseFloat($('#discount-manual').val()) || 0;
