@@ -433,7 +433,7 @@ class PosController extends Controller
 
         try {
             $response = \Illuminate\Support\Facades\Http::timeout(5)
-                ->get('http://invitation-apotek.test/api-search.php', ['phone' => $phone]);
+                ->get('https://invitation.apotekparahyangansuite.comapi-search.php', ['phone' => $phone]);
 
             return response()->json($response->json());
         } catch (\Exception $e) {
