@@ -142,9 +142,10 @@ class ProductController extends Controller
         $productCode = $request->code ?? 'UNK';
 
         $slug = Str::slug($request->name);
-        $count = Product::where('slug', $slug)->count();
-        if ($count > 0) {
-            $slug .= '-' . ($count + 1);
+        $originalSlug = $slug;
+        $counter = 1;
+        while (Product::where('slug', $slug)->exists()) {
+            $slug = $originalSlug . '-' . $counter++;
         }
 
         $product = Product::create([
@@ -188,33 +189,14 @@ class ProductController extends Controller
                 $finalSku = $generatedSku . '-' . $counter++;
             }
 
-            try {
-                \App\Models\ProductVariant::create([
-                    'product_netto_id' => $netto->id,
-                    'sku_code' => $finalSku,
-                    'variant_name' => $variantName,
-                    'price' => $v['price'],
-                    'price_real' => (!empty($v['price_real']) && $v['price_real'] > 0) ? $v['price_real'] : null,
-                    'price_tier' => (!empty($v['price_tier']) && $v['price_tier'] > 0) ? $v['price_tier'] : null,
-                ]);
-            }
-            catch (\Illuminate\Database\QueryException $e) {
-                // Delete the product if variant creation fails
-                $product->delete();
-
-                // Check if it's a duplicate SKU error
-                if (strpos($e->getMessage(), 'Duplicate entry') !== false || $e->getCode() == 23000) {
-                    return response()->json([
-                        'status' => 'error',
-                        'message' => 'Kode SKU "' . $v['sku'] . '" sudah digunakan oleh produk lain. Silakan gunakan kode SKU yang berbeda.'
-                    ], 422);
-                }
-
-                return response()->json([
-                    'status' => 'error',
-                    'message' => 'Terjadi kesalahan saat menyimpan varian produk. Silakan coba lagi.'
-                ], 500);
-            }
+            \App\Models\ProductVariant::create([
+                'product_netto_id' => $netto->id,
+                'sku_code'         => $finalSku,
+                'variant_name'     => $variantName,
+                'price'            => $v['price'] ?? 0,
+                'price_real'       => (!empty($v['price_real']) && $v['price_real'] > 0) ? $v['price_real'] : 0,
+                'price_tier'       => (!empty($v['price_tier']) && $v['price_tier'] > 0) ? $v['price_tier'] : 0,
+            ]);
         }
 
         if ($request->hasFile('foto')) {
@@ -314,9 +296,9 @@ class ProductController extends Controller
                     // Update existing variant — keep existing SKU to avoid conflicts
                     $existingVariant->update([
                         'variant_name' => $variantName,
-                        'price'        => $v['price'],
-                        'price_real'   => (!empty($v['price_real']) && $v['price_real'] > 0) ? $v['price_real'] : null,
-                        'price_tier'   => (!empty($v['price_tier']) && $v['price_tier'] > 0) ? $v['price_tier'] : null,
+                        'price'        => $v['price'] ?? 0,
+                        'price_real'   => (!empty($v['price_real']) && $v['price_real'] > 0) ? $v['price_real'] : 0,
+                        'price_tier'   => (!empty($v['price_tier']) && $v['price_tier'] > 0) ? $v['price_tier'] : 0,
                     ]);
                     $variant = $existingVariant;
                 } else {
@@ -330,25 +312,17 @@ class ProductController extends Controller
                         'product_netto_id' => $netto->id,
                         'sku_code'         => $finalSku,
                         'variant_name'     => $variantName,
-                        'price'            => $v['price'],
-                        'price_real'       => (!empty($v['price_real']) && $v['price_real'] > 0) ? $v['price_real'] : null,
-                        'price_tier'       => (!empty($v['price_tier']) && $v['price_tier'] > 0) ? $v['price_tier'] : null,
+                        'price'            => $v['price'] ?? 0,
+                        'price_real'       => (!empty($v['price_real']) && $v['price_real'] > 0) ? $v['price_real'] : 0,
+                        'price_tier'       => (!empty($v['price_tier']) && $v['price_tier'] > 0) ? $v['price_tier'] : 0,
                     ]);
                 }
                 $existingVariantIds[] = $variant->id;
             }
             catch (\Illuminate\Database\QueryException $e) {
-                // Check if it's a duplicate SKU error
-                if (strpos($e->getMessage(), 'Duplicate entry') !== false || $e->getCode() == 23000) {
-                    return response()->json([
-                        'status' => 'error',
-                        'message' => 'Kode SKU "' . $v['sku'] . '" sudah digunakan oleh produk lain. Silakan gunakan kode SKU yang berbeda.'
-                    ], 422);
-                }
-
                 return response()->json([
                     'status' => 'error',
-                    'message' => 'Terjadi kesalahan saat memperbarui varian produk. Silakan coba lagi.'
+                    'message' => 'Terjadi kesalahan saat memperbarui varian produk: ' . $e->getMessage()
                 ], 500);
             }
         }
