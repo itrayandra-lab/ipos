@@ -147,6 +147,7 @@ Route::prefix('admin')->middleware(['auth', 'role:admin'])->group(function () {
                     Route::post('/detail', [\App\Http\Controllers\Admin\ManageMaster\StockController::class , 'getDetail']);
                     Route::post('/get-netto', [\App\Http\Controllers\Admin\ManageMaster\StockController::class , 'getNetto']);
                     Route::post('/update-netto', [\App\Http\Controllers\Admin\ManageMaster\StockController::class , 'updateNetto']);
+                    Route::post('/add-netto', [\App\Http\Controllers\Admin\ManageMaster\StockController::class , 'addNetto']);
                 }
                 );
 

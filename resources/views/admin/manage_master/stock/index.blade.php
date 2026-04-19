@@ -84,8 +84,11 @@
                         </table>
                     </div>
                     <div class="col-md-6 text-right">
-                        <button class="btn btn-warning btn-sm" id="btn-edit-netto">
+                        <button class="btn btn-warning btn-sm" id="btn-edit-netto" style="display:none;">
                             <i class="fas fa-edit"></i> Edit Netto & Harga Jual
+                        </button>
+                        <button class="btn btn-success btn-sm" id="btn-add-netto" style="display:none;">
+                            <i class="fas fa-plus"></i> Tambah Netto
                         </button>
                     </div>
                 </div>
@@ -256,6 +259,57 @@
         </div>
     </div>
 </div>
+<!-- Modal Tambah Netto -->
+<div class="modal fade" id="modal-add-netto" tabindex="-1" role="dialog">
+    <div class="modal-dialog" role="document">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Tambah Netto & Harga Jual</h5>
+                <button type="button" class="close" data-dismiss="modal"><span>&times;</span></button>
+            </div>
+            <form id="form-add-netto">
+                @csrf
+                <input type="hidden" name="product_id" id="add-netto-product-id">
+                <input type="hidden" name="warehouse_id" id="add-netto-warehouse-id">
+                <div class="modal-body">
+                    <div class="alert alert-info py-2 small">
+                        Netto baru akan dibuat dan dihubungkan ke semua batch produk ini yang belum memiliki varian.
+                    </div>
+                    <div class="form-group">
+                        <label>Nama Varian <span class="text-danger">*</span></label>
+                        <input type="text" class="form-control" name="variant_name" id="add-netto-variant-name" placeholder="Contoh: 100ML" required>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label>Netto Value <span class="text-danger">*</span></label>
+                                <input type="text" class="form-control" name="netto_value" id="add-netto-value" placeholder="Contoh: 100" required>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label>Satuan</label>
+                                <input type="text" class="form-control" name="satuan" id="add-netto-satuan" placeholder="Contoh: ml, gr, pcs">
+                            </div>
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label>Harga Jual <span class="text-danger">*</span></label>
+                        <div class="input-group">
+                            <div class="input-group-prepend"><span class="input-group-text">Rp</span></div>
+                            <input type="number" class="form-control" name="price" id="add-netto-price" required min="0">
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-dismiss="modal">Batal</button>
+                    <button type="submit" class="btn btn-success">Simpan Netto</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
 <!-- Modal Edit Netto & Harga Jual -->
 <div class="modal fade" id="modal-edit-netto" tabindex="-1" role="dialog">
     <div class="modal-dialog" role="document">
@@ -360,7 +414,7 @@
         // Detail Audit Button
         $(document).on('click', '.btn-detail', function() {
             let data = $(this).data();
-            // Simpan variant_id aktif untuk tombol Edit Netto
+            // Simpan variant_id dan warehouse_id aktif
             activeVariantId = data.variant_id || null;
 
             $.post('{{ url("admin/manage-master/stock/detail") }}', {
@@ -373,11 +427,16 @@
                     $('#det-info-name').text(res.product.name);
                     $('#det-info-warehouse').text(res.product.warehouse);
 
-                    // Tampilkan/sembunyikan tombol edit netto
+                    // Tampilkan tombol sesuai kondisi netto
                     if (activeVariantId) {
                         $('#btn-edit-netto').show();
+                        $('#btn-add-netto').hide();
                     } else {
                         $('#btn-edit-netto').hide();
+                        $('#btn-add-netto').show();
+                        // Simpan product_id dan warehouse_id untuk form tambah netto
+                        $('#add-netto-product-id').val(data.product_id);
+                        $('#add-netto-warehouse-id').val(data.warehouse_id);
                     }
 
                     // Render Batches
@@ -498,6 +557,33 @@
                             iziToast.success({ title: 'Berhasil', message: res.message });
                         }
                     });
+                }
+            });
+        });
+
+        // Tambah Netto (untuk batch yang belum punya variant)
+        $('#btn-add-netto').on('click', function() {
+            $('#add-netto-variant-name').val('');
+            $('#add-netto-value').val('');
+            $('#add-netto-satuan').val('');
+            $('#add-netto-price').val('');
+            $('#modal-add-netto').modal('show');
+        });
+
+        $('#form-add-netto').on('submit', function(e) {
+            e.preventDefault();
+            $.ajax({
+                url: '{{ url("admin/manage-master/stock/add-netto") }}',
+                method: 'POST',
+                data: $(this).serialize(),
+                success: function(res) {
+                    $('#modal-add-netto').modal('hide');
+                    $('#modal-detail').modal('hide');
+                    table.ajax.reload();
+                    iziToast.success({ title: 'Berhasil', message: res.message });
+                },
+                error: function(err) {
+                    iziToast.error({ title: 'Error', message: err.responseJSON?.message || 'Gagal menyimpan' });
                 }
             });
         });

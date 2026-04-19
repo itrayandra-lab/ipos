@@ -145,6 +145,58 @@ class StockController extends Controller
         return response()->json(['success' => true, 'message' => 'Batch berhasil dihapus']);
     }
 
+    public function addNetto(Request $request)
+    {
+        $validator = Validator::make($request->all(), [
+            'product_id'   => 'required|exists:products,id',
+            'netto_value'  => 'required|string|max:50',
+            'satuan'       => 'nullable|string|max:50',
+            'variant_name' => 'required|string|max:255',
+            'price'        => 'required|numeric|min:0',
+            'warehouse_id' => 'required|exists:warehouses,id',
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json(['success' => false, 'message' => $validator->errors()->first()], 422);
+        }
+
+        $product = Product::with('merek')->findOrFail($request->product_id);
+
+        // Buat ProductNetto baru
+        $netto = \App\Models\ProductNetto::create([
+            'product_id'  => $product->id,
+            'netto_value' => $request->netto_value,
+            'satuan'      => $request->satuan,
+        ]);
+
+        // Generate SKU otomatis
+        $merekCode    = $product->merek ? strtoupper(substr(preg_replace('/\s+/', '', $product->merek->name), 0, 3)) : 'PRD';
+        $productCode  = strtoupper(substr(preg_replace('/\s+/', '', $product->name), 0, 3));
+        $nettoCode    = strtoupper(preg_replace('/\s+/', '', $request->netto_value . ($request->satuan ?? '')));
+        $baseSku      = $merekCode . '-' . $productCode . '-' . $nettoCode;
+        $sku          = $baseSku;
+        $counter      = 1;
+        while (\App\Models\ProductVariant::where('sku_code', $sku)->exists()) {
+            $sku = $baseSku . '-' . $counter++;
+        }
+
+        // Buat ProductVariant baru
+        $variant = \App\Models\ProductVariant::create([
+            'product_netto_id' => $netto->id,
+            'variant_name'     => $request->variant_name,
+            'sku_code'         => $sku,
+            'price'            => $request->price,
+        ]);
+
+        // Assign variant ke semua batch produk ini di warehouse ini yang belum punya variant
+        ProductBatch::where('product_id', $product->id)
+            ->where('warehouse_id', $request->warehouse_id)
+            ->whereNull('product_variant_id')
+            ->update(['product_variant_id' => $variant->id]);
+
+        return response()->json(['success' => true, 'message' => 'Netto berhasil ditambahkan dan dihubungkan ke batch']);
+    }
+
     public function getNetto(Request $request)
     {
         $variant = ProductVariant::with('netto')->findOrFail($request->variant_id);
@@ -302,7 +354,8 @@ class StockController extends Controller
         return response()->json([
             'success' => true,
             'product' => [
-                'name' => ($product->merek ? $product->merek->name . ' ' : '') . $product->name,
+                'id'        => $product->id,
+                'name'      => ($product->merek ? $product->merek->name . ' ' : '') . $product->name,
                 'warehouse' => $warehouse->name
             ],
             'batches' => $batches,
