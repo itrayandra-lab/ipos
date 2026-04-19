@@ -1,21 +1,21 @@
 
-   Psy\Exception\ParseErrorException 
+   InvalidArgumentException 
 
-  PHP Parse error: Syntax error, unexpected ';' on line 1
+  Unexpected end of input
 
-  at D:\Iman Cangga\Herd\pos-beautylatory\vendor\psy\psysh\src\Exception\ParseErrorException.php:44
-     40▕      * @param \PhpParser\Error $e
-     41▕      */
-     42▕     public static function fromParseError(\PhpParser\Error $e): self
-     43▕     {
-  ➜  44▕         return new self($e->getRawMessage(), $e->getAttributes());
-     45▕     }
-     46▕ }
-     47▕
+  at D:\Iman Cangga\Herd\pos-beautylatory\vendor\psy\psysh\src\Shell.php:1102
+    1098▕ 
+    1099▕         if (!$this->hasValidCode()) {
+    1100▕             $this->popCodeStack();
+    1101▕ 
+  ➜ 1102▕             throw new \InvalidArgumentException('Unexpected end of input');
+    1103▕         }
+    1104▕     }
+    1105▕ 
+    1106▕     /**
 
-  1   D:\Iman Cangga\Herd\pos-beautylatory\vendor\psy\psysh\src\CodeCleaner.php:488
-      Psy\Exception\ParseErrorException::fromParseError(Object(PhpParser\Error))
+  1   D:\Iman Cangga\Herd\pos-beautylatory\vendor\psy\psysh\src\Shell.php:1640
+      Psy\Shell::setCode("print_r(App\Models\ProductTier::all()-")
 
-  2   D:\Iman Cangga\Herd\pos-beautylatory\vendor\psy\psysh\src\CodeCleaner.php:269
-      Psy\CodeCleaner::parse("<?php print_r(App\Models\Warehouse::all()-;
-")
+  2   D:\Iman Cangga\Herd\pos-beautylatory\vendor\laravel\tinker\src\Console\TinkerCommand.php:77
+      Psy\Shell::execute("print_r(App\Models\ProductTier::all()-")

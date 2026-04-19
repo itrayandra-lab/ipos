@@ -924,50 +924,57 @@
             url: '{{ $posRoutes["products"] }}',
             method: 'GET',
             data: { search: search, merek_id: mrkId, warehouse_id: whId },
-            success: function(products) {
+            success: function(variants) {
                 container.empty();
-                if (products.length === 0) {
+                if (variants.length === 0) {
                     container.append('<div class="col-12 text-center py-4">Produk tidak ditemukan atau stok habis di gudang ini.</div>');
                     return;
                 }
 
-                // Temporary batchList update for lookup in addToCart
-                products.forEach(p => {
-                    p.batches.forEach(b => {
+                // Update batchList with fresh data from server
+                variants.forEach(v => {
+                    v.batches.forEach(b => {
                         let existingBatch = batchList.find(bl => bl.id === b.id);
                         if (!existingBatch) {
                             batchList.push({
                                 id: b.id,
-                                text: p.name + ' (' + b.batch_no + ' - ' + b.qty + ')',
-                                price: b.buy_price && b.buy_price > 0 ? b.buy_price : p.offline_price, // fallback if needed
+                                text: v.name,
+                                price: b.selling_price,
                                 stock: b.qty,
-                                product_id: p.id,
+                                product_id: v.product_id,
+                                variant_id: v.variant_id,
                                 batch_no: b.batch_no
                             });
                         } else {
-                            existingBatch.stock = b.qty; // Update latest stock
+                            existingBatch.stock = b.qty;
+                            existingBatch.price = b.selling_price;
                         }
                     });
                 });
 
-                products.forEach((p, idx) => {
-                    let img = p.photos && p.photos.length > 0 ? '{{ asset("storage") }}/' + p.photos[0].photo_path : '{{ asset("assets/img/Asset 3.png") }}';
-                    let batchOptions = p.batches.map(b => 
-                        `<option value="${b.id}" data-stock="${b.qty}" data-price="${p.offline_price}">${b.batch_no} (Stok: ${b.qty})</option>`
+                variants.forEach((v) => {
+                    let img = v.photo
+                        ? v.photo
+                        : '{{ asset("assets/img/Asset 3.png") }}';
+
+                    let uniqueId = 'variant-' + v.id;
+
+                    let batchOptions = v.batches.map(b =>
+                        `<option value="${b.id}" data-stock="${b.qty}" data-price="${b.selling_price}">${b.batch_no} (Stok: ${b.qty})</option>`
                     ).join('');
-                    
-                    let uniqueId = 'variant-' + p.id;
+
+                    let firstBatchPrice = v.batches.length > 0 ? v.batches[0].selling_price : v.offline_price;
 
                     let card = `
                         <div class="col-6 col-md-4 mb-3">
                             <div class="card product-card h-100 mb-0 position-relative">
                                 <div class="img-container" onclick="addToCartFromVariant('${uniqueId}')">
-                                    <img src="${img}" alt="${p.name}">
+                                    <img src="${img}" alt="${v.name}">
                                 </div>
                                 <div class="card-body p-2">
-                                    <div class="font-weight-bold" style="font-size: 0.8rem; height: 2.2rem; overflow: hidden;">${p.name}</div>
-                                    <div class="text-primary product-price mt-1 font-weight-bold small">Rp ${parseInt(p.offline_price).toLocaleString('id-ID')}</div>
-                                    <select class="form-control form-control-sm mt-1 batch-selector" id="${uniqueId}" data-product-id="${p.id}" style="font-size: 0.7rem; height: auto; padding: 2px 5px;">
+                                    <div class="font-weight-bold" style="font-size: 0.8rem; height: 2.2rem; overflow: hidden;">${v.name}</div>
+                                    <div class="text-primary product-price mt-1 font-weight-bold small" id="price-display-${uniqueId}">Rp ${parseInt(firstBatchPrice).toLocaleString('id-ID')}</div>
+                                    <select class="form-control form-control-sm mt-1 batch-selector" id="${uniqueId}" data-product-id="${v.product_id}" data-variant-id="${v.variant_id || ''}" style="font-size: 0.7rem; height: auto; padding: 2px 5px;" onchange="updatePriceDisplay('${uniqueId}')">
                                         ${batchOptions}
                                     </select>
                                     <button class="btn btn-warning btn-sm btn-block mt-2 py-1" onclick="addToCartFromVariant('${uniqueId}')">
@@ -983,6 +990,15 @@
         });
     }
 
+    function updatePriceDisplay(uniqueId) {
+        let selector = $('#' + uniqueId);
+        let selectedOption = selector.find('option:selected');
+        let price = selectedOption.data('price');
+        if (price) {
+            $('#price-display-' + uniqueId).text('Rp ' + parseInt(price).toLocaleString('id-ID'));
+        }
+    }
+
     function addToCartFromVariant(uniqueId) {
         let selector = $('#' + uniqueId);
         let batchId = selector.val();
@@ -995,6 +1011,10 @@
 
         let batch = batchList.find(b => b.id == batchId);
         if (!batch) return;
+
+        // Use price from the selected option's data-price attribute (variant->price)
+        let selectedOption = selector.find('option:selected');
+        let sellingPrice = parseFloat(selectedOption.data('price')) || batch.price;
 
         let existing = cart.find(item => item.batch_id == batchId);
         if (existing) {
@@ -1017,7 +1037,7 @@
                 product_id: productId,
                 batch_id: batch.id,
                 name: batch.text.split('(')[0].trim(),
-                price: batch.price,
+                price: sellingPrice,
                 qty: 1,
                 stock: batch.stock,
                 discount: 0

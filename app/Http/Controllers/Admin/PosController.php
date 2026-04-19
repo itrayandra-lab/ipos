@@ -59,7 +59,9 @@ class PosController extends Controller
             $batchList[] = [
                 'id'        => $batch->id,
                 'text'      => $labelText . ' (' . $batch->batch_no . ' - ' . $batch->qty . ')',
-                'price'     => $batch->variant->price ?? ($product->price_real > 0 ? $product->price_real : $product->price),
+                'price'     => $batch->variant && $batch->variant->price > 0
+                                ? $batch->variant->price
+                                : ($product->price_real > 0 ? $product->price_real : $product->price),
                 'stock'     => $batch->qty,
                 'buy_price' => $batch->buy_price ?? 0,
                 'product_id' => $product->id,
@@ -97,50 +99,108 @@ class PosController extends Controller
     {
         $channelSlug = $this->getPosChannel();
         $mainWarehouse = \App\Models\Warehouse::where('type', 'main')->first();
-        $warehouseId = $mainWarehouse ? $mainWarehouse->id : 1;
+        $defaultWarehouseId = $mainWarehouse ? $mainWarehouse->id : 1;
+        // Use warehouse from request if provided, otherwise fall back to main warehouse
+        $warehouseId = $request->warehouse_id ? (int)$request->warehouse_id : $defaultWarehouseId;
 
-        $query = Product::with(['photos', 'category', 'merek', 'batches' => function($q) use ($warehouseId) {
-            $q->where('qty', '>', 0);
-            if ($warehouseId) {
-                $q->where('warehouse_id', $warehouseId);
-            }
-            $q->orderBy('id', 'asc');
-        }]);
+        // Query batches grouped by variant, only from the selected/main warehouse with stock > 0
+        $batchQuery = ProductBatch::with([
+                'product.merek',
+                'product.photos',
+                'product.category',
+                'variant.netto',
+            ])
+            ->where('qty', '>', 0)
+            ->where('warehouse_id', $warehouseId)
+            ->whereHas('product', fn($q) => $q->where('status', 'Y'));
 
+        // Apply search filter on product name or merek name
         if ($request->search) {
-            $query->where('name', 'like', '%' . $request->search . '%');
-        }
-
-        if ($request->category_id) {
-            $query->where('category_id', $request->category_id);
+            $batchQuery->whereHas('product', function($q) use ($request) {
+                $q->where('name', 'like', '%' . $request->search . '%')
+                  ->orWhereHas('merek', fn($mq) => $mq->where('name', 'like', '%' . $request->search . '%'));
+            });
         }
 
         if ($request->merek_id) {
-            $query->where('merek_id', $request->merek_id);
+            $batchQuery->whereHas('product', fn($q) => $q->where('merek_id', $request->merek_id));
         }
 
-        $products = $query->where('status', 'Y')
-            ->get()
-            ->map(function($product) use ($channelSlug, $warehouseId) {
-                if ($product->price_real > 0) {
-                    $product->offline_price = $product->price_real;
-                } elseif ($product->price > 0) {
-                    $product->offline_price = $product->price;
-                } else {
-                    $product->offline_price = PricingService::calculateForProduct($product, $channelSlug);
-                }
-                
-                // Calculate stock for the specific warehouse
-                $product->warehouse_stock = $product->batches->sum('qty');
-                
-                return $product;
-            })
-            ->filter(function($product) {
-                return $product->warehouse_stock > 0 && $product->offline_price > 0;
-            })
-            ->values();
+        $batches = $batchQuery->orderBy('id', 'asc')->get();
 
-        return response()->json($products);
+        // Group batches by variant_id (or product_id if no variant)
+        $variantGroups = [];
+        foreach ($batches as $batch) {
+            $product = $batch->product;
+            $variant = $batch->variant;
+
+            // Unique key per variant (or per product if no variant)
+            $groupKey = $variant ? 'v_' . $variant->id : 'p_' . $product->id;
+
+            if (!isset($variantGroups[$groupKey])) {
+                // Build display name: MerekName + ProductName + netto_value
+                $merekName   = $product->merek ? trim($product->merek->name) : '';
+                $productName = trim($product->name);
+                $nettoValue  = $variant && $variant->netto ? trim($variant->netto->netto_value) : '';
+                $satuan      = $variant && $variant->netto ? trim($variant->netto->satuan ?? '') : '';
+
+                // Build label, deduplicate overlapping parts
+                $parts = array_filter([$merekName, $productName, $nettoValue . ($satuan ? ' ' . $satuan : '')]);
+                $finalParts = [];
+                foreach ($parts as $p1) {
+                    $isSubPart = false;
+                    foreach ($parts as $p2) {
+                        if ($p1 !== $p2 && stripos($p2, $p1) !== false && strlen($p2) > strlen($p1)) {
+                            $isSubPart = true;
+                            break;
+                        }
+                    }
+                    if (!$isSubPart) {
+                        $finalParts[] = $p1;
+                    }
+                }
+                $displayName = implode(' ', array_unique($finalParts));
+
+                // Selling price: variant->price first, then product fallback
+                $sellingPrice = $variant && $variant->price > 0
+                    ? $variant->price
+                    : ($product->price_real > 0 ? $product->price_real : $product->price);
+
+                // Fallback to PricingService if still 0
+                if ($sellingPrice <= 0) {
+                    $sellingPrice = PricingService::calculate($batch, $channelSlug);
+                }
+
+                // Get first photo
+                $photo = $product->photos->first();
+
+                $variantGroups[$groupKey] = [
+                    'id'          => $groupKey,
+                    'product_id'  => $product->id,
+                    'variant_id'  => $variant ? $variant->id : null,
+                    'name'        => $displayName,
+                    'offline_price' => $sellingPrice,
+                    'photo'       => $photo ? asset($photo->foto) : null,
+                    'batches'     => [],
+                    'total_stock' => 0,
+                ];
+            }
+
+            $variantGroups[$groupKey]['batches'][] = [
+                'id'            => $batch->id,
+                'batch_no'      => $batch->batch_no,
+                'qty'           => $batch->qty,
+                'selling_price' => $variantGroups[$groupKey]['offline_price'],
+            ];
+            $variantGroups[$groupKey]['total_stock'] += $batch->qty;
+        }
+
+        // Filter out entries with no stock or no price, then re-index
+        $result = array_values(array_filter($variantGroups, function($v) {
+            return $v['total_stock'] > 0 && $v['offline_price'] > 0;
+        }));
+
+        return response()->json($result);
     }
     public function store(Request $request)
     {
@@ -194,7 +254,7 @@ class PosController extends Controller
             }
 
             foreach ($request->items as $item) {
-                $batch = ProductBatch::with('product')->findOrFail($item['batch_id']);
+                $batch = ProductBatch::with(['product', 'variant'])->findOrFail($item['batch_id']);
                 $product = $batch->product;
                 $qty = $item['qty'];
                 $itemDiscount = (float)($item['discount'] ?? 0);
@@ -203,8 +263,14 @@ class PosController extends Controller
                     throw new \Exception("Stok batch {$batch->batch_no} untuk produk {$product->name} tidak mencukupi.");
                 }
 
-                // Strictly prioritize database price_real as requested.
-                if ($product->price_real > 0) {
+                // Use variant->price as the primary selling price (as shown on product detail page)
+                $variantPrice = $batch->variant && $batch->variant->price > 0
+                    ? $batch->variant->price
+                    : null;
+
+                if ($variantPrice) {
+                    $basePrice = $variantPrice;
+                } elseif ($product->price_real > 0) {
                     $basePrice = $product->price_real;
                 } elseif ($product->price > 0) {
                     $basePrice = $product->price;
