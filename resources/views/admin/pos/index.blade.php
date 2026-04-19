@@ -973,6 +973,7 @@
                                 </div>
                                 <div class="card-body p-2">
                                     <div class="font-weight-bold" style="font-size: 0.8rem; height: 2.2rem; overflow: hidden;">${v.name}</div>
+                                    ${v.netto ? `<div class="text-muted" style="font-size: 0.75rem;">${v.netto}</div>` : ''}
                                     <div class="text-primary product-price mt-1 font-weight-bold small" id="price-display-${uniqueId}">Rp ${parseInt(firstBatchPrice).toLocaleString('id-ID')}</div>
                                     <select class="form-control form-control-sm mt-1 batch-selector" id="${uniqueId}" data-product-id="${v.product_id}" data-variant-id="${v.variant_id || ''}" style="font-size: 0.7rem; height: auto; padding: 2px 5px;" onchange="updatePriceDisplay('${uniqueId}')">
                                         ${batchOptions}

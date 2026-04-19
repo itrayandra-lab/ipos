@@ -133,14 +133,12 @@ class PosController extends Controller
             $groupKey = $variant ? 'v_' . $variant->id : 'p_' . $product->id;
 
             if (!isset($variantGroups[$groupKey])) {
-                // Build display name: MerekName + ProductName + netto_value
+                // Build display name: MerekName + ProductName only (no netto)
                 $merekName   = $product->merek ? trim($product->merek->name) : '';
                 $productName = trim($product->name);
-                $nettoValue  = $variant && $variant->netto ? trim($variant->netto->netto_value) : '';
-                $satuan      = $variant && $variant->netto ? trim($variant->netto->satuan ?? '') : '';
 
-                // Build label, deduplicate overlapping parts
-                $parts = array_filter([$merekName, $productName, $nettoValue . ($satuan ? ' ' . $satuan : '')]);
+                // Deduplicate overlapping parts
+                $parts = array_filter([$merekName, $productName]);
                 $finalParts = [];
                 foreach ($parts as $p1) {
                     $isSubPart = false;
@@ -156,6 +154,12 @@ class PosController extends Controller
                 }
                 $displayName = implode(' ', array_unique($finalParts));
 
+                // Netto info separately
+                $nettoDisplay = '';
+                if ($variant && $variant->netto) {
+                    $nettoDisplay = trim($variant->netto->netto_value . ($variant->netto->satuan ? ' ' . $variant->netto->satuan : ''));
+                }
+
                 // Selling price: ONLY from variant->price, no fallback
                 $sellingPrice = ($variant && $variant->price > 0) ? (int)$variant->price : 0;
 
@@ -163,14 +167,15 @@ class PosController extends Controller
                 $photo = $product->photos->first();
 
                 $variantGroups[$groupKey] = [
-                    'id'          => $groupKey,
-                    'product_id'  => $product->id,
-                    'variant_id'  => $variant ? $variant->id : null,
-                    'name'        => $displayName,
+                    'id'            => $groupKey,
+                    'product_id'    => $product->id,
+                    'variant_id'    => $variant ? $variant->id : null,
+                    'name'          => $displayName,
+                    'netto'         => $nettoDisplay,
                     'offline_price' => $sellingPrice,
-                    'photo'       => $photo ? asset($photo->foto) : null,
-                    'batches'     => [],
-                    'total_stock' => 0,
+                    'photo'         => $photo ? asset($photo->foto) : null,
+                    'batches'       => [],
+                    'total_stock'   => 0,
                 ];
             }
 

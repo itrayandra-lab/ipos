@@ -77,18 +77,19 @@
             </div>
             <div class="modal-body">
                 <div class="row mb-3">
-                    <div class="col-md-6">
+                    <div class="col-md-8">
                         <table class="table table-sm table-borderless">
                             <tr><th width="120">Produk</th><td>: <span id="det-info-name"></span></td></tr>
                             <tr><th>Lokasi Gudang</th><td>: <span id="det-info-warehouse" class="badge badge-info"></span></td></tr>
+                            <tr><th>Netto</th><td>: <span id="det-info-netto" class="font-weight-bold text-primary">-</span></td></tr>
                         </table>
                     </div>
-                    <div class="col-md-6 text-right">
+                    <div class="col-md-4 text-right">
                         <button class="btn btn-warning btn-sm" id="btn-edit-netto" style="display:none;">
-                            <i class="fas fa-edit"></i> Edit Netto & Harga Jual
+                            <i class="fas fa-exchange-alt"></i> Ganti Varian
                         </button>
                         <button class="btn btn-success btn-sm" id="btn-add-netto" style="display:none;">
-                            <i class="fas fa-plus"></i> Tambah Netto
+                            <i class="fas fa-link"></i> Hubungkan Varian
                         </button>
                     </div>
                 </div>
@@ -264,7 +265,7 @@
     <div class="modal-dialog" role="document">
         <div class="modal-content">
             <div class="modal-header">
-                <h5 class="modal-title">Tambah Netto & Harga Jual</h5>
+                <h5 class="modal-title">Hubungkan ke Varian</h5>
                 <button type="button" class="close" data-dismiss="modal"><span>&times;</span></button>
             </div>
             <form id="form-add-netto">
@@ -273,37 +274,19 @@
                 <input type="hidden" name="warehouse_id" id="add-netto-warehouse-id">
                 <div class="modal-body">
                     <div class="alert alert-info py-2 small">
-                        Netto baru akan dibuat dan dihubungkan ke semua batch produk ini yang belum memiliki varian.
+                        Pilih varian yang sesuai. Semua batch produk ini yang belum memiliki varian akan dihubungkan ke varian yang dipilih.
                     </div>
                     <div class="form-group">
-                        <label>Nama Varian <span class="text-danger">*</span></label>
-                        <input type="text" class="form-control" name="variant_name" id="add-netto-variant-name" placeholder="Contoh: 100ML" required>
-                    </div>
-                    <div class="row">
-                        <div class="col-md-6">
-                            <div class="form-group">
-                                <label>Netto Value <span class="text-danger">*</span></label>
-                                <input type="text" class="form-control" name="netto_value" id="add-netto-value" placeholder="Contoh: 100" required>
-                            </div>
-                        </div>
-                        <div class="col-md-6">
-                            <div class="form-group">
-                                <label>Satuan</label>
-                                <input type="text" class="form-control" name="satuan" id="add-netto-satuan" placeholder="Contoh: ml, gr, pcs">
-                            </div>
-                        </div>
-                    </div>
-                    <div class="form-group">
-                        <label>Harga Jual <span class="text-danger">*</span></label>
-                        <div class="input-group">
-                            <div class="input-group-prepend"><span class="input-group-text">Rp</span></div>
-                            <input type="number" class="form-control" name="price" id="add-netto-price" required min="0">
-                        </div>
+                        <label>Pilih Varian <span class="text-danger">*</span></label>
+                        <select class="form-control" name="variant_id" id="add-netto-variant-select" required>
+                            <option value="">-- Pilih Varian --</option>
+                        </select>
+                        <small class="text-muted">Data varian diambil dari produk ini (Netto + Satuan)</small>
                     </div>
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary" data-dismiss="modal">Batal</button>
-                    <button type="submit" class="btn btn-success">Simpan Netto</button>
+                    <button type="submit" class="btn btn-success">Hubungkan</button>
                 </div>
             </form>
         </div>
@@ -315,42 +298,23 @@
     <div class="modal-dialog" role="document">
         <div class="modal-content">
             <div class="modal-header">
-                <h5 class="modal-title">Edit Netto & Harga Jual</h5>
+                <h5 class="modal-title">Ganti Varian</h5>
                 <button type="button" class="close" data-dismiss="modal"><span>&times;</span></button>
             </div>
             <form id="form-edit-netto">
                 @csrf
                 <input type="hidden" name="variant_id" id="netto-variant-id">
+                <input type="hidden" name="product_id" id="netto-product-id">
+                <input type="hidden" name="warehouse_id" id="netto-warehouse-id">
                 <div class="modal-body">
-                    <div class="form-group">
-                        <label>Nama Varian <span class="text-danger">*</span></label>
-                        <input type="text" class="form-control" name="variant_name" id="netto-variant-name" required>
-                    </div>
-                    <div class="row">
-                        <div class="col-md-6">
-                            <div class="form-group">
-                                <label>Netto Value <span class="text-danger">*</span></label>
-                                <input type="text" class="form-control" name="netto_value" id="netto-value" placeholder="Contoh: 100" required>
-                            </div>
-                        </div>
-                        <div class="col-md-6">
-                            <div class="form-group">
-                                <label>Satuan</label>
-                                <input type="text" class="form-control" name="satuan" id="netto-satuan" placeholder="Contoh: ml, gr, pcs">
-                            </div>
-                        </div>
+                    <div class="alert alert-warning py-2 small">
+                        Pilih varian yang sesuai. Semua batch produk ini di gudang ini akan dipindahkan ke varian yang dipilih.
                     </div>
                     <div class="form-group">
-                        <label>Harga Jual <span class="text-danger">*</span></label>
-                        <div class="input-group">
-                            <div class="input-group-prepend"><span class="input-group-text">Rp</span></div>
-                            <input type="number" class="form-control" name="price" id="netto-price" required min="0">
-                        </div>
-                    </div>
-                    <div class="form-group">
-                        <label>SKU Code</label>
-                        <input type="text" class="form-control" id="netto-sku" disabled>
-                        <small class="text-muted">SKU tidak dapat diubah dari sini</small>
+                        <label>Pilih Varian <span class="text-danger">*</span></label>
+                        <select class="form-control" name="new_variant_id" id="netto-variant-select" required>
+                            <option value="">-- Pilih Varian --</option>
+                        </select>
                     </div>
                 </div>
                 <div class="modal-footer">
@@ -426,11 +390,15 @@
                 if (res.success) {
                     $('#det-info-name').text(res.product.name);
                     $('#det-info-warehouse').text(res.product.warehouse);
+                    $('#det-info-netto').text(res.product.netto || '-');
 
                     // Tampilkan tombol sesuai kondisi netto
                     if (activeVariantId) {
                         $('#btn-edit-netto').show();
                         $('#btn-add-netto').hide();
+                        // Simpan product_id dan warehouse_id untuk form edit netto
+                        $('#netto-product-id').val(data.product_id);
+                        $('#netto-warehouse-id').val(data.warehouse_id);
                     } else {
                         $('#btn-edit-netto').hide();
                         $('#btn-add-netto').show();
@@ -563,11 +531,22 @@
 
         // Tambah Netto (untuk batch yang belum punya variant)
         $('#btn-add-netto').on('click', function() {
-            $('#add-netto-variant-name').val('');
-            $('#add-netto-value').val('');
-            $('#add-netto-satuan').val('');
-            $('#add-netto-price').val('');
-            $('#modal-add-netto').modal('show');
+            let productId = $('#add-netto-product-id').val();
+            let select = $('#add-netto-variant-select');
+            select.html('<option value="">-- Memuat varian... --</option>');
+
+            $.get('{{ url("admin/manage-master/stock/variants") }}/' + productId, function(res) {
+                select.html('<option value="">-- Pilih Varian --</option>');
+                if (res.data && res.data.length > 0) {
+                    res.data.forEach(v => {
+                        let label = v.netto_value + (v.satuan ? ' ' + v.satuan : '');
+                        select.append(`<option value="${v.id}">${label}</option>`);
+                    });
+                } else {
+                    select.html('<option value="">Tidak ada varian tersedia</option>');
+                }
+                $('#modal-add-netto').modal('show');
+            });
         });
 
         $('#form-add-netto').on('submit', function(e) {
@@ -594,22 +573,25 @@
                 iziToast.warning({ message: 'Tidak ada varian yang dipilih', position: 'topRight' });
                 return;
             }
-            $.post('{{ url("admin/manage-master/stock/get-netto") }}', {
-                _token: '{{ csrf_token() }}',
-                variant_id: activeVariantId
-            }, function(res) {
-                if (res.success) {
-                    let d = res.data;
-                    $('#netto-variant-id').val(d.variant_id);
-                    $('#netto-variant-name').val(d.variant_name);
-                    $('#netto-value').val(d.netto_value);
-                    $('#netto-satuan').val(d.satuan);
-                    $('#netto-price').val(d.price);
-                    $('#netto-sku').val(d.sku_code);
-                    $('#modal-edit-netto').modal('show');
+            let productId = $('#netto-product-id').val();
+            let select = $('#netto-variant-select');
+            select.html('<option value="">-- Memuat varian... --</option>');
+
+            $.get('{{ url("admin/manage-master/stock/variants") }}/' + productId, function(res) {
+                select.html('<option value="">-- Pilih Varian --</option>');
+                if (res.data && res.data.length > 0) {
+                    res.data.forEach(v => {
+                        let label = v.netto_value + (v.satuan ? ' ' + v.satuan : '');
+                        let selected = (v.id == activeVariantId) ? 'selected' : '';
+                        select.append(`<option value="${v.id}" ${selected}>${label}</option>`);
+                    });
                 }
+                $('#netto-variant-id').val(activeVariantId);
+                $('#modal-edit-netto').modal('show');
             });
         });
+
+        // Update satuan saat dropdown varian berubah - dihapus
 
         $('#form-edit-netto').on('submit', function(e) {
             e.preventDefault();
@@ -619,6 +601,7 @@
                 data: $(this).serialize(),
                 success: function(res) {
                     $('#modal-edit-netto').modal('hide');
+                    $('#modal-detail').modal('hide');
                     table.ajax.reload();
                     iziToast.success({ title: 'Berhasil', message: res.message });
                 },
