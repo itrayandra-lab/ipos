@@ -134,27 +134,12 @@ class ProductController extends Controller
             return response()->json(['status' => 'error', 'message' => $validator->errors()->first()], 422);
         }
 
-        // Validate SKU uniqueness
-        // Since SKU is now automatic, we calculate it here for validation
+        // SKU uniqueness is handled automatically during save (suffix added if needed)
         $merek = \App\Models\Merek::find($request->merek_id);
         $category = \App\Models\Category::find($request->category_id);
         $merekCode = $merek?->code ?? 'UNK';
         $categoryCode = $category?->code ?? 'UNK';
         $productCode = $request->code ?? 'UNK';
-
-        foreach ($request->variants as $index => $v) {
-            $nettoPart = preg_replace('/[^0-9]/', '', $v['netto']);
-            $generatedSku = strtoupper("{$merekCode}-{$categoryCode}-{$productCode}-{$nettoPart}");
-            
-            $existingSku = \App\Models\ProductVariant::where('sku_code', $generatedSku)->first();
-            if ($existingSku) {
-                return response()->json([
-                    'status' => 'error',
-                    'message' => 'Auto-generated SKU "' . $generatedSku . '" sudah digunakan. Silakan periksa kembali kode produk atau netto.'
-                ], 422);
-            }
-            // Store the generated SKU back to the request array if needed, but we'll use it during save
-        }
 
         $slug = Str::slug($request->name);
         $count = Product::where('slug', $slug)->count();
@@ -196,11 +181,17 @@ class ProductController extends Controller
             // Auto-generate SKU
             $nettoPart = preg_replace('/[^0-9]/', '', $v['netto']);
             $generatedSku = strtoupper("{$merekCode}-{$categoryCode}-{$productCode}-{$nettoPart}");
+            // Ensure SKU is unique by adding suffix if needed
+            $finalSku = $generatedSku;
+            $counter = 1;
+            while (\App\Models\ProductVariant::where('sku_code', $finalSku)->exists()) {
+                $finalSku = $generatedSku . '-' . $counter++;
+            }
 
             try {
                 \App\Models\ProductVariant::create([
                     'product_netto_id' => $netto->id,
-                    'sku_code' => $generatedSku,
+                    'sku_code' => $finalSku,
                     'variant_name' => $variantName,
                     'price' => $v['price'],
                     'price_real' => (!empty($v['price_real']) && $v['price_real'] > 0) ? $v['price_real'] : null,
@@ -291,29 +282,9 @@ class ProductController extends Controller
         $merekCode = $merek?->code ?? 'UNK';
         $categoryCode = $category?->code ?? 'UNK';
         $productCode = $request->code ?? 'UNK';
-
-        $currentSkus = \App\Models\ProductVariant::whereHas('netto', function ($q) use ($product) {
-            $q->where('product_id', $product->id);
-        })->pluck('sku_code')->toArray();
-
-        foreach ($request->variants as $v) {
-            $nettoPart = preg_replace('/[^0-9]/', '', $v['netto']);
-            $generatedSku = strtoupper("{$merekCode}-{$categoryCode}-{$productCode}-{$nettoPart}");
-
-            // Skip if this SKU belongs to the current product (it's being edited)
-            if (!in_array($generatedSku, $currentSkus)) {
-                $existingSku = \App\Models\ProductVariant::where('sku_code', $generatedSku)->first();
-                if ($existingSku) {
-                    return response()->json([
-                        'status' => 'error',
-                        'message' => 'Auto-generated SKU "' . $generatedSku . '" sudah digunakan oleh produk lain.'
-                    ], 422);
-                }
-            }
-        }
+        // SKU conflicts handled automatically with suffix during save
 
         // Simple sync for variants: delete all and recreate or update
-        // For simplicity in this "simpler flow", we'll update or create
         $existingVariantIds = [];
         foreach ($request->variants as $v) {
             $netto = \App\Models\ProductNetto::firstOrCreate([
@@ -336,15 +307,34 @@ class ProductController extends Controller
             $generatedSku = strtoupper("{$merekCode}-{$categoryCode}-{$productCode}-{$nettoPart}");
 
             try {
-                $variant = \App\Models\ProductVariant::updateOrCreate(
-                ['product_netto_id' => $netto->id, 'sku_code' => $generatedSku],
-                [
-                    'variant_name' => $variantName,
-                    'price' => $v['price'],
-                    'price_real' => (!empty($v['price_real']) && $v['price_real'] > 0) ? $v['price_real'] : null,
-                    'price_tier' => (!empty($v['price_tier']) && $v['price_tier'] > 0) ? $v['price_tier'] : null,
-                ]
-                );
+                // Check if variant already exists for this netto
+                $existingVariant = \App\Models\ProductVariant::where('product_netto_id', $netto->id)->first();
+
+                if ($existingVariant) {
+                    // Update existing variant — keep existing SKU to avoid conflicts
+                    $existingVariant->update([
+                        'variant_name' => $variantName,
+                        'price'        => $v['price'],
+                        'price_real'   => (!empty($v['price_real']) && $v['price_real'] > 0) ? $v['price_real'] : null,
+                        'price_tier'   => (!empty($v['price_tier']) && $v['price_tier'] > 0) ? $v['price_tier'] : null,
+                    ]);
+                    $variant = $existingVariant;
+                } else {
+                    // Create new variant — ensure SKU is unique by adding suffix if needed
+                    $finalSku = $generatedSku;
+                    $counter = 1;
+                    while (\App\Models\ProductVariant::where('sku_code', $finalSku)->exists()) {
+                        $finalSku = $generatedSku . '-' . $counter++;
+                    }
+                    $variant = \App\Models\ProductVariant::create([
+                        'product_netto_id' => $netto->id,
+                        'sku_code'         => $finalSku,
+                        'variant_name'     => $variantName,
+                        'price'            => $v['price'],
+                        'price_real'       => (!empty($v['price_real']) && $v['price_real'] > 0) ? $v['price_real'] : null,
+                        'price_tier'       => (!empty($v['price_tier']) && $v['price_tier'] > 0) ? $v['price_tier'] : null,
+                    ]);
+                }
                 $existingVariantIds[] = $variant->id;
             }
             catch (\Illuminate\Database\QueryException $e) {
