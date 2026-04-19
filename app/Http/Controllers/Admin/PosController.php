@@ -12,7 +12,6 @@ use App\Models\Customer;
 use App\Models\Transaction;
 use App\Models\TransactionItem;
 use App\Models\Voucher;
-use App\Services\PricingService;
 use App\Services\InvoiceService;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Validator;
@@ -59,9 +58,7 @@ class PosController extends Controller
             $batchList[] = [
                 'id'        => $batch->id,
                 'text'      => $labelText . ' (' . $batch->batch_no . ' - ' . $batch->qty . ')',
-                'price'     => $batch->variant && $batch->variant->price > 0
-                                ? $batch->variant->price
-                                : ($product->price_real > 0 ? $product->price_real : $product->price),
+                'price'     => $batch->variant ? (int)$batch->variant->price : 0,
                 'stock'     => $batch->qty,
                 'buy_price' => $batch->buy_price ?? 0,
                 'product_id' => $product->id,
@@ -97,10 +94,8 @@ class PosController extends Controller
     }
     public function fetchProducts(Request $request)
     {
-        $channelSlug = $this->getPosChannel();
         $mainWarehouse = \App\Models\Warehouse::where('type', 'main')->first();
         $defaultWarehouseId = $mainWarehouse ? $mainWarehouse->id : 1;
-        // Use warehouse from request if provided, otherwise fall back to main warehouse
         $warehouseId = $request->warehouse_id ? (int)$request->warehouse_id : $defaultWarehouseId;
 
         // Query batches grouped by variant, only from the selected/main warehouse with stock > 0
@@ -161,15 +156,8 @@ class PosController extends Controller
                 }
                 $displayName = implode(' ', array_unique($finalParts));
 
-                // Selling price: variant->price first, then product fallback
-                $sellingPrice = $variant && $variant->price > 0
-                    ? $variant->price
-                    : ($product->price_real > 0 ? $product->price_real : $product->price);
-
-                // Fallback to PricingService if still 0
-                if ($sellingPrice <= 0) {
-                    $sellingPrice = PricingService::calculate($batch, $channelSlug);
-                }
+                // Selling price: ONLY from variant->price, no fallback
+                $sellingPrice = ($variant && $variant->price > 0) ? (int)$variant->price : 0;
 
                 // Get first photo
                 $photo = $product->photos->first();
@@ -263,20 +251,11 @@ class PosController extends Controller
                     throw new \Exception("Stok batch {$batch->batch_no} untuk produk {$product->name} tidak mencukupi.");
                 }
 
-                // Use variant->price as the primary selling price (as shown on product detail page)
-                $variantPrice = $batch->variant && $batch->variant->price > 0
-                    ? $batch->variant->price
-                    : null;
-
-                if ($variantPrice) {
-                    $basePrice = $variantPrice;
-                } elseif ($product->price_real > 0) {
-                    $basePrice = $product->price_real;
-                } elseif ($product->price > 0) {
-                    $basePrice = $product->price;
-                } else {
-                    $basePrice = PricingService::calculate($batch, $channelSlug);
+                // Use ONLY variant->price as the selling price
+                if (!$batch->variant || $batch->variant->price <= 0) {
+                    throw new \Exception("Produk {$product->name} tidak memiliki harga jual pada variannya.");
                 }
+                $basePrice = (int)$batch->variant->price;
                 
                 $finalPrice = $basePrice;
 
