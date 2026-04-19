@@ -296,7 +296,7 @@ class PosController extends Controller
                 $itemsToCreate[] = [
                     'product_id' => $product->id,
                     'product_batch_id' => $batch->id,
-                    'buy_price' => $batch->buy_price,
+                    'buy_price' => $batch->buy_price ?? 0,
                     'qty' => $qty,
                     'price' => $finalPrice, // Price saved includes fee if ADD_TO_PRICE
                     'discount' => $itemDiscount,
