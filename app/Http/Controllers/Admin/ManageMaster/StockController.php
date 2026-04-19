@@ -145,6 +145,56 @@ class StockController extends Controller
         return response()->json(['success' => true, 'message' => 'Batch berhasil dihapus']);
     }
 
+    public function getNetto(Request $request)
+    {
+        $variant = ProductVariant::with('netto')->findOrFail($request->variant_id);
+        return response()->json([
+            'success' => true,
+            'data' => [
+                'variant_id'   => $variant->id,
+                'variant_name' => $variant->variant_name,
+                'sku_code'     => $variant->sku_code,
+                'price'        => $variant->price,
+                'netto_id'     => $variant->netto ? $variant->netto->id : null,
+                'netto_value'  => $variant->netto ? $variant->netto->netto_value : '',
+                'satuan'       => $variant->netto ? $variant->netto->satuan : '',
+            ]
+        ]);
+    }
+
+    public function updateNetto(Request $request)
+    {
+        $validator = Validator::make($request->all(), [
+            'variant_id'   => 'required|exists:product_variants,id',
+            'variant_name' => 'required|string|max:255',
+            'price'        => 'required|numeric|min:0',
+            'netto_value'  => 'required|string|max:50',
+            'satuan'       => 'nullable|string|max:50',
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json(['success' => false, 'message' => $validator->errors()->first()], 422);
+        }
+
+        $variant = ProductVariant::with('netto')->findOrFail($request->variant_id);
+
+        // Update variant
+        $variant->update([
+            'variant_name' => $request->variant_name,
+            'price'        => $request->price,
+        ]);
+
+        // Update netto
+        if ($variant->netto) {
+            $variant->netto->update([
+                'netto_value' => $request->netto_value,
+                'satuan'      => $request->satuan,
+            ]);
+        }
+
+        return response()->json(['success' => true, 'message' => 'Netto & harga jual berhasil diperbarui']);
+    }
+
     public function getVariants(Request $request)
     {
         $variants = ProductVariant::whereHas('netto', function ($q) use ($request) {

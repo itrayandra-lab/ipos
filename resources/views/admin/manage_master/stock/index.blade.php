@@ -83,6 +83,11 @@
                             <tr><th>Lokasi Gudang</th><td>: <span id="det-info-warehouse" class="badge badge-info"></span></td></tr>
                         </table>
                     </div>
+                    <div class="col-md-6 text-right">
+                        <button class="btn btn-warning btn-sm" id="btn-edit-netto">
+                            <i class="fas fa-edit"></i> Edit Netto & Harga Jual
+                        </button>
+                    </div>
                 </div>
 
                 <ul class="nav nav-tabs" id="auditTab" role="tablist">
@@ -251,12 +256,64 @@
         </div>
     </div>
 </div>
+<!-- Modal Edit Netto & Harga Jual -->
+<div class="modal fade" id="modal-edit-netto" tabindex="-1" role="dialog">
+    <div class="modal-dialog" role="document">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Edit Netto & Harga Jual</h5>
+                <button type="button" class="close" data-dismiss="modal"><span>&times;</span></button>
+            </div>
+            <form id="form-edit-netto">
+                @csrf
+                <input type="hidden" name="variant_id" id="netto-variant-id">
+                <div class="modal-body">
+                    <div class="form-group">
+                        <label>Nama Varian <span class="text-danger">*</span></label>
+                        <input type="text" class="form-control" name="variant_name" id="netto-variant-name" required>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label>Netto Value <span class="text-danger">*</span></label>
+                                <input type="text" class="form-control" name="netto_value" id="netto-value" placeholder="Contoh: 100" required>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label>Satuan</label>
+                                <input type="text" class="form-control" name="satuan" id="netto-satuan" placeholder="Contoh: ml, gr, pcs">
+                            </div>
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label>Harga Jual <span class="text-danger">*</span></label>
+                        <div class="input-group">
+                            <div class="input-group-prepend"><span class="input-group-text">Rp</span></div>
+                            <input type="number" class="form-control" name="price" id="netto-price" required min="0">
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label>SKU Code</label>
+                        <input type="text" class="form-control" id="netto-sku" disabled>
+                        <small class="text-muted">SKU tidak dapat diubah dari sini</small>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-dismiss="modal">Batal</button>
+                    <button type="submit" class="btn btn-primary">Simpan Perubahan</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
 @endsection
 
 @push('scripts')
 <script>
     let table;
     let activeWarehouseId = '';
+    let activeVariantId = null;
 
     $(document).ready(function() {
         table = $('#table-stock').DataTable({
@@ -303,16 +360,26 @@
         // Detail Audit Button
         $(document).on('click', '.btn-detail', function() {
             let data = $(this).data();
-            $.post('{{ url("admin/manage-master/stock/detail") }}', { 
-                _token: '{{ csrf_token() }}', 
-                product_id: data.product_id, 
-                variant_id: data.variant_id, 
-                warehouse_id: data.warehouse_id 
+            // Simpan variant_id aktif untuk tombol Edit Netto
+            activeVariantId = data.variant_id || null;
+
+            $.post('{{ url("admin/manage-master/stock/detail") }}', {
+                _token: '{{ csrf_token() }}',
+                product_id: data.product_id,
+                variant_id: data.variant_id,
+                warehouse_id: data.warehouse_id
             }, function(res) {
                 if (res.success) {
                     $('#det-info-name').text(res.product.name);
                     $('#det-info-warehouse').text(res.product.warehouse);
-                    
+
+                    // Tampilkan/sembunyikan tombol edit netto
+                    if (activeVariantId) {
+                        $('#btn-edit-netto').show();
+                    } else {
+                        $('#btn-edit-netto').hide();
+                    }
+
                     // Render Batches
                     $('#table-det-batches tbody').empty();
                     res.batches.forEach(b => {
@@ -344,7 +411,9 @@
                                 </tr>
                             `);
                         });
-                    } else { $('#table-det-incoming tbody').append('<tr><td colspan="4" class="text-center text-muted">Tidak ada data incoming</td></tr>'); }
+                    } else {
+                        $('#table-det-incoming tbody').append('<tr><td colspan="4" class="text-center text-muted">Tidak ada data incoming</td></tr>');
+                    }
 
                     // Render Outgoing
                     $('#table-det-outgoing tbody').empty();
@@ -361,7 +430,9 @@
                                 </tr>
                             `);
                         });
-                    } else { $('#table-det-outgoing tbody').append('<tr><td colspan="5" class="text-center text-muted">Tidak ada data outgoing</td></tr>'); }
+                    } else {
+                        $('#table-det-outgoing tbody').append('<tr><td colspan="5" class="text-center text-muted">Tidak ada data outgoing</td></tr>');
+                    }
 
                     $('#modal-detail').modal('show');
                 }
@@ -383,7 +454,7 @@
             });
         });
 
-        // Edit inside modal
+        // Edit Batch
         $(document).on('click', '.btn-edit-batch', function() {
             let id = $(this).data('id');
             $.post('{{ url("admin/manage-master/stock/get") }}', { _token: '{{ csrf_token() }}', id: id }, function(res) {
@@ -406,13 +477,12 @@
                 success: function(res) {
                     $('#modal-edit').modal('hide');
                     iziToast.success({ title: 'Berhasil', message: res.message });
-                    // Re-trigger detail refresh or just reload table
                     table.ajax.reload();
                 }
             });
         });
 
-        // Delete inside modal
+        // Delete Batch
         $(document).on('click', '.btn-delete-batch', function() {
             let id = $(this).data('id');
             swal({ title: 'Hapus Batch?', text: 'Data tidak bisa dikembalikan', icon: 'warning', buttons: true, dangerMode: true })
@@ -428,6 +498,46 @@
                             iziToast.success({ title: 'Berhasil', message: res.message });
                         }
                     });
+                }
+            });
+        });
+
+        // Edit Netto & Harga Jual
+        $('#btn-edit-netto').on('click', function() {
+            if (!activeVariantId) {
+                iziToast.warning({ message: 'Tidak ada varian yang dipilih', position: 'topRight' });
+                return;
+            }
+            $.post('{{ url("admin/manage-master/stock/get-netto") }}', {
+                _token: '{{ csrf_token() }}',
+                variant_id: activeVariantId
+            }, function(res) {
+                if (res.success) {
+                    let d = res.data;
+                    $('#netto-variant-id').val(d.variant_id);
+                    $('#netto-variant-name').val(d.variant_name);
+                    $('#netto-value').val(d.netto_value);
+                    $('#netto-satuan').val(d.satuan);
+                    $('#netto-price').val(d.price);
+                    $('#netto-sku').val(d.sku_code);
+                    $('#modal-edit-netto').modal('show');
+                }
+            });
+        });
+
+        $('#form-edit-netto').on('submit', function(e) {
+            e.preventDefault();
+            $.ajax({
+                url: '{{ url("admin/manage-master/stock/update-netto") }}',
+                method: 'POST',
+                data: $(this).serialize(),
+                success: function(res) {
+                    $('#modal-edit-netto').modal('hide');
+                    table.ajax.reload();
+                    iziToast.success({ title: 'Berhasil', message: res.message });
+                },
+                error: function(err) {
+                    iziToast.error({ title: 'Error', message: err.responseJSON?.message || 'Gagal menyimpan' });
                 }
             });
         });

@@ -145,6 +145,8 @@ Route::prefix('admin')->middleware(['auth', 'role:admin'])->group(function () {
                     Route::delete('/', [\App\Http\Controllers\Admin\ManageMaster\StockController::class , 'delete']);
                     Route::get('/variants/{product_id}', [\App\Http\Controllers\Admin\ManageMaster\StockController::class , 'getVariants']);
                     Route::post('/detail', [\App\Http\Controllers\Admin\ManageMaster\StockController::class , 'getDetail']);
+                    Route::post('/get-netto', [\App\Http\Controllers\Admin\ManageMaster\StockController::class , 'getNetto']);
+                    Route::post('/update-netto', [\App\Http\Controllers\Admin\ManageMaster\StockController::class , 'updateNetto']);
                 }
                 );
 
