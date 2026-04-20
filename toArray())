@@ -15,7 +15,7 @@
     1106▕     /**
 
   1   D:\Iman Cangga\Herd\pos-beautylatory\vendor\psy\psysh\src\Shell.php:1640
-      Psy\Shell::setCode("print_r(App\Models\ProductTier::all()-")
+      Psy\Shell::setCode("print_r(App\Models\ProductVariant::find(31)?-")
 
   2   D:\Iman Cangga\Herd\pos-beautylatory\vendor\laravel\tinker\src\Console\TinkerCommand.php:77
-      Psy\Shell::execute("print_r(App\Models\ProductTier::all()-")
+      Psy\Shell::execute("print_r(App\Models\ProductVariant::find(31)?-")

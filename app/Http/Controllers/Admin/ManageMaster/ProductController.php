@@ -134,85 +134,117 @@ class ProductController extends Controller
             return response()->json(['status' => 'error', 'message' => $validator->errors()->first()], 422);
         }
 
-        // SKU uniqueness is handled automatically during save (suffix added if needed)
-        $merek = \App\Models\Merek::find($request->merek_id);
-        $category = \App\Models\Category::find($request->category_id);
-        $merekCode = $merek?->code ?? 'UNK';
-        $categoryCode = $category?->code ?? 'UNK';
-        $productCode = $request->code ?? 'UNK';
+        \Illuminate\Support\Facades\DB::beginTransaction();
+        try {
+            // Check for product exists (optional based on requirements, here we follow existing logic)
+            
+            $merek = \App\Models\Merek::find($request->merek_id);
+            $category = \App\Models\Category::find($request->category_id);
+            $merekCode = $merek?->code ?? 'UNK';
+            $categoryCode = $category?->code ?? 'UNK';
+            $productCodeInput = strtoupper(trim($request->code ?? 'UNK'));
+            // Remove any spaces from product code for SKU consistency
+            $productCode = preg_replace('/\s+/', '', $productCodeInput);
 
-        $slug = Str::slug($request->name);
-        $originalSlug = $slug;
-        $counter = 1;
-        while (Product::where('slug', $slug)->exists()) {
-            $slug = $originalSlug . '-' . $counter++;
-        }
-
-        $product = Product::create([
-            'name' => $request->name,
-            'code' => $request->code,
-            'slug' => $slug,
-            'merek_id' => $request->merek_id,
-            'category_id' => $request->category_id,
-            'sub_category_id' => $request->sub_category_id,
-            'product_type_id' => $request->product_type_id,
-            'product_tier_id' => $request->product_tier_id,
-            'stock' => 0,
-            'min_stock_alert' => $request->min_stock_alert,
-            'status' => $request->status,
-        ]);
-
-        // Save Variants
-        foreach ($request->variants as $v) {
-            $netto = \App\Models\ProductNetto::firstOrCreate([
-                'product_id' => $product->id,
-                'netto_value' => $v['netto']
-            ], [
-                'satuan' => $v['satuan'] ?? null
-            ]);
-
-            // Update satuan if it already exists
-            if (isset($v['satuan'])) {
-                $netto->update(['satuan' => $v['satuan']]);
-            }
-
-            // Auto-generate variant_name from Product Name + Netto + Satuan
-            $variantName = $product->name . ' ' . $v['netto'] . ($v['satuan'] ?? '');
-
-            // Auto-generate SKU
-            $nettoPart = preg_replace('/[^0-9]/', '', $v['netto']);
-            $generatedSku = strtoupper("{$merekCode}-{$categoryCode}-{$productCode}-{$nettoPart}");
-            // Ensure SKU is unique by adding suffix if needed
-            $finalSku = $generatedSku;
+            $slug = Str::slug($request->name);
+            $originalSlug = $slug;
             $counter = 1;
-            while (\App\Models\ProductVariant::where('sku_code', $finalSku)->exists()) {
-                $finalSku = $generatedSku . '-' . $counter++;
+            while (Product::where('slug', $slug)->exists()) {
+                $slug = $originalSlug . '-' . $counter++;
             }
 
-            \App\Models\ProductVariant::create([
-                'product_netto_id' => $netto->id,
-                'sku_code'         => $finalSku,
-                'variant_name'     => $variantName,
-                'price'            => $v['price'] ?? 0,
-                'price_real'       => (!empty($v['price_real']) && $v['price_real'] > 0) ? $v['price_real'] : 0,
-                'price_tier'       => (!empty($v['price_tier']) && $v['price_tier'] > 0) ? $v['price_tier'] : 0,
+            $product = Product::create([
+                'name' => $request->name,
+                'code' => $productCodeInput,
+                'slug' => $slug,
+                'merek_id' => $request->merek_id,
+                'category_id' => $request->category_id,
+                'sub_category_id' => $request->sub_category_id,
+                'product_type_id' => $request->product_type_id,
+                'product_tier_id' => $request->product_tier_id,
+                'stock' => 0,
+                'min_stock_alert' => $request->min_stock_alert,
+                'status' => $request->status,
             ]);
-        }
 
-        if ($request->hasFile('foto')) {
-            foreach ($request->file('foto') as $file) {
-                $filename = time() . '_' . Str::random(10) . '.' . $file->getClientOriginalExtension();
-                $path = 'assets/product/' . $filename;
-                $file->move(public_path('assets/product'), $filename);
-                PhotoProduct::create([
-                    'foto' => $path,
-                    'id_product' => $product->id,
+            // Save Variants
+            foreach ($request->variants as $v) {
+                $netto = \App\Models\ProductNetto::firstOrCreate([
+                    'product_id' => $product->id,
+                    'netto_value' => $v['netto']
+                ], [
+                    'satuan' => $v['satuan'] ?? null
+                ]);
+
+                // Update satuan if it already exists
+                if (isset($v['satuan'])) {
+                    $netto->update(['satuan' => $v['satuan']]);
+                }
+
+                // Auto-generate variant_name from Product Name + Netto + Satuan
+                $variantName = $product->name . ' ' . $v['netto'] . ($v['satuan'] ?? '');
+
+                // Auto-generate SKU
+                $nettoPart = preg_replace('/[^0-9]/', '', $v['netto']);
+                $generatedSku = strtoupper("{$merekCode}-{$categoryCode}-{$productCode}-{$nettoPart}");
+                
+                // Ensure SKU is unique by adding suffix if needed (Case-Insensitive Check)
+                $finalSku = $generatedSku;
+                $counter = 1;
+                while (\App\Models\ProductVariant::whereRaw('LOWER(sku_code) = ?', [strtolower($finalSku)])->exists()) {
+                    $finalSku = $generatedSku . '-' . $counter++;
+                }
+
+                \App\Models\ProductVariant::create([
+                    'product_netto_id' => $netto->id,
+                    'sku_code'         => $finalSku,
+                    'variant_name'     => $variantName,
+                    'price'            => $v['price'] ?? 0,
+                    'price_real'       => (!empty($v['price_real']) && $v['price_real'] > 0) ? $v['price_real'] : 0,
+                    'price_tier'       => (!empty($v['price_tier']) && $v['price_tier'] > 0) ? $v['price_tier'] : 0,
+                    'stock'            => 0,
                 ]);
             }
-        }
 
-        return response()->json(['status' => 'success', 'message' => 'Data produk berhasil disimpan']);
+            if ($request->hasFile('foto')) {
+                foreach ($request->file('foto') as $file) {
+                    $filename = time() . '_' . Str::random(10) . '.' . $file->getClientOriginalExtension();
+                    $path = 'assets/product/' . $filename;
+                    $file->move(public_path('assets/product'), $filename);
+                    PhotoProduct::create([
+                        'foto' => $path,
+                        'id_product' => $product->id,
+                    ]);
+                }
+            }
+
+            \Illuminate\Support\Facades\DB::commit();
+            return response()->json(['status' => 'success', 'message' => 'Data produk berhasil disimpan']);
+
+        } catch (\Illuminate\Database\QueryException $e) {
+            \Illuminate\Support\Facades\DB::rollBack();
+            
+            // Specifically handle duplicate entry for SKU_CODE if the loop somehow failed
+            if ($e->errorInfo[1] == 1062) {
+                return response()->json([
+                    'status' => 'error',
+                    'message' => 'Terjadi konflik data (Duplicate SKU). Mohon periksa kembali kode produk atau netto yang dimasukkan.'
+                ], 422);
+            }
+
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Gagal menyimpan data karena kesalahan database: ' . $e->getMessage()
+            ], 500);
+        } catch (\Exception $e) {
+            \Illuminate\Support\Facades\DB::rollBack();
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Terjadi kesalahan sistem: ' . $e->getMessage()
+            ], 500);
+        }
     }
+
 
     public function get(Request $request)
     {
@@ -239,56 +271,58 @@ class ProductController extends Controller
             return response()->json(['status' => 'error', 'message' => $validator->errors()->first()], 422);
         }
 
-        $slug = Str::slug($request->name);
-        $count = Product::where('slug', $slug)->where('id', '!=', $id)->count();
-        if ($count > 0) {
-            $slug .= '-' . ($count + 1);
-        }
-
-        $product->update([
-            'name' => $request->name,
-            'code' => $request->code,
-            'slug' => $slug,
-            'merek_id' => $request->merek_id,
-            'category_id' => $request->category_id,
-            'sub_category_id' => $request->sub_category_id,
-            'product_type_id' => $request->product_type_id,
-            'product_tier_id' => $request->product_tier_id,
-            'min_stock_alert' => $request->min_stock_alert,
-            'status' => $request->status,
-        ]);
-
-        // Validate SKU uniqueness (excluding current product's existing SKUs)
-        $merek = \App\Models\Merek::find($request->merek_id);
-        $category = \App\Models\Category::find($request->category_id);
-        $merekCode = $merek?->code ?? 'UNK';
-        $categoryCode = $category?->code ?? 'UNK';
-        $productCode = $request->code ?? 'UNK';
-        // SKU conflicts handled automatically with suffix during save
-
-        // Simple sync for variants: delete all and recreate or update
-        $existingVariantIds = [];
-        foreach ($request->variants as $v) {
-            $netto = \App\Models\ProductNetto::firstOrCreate([
-                'product_id' => $product->id,
-                'netto_value' => $v['netto']
-            ], [
-                'satuan' => $v['satuan'] ?? null
-            ]);
-
-            // Update satuan if it already exists
-            if (isset($v['satuan'])) {
-                $netto->update(['satuan' => $v['satuan']]);
+        \Illuminate\Support\Facades\DB::beginTransaction();
+        try {
+            $slug = Str::slug($request->name);
+            $count = Product::where('slug', $slug)->where('id', '!=', $id)->count();
+            if ($count > 0) {
+                $slug .= '-' . ($count + 1);
             }
 
-            // Auto-generate variant_name from Product Name + Netto + Satuan
-            $variantName = $product->name . ' ' . $v['netto'] . ($v['satuan'] ?? '');
+            $productCodeInput = strtoupper(trim($request->code ?? 'UNK'));
+            $productCode = preg_replace('/\s+/', '', $productCodeInput);
 
-            // Auto-generate SKU
-            $nettoPart = preg_replace('/[^0-9]/', '', $v['netto']);
-            $generatedSku = strtoupper("{$merekCode}-{$categoryCode}-{$productCode}-{$nettoPart}");
+            $product->update([
+                'name' => $request->name,
+                'code' => $productCodeInput,
+                'slug' => $slug,
+                'merek_id' => $request->merek_id,
+                'category_id' => $request->category_id,
+                'sub_category_id' => $request->sub_category_id,
+                'product_type_id' => $request->product_type_id,
+                'product_tier_id' => $request->product_tier_id,
+                'min_stock_alert' => $request->min_stock_alert,
+                'status' => $request->status,
+            ]);
 
-            try {
+            // Validate SKU uniqueness (excluding current product's existing SKUs)
+            $merek = \App\Models\Merek::find($request->merek_id);
+            $category = \App\Models\Category::find($request->category_id);
+            $merekCode = $merek?->code ?? 'UNK';
+            $categoryCode = $category?->code ?? 'UNK';
+            
+            // Simple sync for variants: delete all and recreate or update
+            $existingVariantIds = [];
+            foreach ($request->variants as $v) {
+                $netto = \App\Models\ProductNetto::firstOrCreate([
+                    'product_id' => $product->id,
+                    'netto_value' => $v['netto']
+                ], [
+                    'satuan' => $v['satuan'] ?? null
+                ]);
+
+                // Update satuan if it already exists
+                if (isset($v['satuan'])) {
+                    $netto->update(['satuan' => $v['satuan']]);
+                }
+
+                // Auto-generate variant_name from Product Name + Netto + Satuan
+                $variantName = $product->name . ' ' . $v['netto'] . ($v['satuan'] ?? '');
+
+                // Auto-generate SKU
+                $nettoPart = preg_replace('/[^0-9]/', '', $v['netto']);
+                $generatedSku = strtoupper("{$merekCode}-{$categoryCode}-{$productCode}-{$nettoPart}");
+
                 // Check if variant already exists for this netto
                 $existingVariant = \App\Models\ProductVariant::where('product_netto_id', $netto->id)->first();
 
@@ -302,10 +336,10 @@ class ProductController extends Controller
                     ]);
                     $variant = $existingVariant;
                 } else {
-                    // Create new variant — ensure SKU is unique by adding suffix if needed
+                    // Create new variant — ensure SKU is unique by adding suffix if needed (Case-Insensitive Check)
                     $finalSku = $generatedSku;
                     $counter = 1;
-                    while (\App\Models\ProductVariant::where('sku_code', $finalSku)->exists()) {
+                    while (\App\Models\ProductVariant::whereRaw('LOWER(sku_code) = ?', [strtolower($finalSku)])->exists()) {
                         $finalSku = $generatedSku . '-' . $counter++;
                     }
                     $variant = \App\Models\ProductVariant::create([
@@ -315,52 +349,69 @@ class ProductController extends Controller
                         'price'            => $v['price'] ?? 0,
                         'price_real'       => (!empty($v['price_real']) && $v['price_real'] > 0) ? $v['price_real'] : 0,
                         'price_tier'       => (!empty($v['price_tier']) && $v['price_tier'] > 0) ? $v['price_tier'] : 0,
+                        'stock'            => 0,
                     ]);
                 }
                 $existingVariantIds[] = $variant->id;
             }
-            catch (\Illuminate\Database\QueryException $e) {
-                return response()->json([
-                    'status' => 'error',
-                    'message' => 'Terjadi kesalahan saat memperbarui varian produk: ' . $e->getMessage()
-                ], 500);
-            }
-        }
-        // Sync variants: delete those not in the request
-        \App\Models\ProductVariant::whereIn('product_netto_id', function ($query) use ($product) {
-            $query->select('id')->from('product_nettos')->where('product_id', $product->id);
-        })->whereNotIn('id', $existingVariantIds)->delete();
 
-        // Cleanup empty product_nettos
-        \App\Models\ProductNetto::where('product_id', $product->id)->doesntHave('variants')->delete();
+            // Sync variants: delete those not in the request
+            \App\Models\ProductVariant::whereIn('product_netto_id', function ($query) use ($product) {
+                $query->select('id')->from('product_nettos')->where('product_id', $product->id);
+            })->whereNotIn('id', $existingVariantIds)->delete();
 
-        if ($request->has('deleted_photos') && !empty($request->deleted_photos)) {
-            $deletedPhotoIds = explode(',', $request->deleted_photos);
-            foreach ($deletedPhotoIds as $photoId) {
-                $photo = PhotoProduct::find($photoId);
-                if ($photo && $photo->id_product == $id) {
-                    if (file_exists(public_path($photo->foto))) {
-                        unlink(public_path($photo->foto));
+            // Cleanup empty product_nettos
+            \App\Models\ProductNetto::where('product_id', $product->id)->doesntHave('variants')->delete();
+
+            if ($request->has('deleted_photos') && !empty($request->deleted_photos)) {
+                $deletedPhotoIds = explode(',', $request->deleted_photos);
+                foreach ($deletedPhotoIds as $photoId) {
+                    $photo = PhotoProduct::find($photoId);
+                    if ($photo && $photo->id_product == $id) {
+                        if (file_exists(public_path($photo->foto))) {
+                            unlink(public_path($photo->foto));
+                        }
+                        $photo->delete();
                     }
-                    $photo->delete();
                 }
             }
-        }
 
-        if ($request->hasFile('foto')) {
-            foreach ($request->file('foto') as $file) {
-                $filename = time() . '_' . Str::random(10) . '.' . $file->getClientOriginalExtension();
-                $path = 'assets/product/' . $filename;
-                $file->move(public_path('assets/product'), $filename);
-                PhotoProduct::create([
-                    'foto' => $path,
-                    'id_product' => $id,
-                ]);
+            if ($request->hasFile('foto')) {
+                foreach ($request->file('foto') as $file) {
+                    $filename = time() . '_' . Str::random(10) . '.' . $file->getClientOriginalExtension();
+                    $path = 'assets/product/' . $filename;
+                    $file->move(public_path('assets/product'), $filename);
+                    PhotoProduct::create([
+                        'foto' => $path,
+                        'id_product' => $id,
+                    ]);
+                }
             }
-        }
 
-        return response()->json(['status' => 'success', 'message' => 'Product updated successfully']);
+            \Illuminate\Support\Facades\DB::commit();
+            return response()->json(['status' => 'success', 'message' => 'Product updated successfully']);
+
+        } catch (\Illuminate\Database\QueryException $e) {
+            \Illuminate\Support\Facades\DB::rollBack();
+            if ($e->errorInfo[1] == 1062) {
+                return response()->json([
+                    'status' => 'error',
+                    'message' => 'Terjadi konflik data (Duplicate SKU). Mohon periksa kembali kode produk atau netto yang dimasukkan.'
+                ], 422);
+            }
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Terjadi kesalahan saat memperbarui varian produk: ' . $e->getMessage()
+            ], 500);
+        } catch (\Exception $e) {
+            \Illuminate\Support\Facades\DB::rollBack();
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Terjadi kesalahan sistem: ' . $e->getMessage()
+            ], 500);
+        }
     }
+
 
     public function delete(Request $request)
     {
