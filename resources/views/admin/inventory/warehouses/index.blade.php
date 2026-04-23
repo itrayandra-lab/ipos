@@ -60,7 +60,7 @@
                         <label>Tipe <span class="text-danger">*</span></label>
                         <select name="type" id="warehouse-type" class="form-control" required>
                             <option value="main">Gudang Utama</option>
-                            <option value="store">Store / Cabang</option>
+                            <option value="branch">Store / Cabang</option>
                         </select>
                     </div>
                     <div class="form-group">
@@ -104,24 +104,38 @@
             e.preventDefault();
             let id = $('#warehouse-id').val();
             let url = id ? "{{ route('admin.settings.warehouses.update') }}" : "{{ route('admin.settings.warehouses.store') }}";
+            let btn = $(this).find('button[type="submit"]');
+            
+            btn.addClass('btn-progress').attr('disabled', true);
             
             $.ajax({
                 url: url,
                 method: "POST",
                 data: $(this).serialize(),
                 success: function(res) {
+                    btn.removeClass('btn-progress').attr('disabled', false);
                     if (res.status === 'success') {
                         $('#modal-warehouse').modal('hide');
                         table.ajax.reload();
                         swal('Berhasil', res.message, 'success');
+                    } else {
+                        swal('Gagal', res.message, 'error');
                     }
+                },
+                error: function(err) {
+                    btn.removeClass('btn-progress').attr('disabled', false);
+                    swal('Error', err.responseJSON ? err.responseJSON.message : 'Terjadi kesalahan pada server', 'error');
                 }
             });
         });
 
         $(document).on('click', '.btn-edit', function() {
             let id = $(this).data('id');
+            let btn = $(this);
+            btn.addClass('btn-progress').attr('disabled', true);
+
             $.post("{{ route('admin.settings.warehouses.get') }}", { _token: "{{ csrf_token() }}", id: id }, function(res) {
+                btn.removeClass('btn-progress').attr('disabled', false);
                 if (res.status === 'success') {
                     $('#warehouse-id').val(res.data.id);
                     $('#warehouse-name').val(res.data.name);
@@ -130,6 +144,9 @@
                     $('#warehouse-status').val(res.data.status);
                     $('#modal-warehouse').modal('show');
                 }
+            }).fail(function() {
+                btn.removeClass('btn-progress').attr('disabled', false);
+                swal('Error', 'Gagal mengambil data gudang', 'error');
             });
         });
 

@@ -178,7 +178,7 @@
                                                         @endif
                                                     </td>
                                                     <td>{{ $item->componentProduct->merek->name ?? '-' }}</td>
-                                                    <td class="text-center font-weight-bold">{{ $item->qty }}</td>
+                                                    <td class="text-center font-weight-bold">{{ $item->quantity }}</td>
                                                 </tr>
                                             @endforeach
                                         </tbody>

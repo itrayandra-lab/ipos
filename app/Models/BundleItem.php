@@ -26,8 +26,16 @@ class BundleItem extends Model
     /**
      * Get the product component.
      */
-    public function product()
+    public function componentProduct()
     {
         return $this->belongsTo(Product::class, 'product_id');
+    }
+
+    /**
+     * Alias for componentProduct for backward compatibility.
+     */
+    public function product()
+    {
+        return $this->componentProduct();
     }
 }

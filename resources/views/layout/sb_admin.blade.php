@@ -98,7 +98,7 @@
                 </ul>
             </li>
 
-            <li class="nav-item dropdown {{ ($sb == 'Settings' || $sb == 'Attribute Groups' || $sb == 'Attributes' || $sb == 'Categories' || $sb == 'Sub Categories' || $sb == 'ProductTypes' || $sb == 'ProductTier') ? 'active' : '' }}">
+            <li class="nav-item dropdown {{ ($sb == 'Settings' || $sb == 'Attribute Groups' || $sb == 'Attributes' || $sb == 'Categories' || $sb == 'Sub Categories' || $sb == 'ProductTypes' || $sb == 'ProductTier' || $sb == 'Warehouse') ? 'active' : '' }}">
                 <a href="#" class="nav-link has-dropdown"><i class="fas fa-cogs"></i><span>Pengaturan</span></a>
                 <ul class="dropdown-menu">
                     <li class="{{ $sb == 'Categories' ? 'active' : '' }}"><a class="nav-link" href="{{ url('admin/manage-master/categories') }}">Kategori Utama</a></li>
