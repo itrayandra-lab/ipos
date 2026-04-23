@@ -54,6 +54,12 @@
                                                 <th width="40%">ID Transaksi</th>
                                                 <td><span class="badge badge-light">#{{ $transaction->id }}</span></td>
                                             </tr>
+                                            @if($transaction->invoice_number)
+                                            <tr>
+                                                <th>Nomor Invoice</th>
+                                                <td><span class="badge badge-primary">{{ $transaction->invoice_number }}</span></td>
+                                            </tr>
+                                            @endif
                                             <tr>
                                                 <th>Tanggal</th>
                                                 <td>{{ $transaction->created_at->format('d/m/Y H:i') }}</td>
@@ -130,10 +136,28 @@
                                                 <th>Potongan Diskon</th>
                                                 <td class="text-danger">- Rp {{ number_format($transaction->discount ?? 0, 0, ',', '.') }}</td>
                                             </tr>
-                                            <tr>
-                                                <th>Total Akhir</th>
-                                                <td class="font-weight-bold h5 text-primary">Rp {{ number_format($transaction->total_amount, 0, ',', '.') }}</td>
+                                            <tr class="bg-light">
+                                                <th>Total Tagihan</th>
+                                                <td class="font-weight-bold text-primary">Rp {{ number_format($transaction->total_amount, 0, ',', '.') }}</td>
                                             </tr>
+                                            <tr>
+                                                <th>Total Terbayar</th>
+                                                <td class="text-success font-weight-bold">Rp {{ number_format($transaction->payments->sum('amount'), 0, ',', '.') }}</td>
+                                            </tr>
+                                            @php
+                                                $remaining = $transaction->total_amount - $transaction->payments->sum('amount');
+                                            @endphp
+                                            @if($remaining > 0)
+                                            <tr class="bg-light">
+                                                <th>Sisa Tagihan</th>
+                                                <td class="text-danger font-weight-bold h6">Rp {{ number_format($remaining, 0, ',', '.') }}</td>
+                                            </tr>
+                                            @else
+                                            <tr class="bg-light">
+                                                <th>Sisa Tagihan</th>
+                                                <td class="text-muted">LUNAS</td>
+                                            </tr>
+                                            @endif
                                         </table>
                                     </div>
                                 </div>
@@ -166,6 +190,48 @@
                             </div>
                         </div>
 
+                        <div class="row mt-4">
+                            <div class="col-12">
+                                <div class="card card-info border shadow-sm">
+                                    <div class="card-header">
+                                        <h4><i class="fas fa-history"></i> Riwayat Pembayaran</h4>
+                                    </div>
+                                    <div class="card-body p-0">
+                                        <div class="table-responsive">
+                                            <table class="table table-sm table-striped mb-0">
+                                                <thead>
+                                                    <tr>
+                                                        <th>Tgl Bayar</th>
+                                                        <th>Metode</th>
+                                                        <th>Bank/Provider</th>
+                                                        <th class="text-right">Nominal Diinput</th>
+                                                        <th class="text-right">Jumlah Bayar (Real)</th>
+                                                        <th>Status</th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody>
+                                                    @forelse($transaction->payments as $payment)
+                                                        <tr>
+                                                            <td>{{ $payment->payment_date ? \Carbon\Carbon::parse($payment->payment_date)->format('d/m/Y') : $transaction->created_at->format('d/m/Y') }}</td>
+                                                            <td><span class="badge badge-light text-uppercase">{{ $payment->payment_method }}</span></td>
+                                                            <td>{{ $payment->bank_name ?? '-' }}</td>
+                                                            <td class="text-right">Rp {{ number_format($payment->cash_received ?? $payment->amount, 0, ',', '.') }}</td>
+                                                            <td class="text-right font-weight-bold">Rp {{ number_format($payment->amount, 0, ',', '.') }}</td>
+                                                            <td><span class="badge badge-success">Sukses</span></td>
+                                                        </tr>
+                                                    @empty
+                                                        <tr>
+                                                            <td colspan="6" class="text-center py-3">Belum ada rincian riwayat pembayaran.</td>
+                                                        </tr>
+                                                    @endforelse
+                                                </tbody>
+                                            </table>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
                         <div class="section-title mt-5">📦 Item Transaksi</div>
                         <div class="table-responsive">
                             <table class="table table-striped table-hover mt-2">
@@ -174,20 +240,26 @@
                                     <th>#</th>
                                     <th>Produk</th>
                                     <th>Batch</th>
-                                    <th>Jumlah</th>
-                                    <th>Harga Satuan</th>
-                                    <th>Subtotal</th>
+                                    <th class="text-center">Jumlah</th>
+                                    <th class="text-right">Harga Satuan</th>
+                                    <th class="text-right">Subtotal</th>
                                 </tr>
                             </thead>
                             <tbody>
-                                    @foreach ($transaction->items as $index => $item)
+                                    @php $no = 1; @endphp
+                                    @foreach ($transaction->items->where('parent_item_id', null) as $item)
                                         <tr>
-                                            <td>{{ $index + 1 }}</td>
-                                            <td class="font-weight-bold">{{ $item->product->name }}</td>
+                                            <td>{{ $no++ }}</td>
+                                            <td>
+                                                <div class="font-weight-bold">{{ $item->product->name }}</div>
+                                                @if($item->product->merek)
+                                                    <small class="text-muted">{{ $item->product->merek->name }}</small>
+                                                @endif
+                                            </td>
                                             <td><span class="badge badge-light">{{ $item->batch ? $item->batch->batch_no : '-' }}</span></td>
-                                            <td>{{ $item->qty }}</td>
-                                            <td>Rp {{ number_format($item->price, 0, ',', '.') }}</td>
-                                            <td class="text-right">Rp {{ number_format($item->subtotal, 0, ',', '.') }}</td>
+                                            <td class="text-center">{{ $item->qty }}</td>
+                                            <td class="text-right">Rp {{ number_format($item->price, 0, ',', '.') }}</td>
+                                            <td class="text-right font-weight-bold">Rp {{ number_format($item->subtotal, 0, ',', '.') }}</td>
                                         </tr>
                                     @endforeach
                                 </tbody>

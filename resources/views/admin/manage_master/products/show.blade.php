@@ -156,6 +156,37 @@
                                 </div>
                             </div>
 
+                            @if($product->is_bundle)
+                            <div class="mt-4">
+                                <h5 class="section-title-premium">Isi Paket Bundling</h5>
+                                <div class="table-responsive">
+                                    <table class="table table-striped table-sm">
+                                        <thead class="bg-light">
+                                            <tr>
+                                                <th>Produk Komponen</th>
+                                                <th>Merk</th>
+                                                <th class="text-center">Jumlah</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            @foreach($product->bundleItems as $item)
+                                                <tr>
+                                                    <td>
+                                                        <div class="font-weight-bold">{{ $item->componentProduct->name ?? 'Produk dihapus' }}</div>
+                                                        @if($item->variant)
+                                                            <small class="text-muted">{{ $item->variant->variant_name }}</small>
+                                                        @endif
+                                                    </td>
+                                                    <td>{{ $item->componentProduct->merek->name ?? '-' }}</td>
+                                                    <td class="text-center font-weight-bold">{{ $item->qty }}</td>
+                                                </tr>
+                                            @endforeach
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                            @endif
+
                             <div class="mt-4">
                                 <h5 class="section-title-premium">Batch Log & Stok Real-time</h5>
                                 <div class="table-responsive">

@@ -41,14 +41,17 @@ class InvoiceService
         $yy = $date->format('y');
         $prefix = "INV/BL/{$roman}/{$yy}/";
 
-        // Get the last sequence number for this prefix efficiently
-        $last = DB::table('transactions')
+        // Thread-safe: lock the rows for this month to prevent duplicate sequence numbers
+        // Using orderBy on a unique index is much faster than max()
+        $lastRecord = DB::table('transactions')
             ->where('invoice_number', 'like', $prefix . '%')
-            ->latest('id')
-            ->value('invoice_number');
+            ->whereNotNull('invoice_number')
+            ->orderBy('invoice_number', 'desc')
+            ->lockForUpdate()
+            ->first(['invoice_number']);
 
-        if ($last) {
-            $parts = explode('/', $last);
+        if ($lastRecord && $lastRecord->invoice_number) {
+            $parts = explode('/', $lastRecord->invoice_number);
             $lastSeq = (int)end($parts);
             $nextSeq = $lastSeq + 1;
         }

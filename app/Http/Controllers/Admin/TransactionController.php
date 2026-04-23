@@ -125,7 +125,7 @@ class TransactionController extends Controller
 
     public function show($id)
     {
-        $transaction = Transaction::with(['user', 'items.product', 'items.batch'])->findOrFail($id);
+        $transaction = Transaction::with(['user', 'customer', 'items.product.merek', 'items.batch.variant', 'payments'])->findOrFail($id);
         return view('admin.transaction.show', compact('transaction'))->with('sb', 'Transaction');
     }
 

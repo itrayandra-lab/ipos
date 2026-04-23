@@ -519,7 +519,7 @@ class ProductController extends Controller
 
     public function show($id)
     {
-        $product = Product::with(['merek', 'category', 'subCategory', 'productType', 'variants.netto', 'photos', 'batches'])->findOrFail($id);
+        $product = Product::with(['merek', 'category', 'subCategory', 'productType', 'variants.netto', 'photos', 'batches', 'bundleItems.componentProduct.merek'])->findOrFail($id);
         
         return view('admin.manage_master.products.show', compact('product'))->with([
             'sb' => 'Product'
