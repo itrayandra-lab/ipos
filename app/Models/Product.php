@@ -26,8 +26,14 @@ class Product extends Model
         'min_stock_alert',
         'neto',
         'pieces',
-        'product_tier_id'
+        'product_tier_id',
+        'is_bundle'
     ];
+
+    public function bundleItems()
+    {
+        return $this->hasMany(BundleItem::class, 'bundle_id');
+    }
 
     public function category()
     {

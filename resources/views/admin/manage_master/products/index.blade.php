@@ -201,11 +201,44 @@
                                     </select>
                                 </div>
                             </div>
-                            <div class="col-md-6">
+                            <div class="col-md-3">
                                 <div class="form-group">
                                     <label>Min. Stock Alert</label>
                                     <input type="number" placeholder="Batas stok minimum untuk alert" class="form-control" name="min_stock_alert" required min="0" value="0">
                                 </div>
+                            </div>
+                            <div class="col-md-3">
+                                <div class="form-group">
+                                    <label>Produk Bundling?</label>
+                                    <div class="custom-control custom-checkbox mt-2">
+                                        <input type="checkbox" class="custom-control-input" name="is_bundle" id="is_bundle_add" value="1">
+                                        <label class="custom-control-label" for="is_bundle_add">Ya, Bundling</label>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Bundling Items Section -->
+                        <div id="bundle-items-section-add" class="card card-primary d-none">
+                            <div class="card-header">
+                                <h4>Daftar Komponen Bundling</h4>
+                                <div class="card-header-action">
+                                    <button type="button" class="btn btn-success btn-sm" id="btn-add-bundle-item"><i class="fas fa-plus"></i> Tambah Komponen</button>
+                                </div>
+                            </div>
+                            <div class="card-body p-0">
+                                <table class="table table-sm" id="table-bundle-items-add">
+                                    <thead>
+                                        <tr>
+                                            <th>Produk Satuan</th>
+                                            <th width="120px">Jumlah</th>
+                                            <th width="50px"></th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <!-- Dynamic items -->
+                                    </tbody>
+                                </table>
                             </div>
                         </div>
 
@@ -365,11 +398,44 @@
                                     </select>
                                 </div>
                             </div>
-                            <div class="col-md-6">
+                            <div class="col-md-3">
                                 <div class="form-group">
                                     <label>Min. Stock Alert</label>
                                     <input type="number" placeholder="Batas stok minimum untuk alert" class="form-control" name="min_stock_alert" id="min_stock_alert" required min="0">
                                 </div>
+                            </div>
+                            <div class="col-md-3">
+                                <div class="form-group">
+                                    <label>Produk Bundling?</label>
+                                    <div class="custom-control custom-checkbox mt-2">
+                                        <input type="checkbox" class="custom-control-input" name="is_bundle" id="is_bundle_edit" value="1">
+                                        <label class="custom-control-label" for="is_bundle_edit">Ya, Bundling</label>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Bundling Items Section (Edit) -->
+                        <div id="bundle-items-section-edit" class="card card-primary d-none">
+                            <div class="card-header">
+                                <h4>Daftar Komponen Bundling</h4>
+                                <div class="card-header-action">
+                                    <button type="button" class="btn btn-success btn-sm" id="btn-add-bundle-item-edit"><i class="fas fa-plus"></i> Tambah Komponen</button>
+                                </div>
+                            </div>
+                            <div class="card-body p-0">
+                                <table class="table table-sm" id="table-bundle-items-edit">
+                                    <thead>
+                                        <tr>
+                                            <th>Produk Satuan</th>
+                                            <th width="120px">Jumlah</th>
+                                            <th width="50px"></th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <!-- Dynamic items -->
+                                    </tbody>
+                                </table>
                             </div>
                         </div>
 
@@ -783,6 +849,24 @@
                             }
                         });
 
+                        // Bundling Logic in Edit
+                        if (data.is_bundle) {
+                            $('#is_bundle_edit').prop('checked', true).trigger('change');
+                            $('#table-bundle-items-edit tbody').empty();
+                            if (data.bundle_items && data.bundle_items.length > 0) {
+                                data.bundle_items.forEach(item => {
+                                    addBundleRow('#table-bundle-items-edit', {
+                                        product_id: item.product_id,
+                                        product_name: (item.product && item.product.merek ? item.product.merek.name + ' ' : '') + (item.product ? item.product.name : 'Produk tidak ditemukan'),
+                                        quantity: item.quantity
+                                    });
+                                });
+                            }
+                        } else {
+                            $('#is_bundle_edit').prop('checked', false).trigger('change');
+                            $('#table-bundle-items-edit tbody').empty();
+                        }
+
                         $('#deleted_photos').val('');
                         let preview = $('#image-preview-update');
                         preview.empty();
@@ -815,13 +899,11 @@
                             </select>
                         </td>
                         <td><input type="text" name="variants[${variantIndexEdit}][sku]" class="form-control form-control-sm" required></td>
-                        <td>
-                            <input type="text" class="form-control form-control-sm rupiah-modal" placeholder="Rp 0" required>
-                            <input type="hidden" name="variants[${variantIndexEdit}][price_real]" class="raw-modal-variant">
+                        <td class="d-none">
+                             <input type="hidden" name="variants[${variantIndexEdit}][price_real]" value="0">
                         </td>
-                        <td>
-                            <input type="text" class="form-control form-control-sm rupiah-tier" placeholder="Rp 0" readonly>
-                            <input type="hidden" name="variants[${variantIndexEdit}][price_tier]" class="raw-tier-variant">
+                        <td class="d-none">
+                             <input type="hidden" name="variants[${variantIndexEdit}][price_tier]" value="0">
                         </td>
                         <td>
                             <input type="text" class="form-control form-control-sm rupiah-variant" placeholder="Rp 0" required>
@@ -906,6 +988,96 @@
                     }
                 });
             });
+
+            // --- BUNDLING JS LOGIC ---
+            
+            // Toggle Section for Add Modal
+            $('#is_bundle_add').on('change', function() {
+                if ($(this).is(':checked')) {
+                    $('#bundle-items-section-add').removeClass('d-none');
+                } else {
+                    $('#bundle-items-section-add').addClass('d-none');
+                    $('#table-bundle-items-add tbody').empty();
+                }
+            });
+
+            // Toggle Section for Edit Modal
+            $('#is_bundle_edit').on('change', function() {
+                if ($(this).is(':checked')) {
+                    $('#bundle-items-section-edit').removeClass('d-none');
+                } else {
+                    $('#bundle-items-section-edit').addClass('d-none');
+                    $('#table-bundle-items-edit tbody').empty();
+                }
+            });
+
+            let bundleItemIndex = 0;
+            function addBundleRow(tableSelector, data = null) {
+                const namePrefix = 'bundle_items';
+                const html = `
+                    <tr>
+                        <td>
+                            <select name="${namePrefix}[${bundleItemIndex}][product_id]" class="form-control select2-product-bundle" required>
+                                ${data ? `<option value="${data.product_id}" selected>${data.product_name}</option>` : '<option value="">Cari Produk...</option>'}
+                            </select>
+                        </td>
+                        <td>
+                            <input type="number" name="${namePrefix}[${bundleItemIndex}][quantity]" class="form-control" value="${data ? data.quantity : 1}" min="1" step="0.01" required>
+                        </td>
+                        <td>
+                            <button type="button" class="btn btn-danger btn-sm btn-remove-bundle-item"><i class="fas fa-trash"></i></button>
+                        </td>
+                    </tr>
+                `;
+                $(tableSelector + ' tbody').append(html);
+                
+                // Initialize Select2 for the new row
+                const newRow = $(tableSelector + ' tbody tr:last');
+                initProductSelect2(newRow.find('.select2-product-bundle'));
+                
+                bundleItemIndex++;
+            }
+
+            function initProductSelect2(element) {
+                element.select2({
+                    dropdownParent: element.closest('.modal'),
+                    ajax: {
+                        url: "{{ url('admin/manage-master/products/search') }}",
+                        dataType: 'json',
+                        delay: 250,
+                        data: function (params) {
+                            return {
+                                search: params.term
+                            };
+                        },
+                        processResults: function (data) {
+                            return {
+                                results: data.map(item => ({
+                                    id: item.id,
+                                    text: (item.merek ? item.merek.name + ' ' : '') + item.name
+                                }))
+                            };
+                        },
+                        cache: true
+                    },
+                    minimumInputLength: 0,
+                    placeholder: 'Cari Produk Satuan...'
+                });
+            }
+
+            $('#btn-add-bundle-item').on('click', function() {
+                addBundleRow('#table-bundle-items-add');
+            });
+
+            $('#btn-add-bundle-item-edit').on('click', function() {
+                addBundleRow('#table-bundle-items-edit');
+            });
+
+            $(document).on('click', '.btn-remove-bundle-item', function() {
+                $(this).closest('tr').remove();
+            });
+
+            // --- END BUNDLING JS LOGIC ---
 
             // Handle edit from query param
             const urlParams = new URLSearchParams(window.location.search);

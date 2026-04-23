@@ -9,9 +9,19 @@ class TransactionItem extends Model
 {
     use HasFactory;
 
-    protected $fillable = ['transaction_id', 'product_id', 'product_variant_id', 'product_batch_id', 'buy_price', 'qty', 'price', 'discount', 'subtotal'];
+    protected $fillable = ['transaction_id', 'parent_item_id', 'product_id', 'product_variant_id', 'product_batch_id', 'buy_price', 'qty', 'price', 'discount', 'subtotal'];
 
     public $timestamps = false;
+
+    public function parentItem()
+    {
+        return $this->belongsTo(TransactionItem::class, 'parent_item_id');
+    }
+
+    public function childItems()
+    {
+        return $this->hasMany(TransactionItem::class, 'parent_item_id');
+    }
 
     public function transaction()
     {

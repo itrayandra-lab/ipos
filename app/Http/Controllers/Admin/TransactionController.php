@@ -217,6 +217,21 @@ class TransactionController extends Controller
             ];
         }
 
+        // Add bundles to batchList
+        $bundles = Product::where('is_bundle', true)->where('status', 'Y')->with('merek', 'variants')->get();
+        foreach ($bundles as $bundle) {
+            $merekName = $bundle->merek ? trim($bundle->merek->name) : '';
+            $labelText = implode(' ', array_filter([$merekName, trim($bundle->name)]));
+            
+            $batchList[] = [
+                'id'        => 'bundle-' . $bundle->id,
+                'text'      => $labelText . ' (Bundling)',
+                'price'     => $bundle->price > 0 ? $bundle->price : ($bundle->variants->first()->price ?? 0),
+                'stock'     => 999,
+                'buy_price' => 0,
+            ];
+        }
+
         return view('admin.transaction.edit', compact('transaction', 'customers', 'batchList'))
             ->with('sb', 'Transaction');
     }
@@ -234,7 +249,7 @@ class TransactionController extends Controller
             'payment_status' => 'required|in:draft,unpaid,paid,canceled,credit',
             'notes' => 'nullable|string',
             'items' => 'required|array|min:1',
-            'items.*.product_batch_id' => 'required|exists:product_batches,id',
+            'items.*.product_batch_id' => 'required|string',
             'items.*.qty' => 'required|integer|min:1',
             'items.*.price' => 'required|numeric|min:0',
         ]);
@@ -245,19 +260,32 @@ class TransactionController extends Controller
                 $itemsToCreate = [];
                 
                 foreach ($request->items as $item) {
-                    $batch    = ProductBatch::with('product')->findOrFail($item['product_batch_id']);
-                    $product  = $batch->product;
+                    $isBundle = str_starts_with($item['product_batch_id'], 'bundle-');
                     $qty      = (int) $item['qty'];
                     $price    = (float) $item['price'];
                     $subtotal = $price * $qty;
                     $totalAmount += $subtotal;
+
+                    if ($isBundle) {
+                        $bundleId = str_replace('bundle-', '', $item['product_batch_id']);
+                        $product = Product::findOrFail($bundleId);
+                        $batchId = null;
+                        $buyPrice = 0;
+                    } else {
+                        $batch    = ProductBatch::with('product')->findOrFail($item['product_batch_id']);
+                        $product  = $batch->product;
+                        $batchId = $batch->id;
+                        $buyPrice = $batch->buy_price ?? 0;
+                    }
+
                     $itemsToCreate[] = [
                         'product_id'       => $product->id,
-                        'product_batch_id' => $batch->id,
-                        'buy_price'        => $batch->buy_price ?? 0,
+                        'product_batch_id' => $batchId,
+                        'buy_price'        => $buyPrice,
                         'qty'              => $qty,
                         'price'            => $price,
                         'subtotal'         => $subtotal,
+                        'is_bundle_main'   => $isBundle
                     ];
                 }
                 
@@ -287,9 +315,17 @@ class TransactionController extends Controller
                 TransactionItem::where('transaction_id', $id)->delete();
                 
                 // Buat items baru
+                $stockService = new \App\Services\StockService();
                 foreach ($itemsToCreate as $itemData) {
+                    $isBundleMain = $itemData['is_bundle_main'] ?? false;
+                    unset($itemData['is_bundle_main']);
+
                     $itemData['transaction_id'] = $transaction->id;
-                    TransactionItem::create($itemData);
+                    $mainItem = TransactionItem::create($itemData);
+
+                    if (in_array($request->payment_status, ['paid', 'credit']) && $isBundleMain) {
+                        $stockService->explodeBundleComponents($itemData['product_id'], $itemData['qty'], $transaction->id, $mainItem->id);
+                    }
                 }
             });
             

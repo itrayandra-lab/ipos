@@ -305,7 +305,7 @@
                 </tr>
             </thead>
             <tbody>
-                @foreach($transaction->items as $i => $item)
+                @foreach($transaction->items->where('parent_item_id', null) as $i => $item)
                 @php
                     $product = $item->product;
                     $variant = $item->batch ? $item->batch->variant : null;

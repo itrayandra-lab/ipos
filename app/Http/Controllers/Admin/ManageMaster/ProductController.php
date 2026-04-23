@@ -58,7 +58,7 @@ class ProductController extends Controller
             });
         }
 
-        $products = $query->limit(20)->get();
+        $products = $query->limit(100)->get();
 
         return response()->json($products);
     }
@@ -165,7 +165,20 @@ class ProductController extends Controller
                 'stock' => 0,
                 'min_stock_alert' => $request->min_stock_alert,
                 'status' => $request->status,
+                'is_bundle' => $request->boolean('is_bundle'),
+                'price' => $request->boolean('is_bundle') && isset($request->variants[0]['price']) ? $request->variants[0]['price'] : 0,
             ]);
+
+            // Save Bundle Items if it's a bundle
+            if ($product->is_bundle && $request->has('bundle_items')) {
+                foreach ($request->bundle_items as $bi) {
+                    \App\Models\BundleItem::create([
+                        'bundle_id' => $product->id,
+                        'product_id' => $bi['product_id'],
+                        'quantity' => $bi['quantity'],
+                    ]);
+                }
+            }
 
             // Save Variants
             foreach ($request->variants as $v) {
@@ -248,7 +261,7 @@ class ProductController extends Controller
 
     public function get(Request $request)
     {
-        $product = Product::with(['category', 'subCategory', 'productType', 'productTier', 'variants.netto', 'photos'])->findOrFail($request->id);
+        $product = Product::with(['category', 'subCategory', 'productType', 'productTier', 'variants.netto', 'photos', 'bundleItems.product'])->findOrFail($request->id);
         return response()->json($product, 200);
     }
 
@@ -265,6 +278,8 @@ class ProductController extends Controller
             'min_stock_alert' => 'required|integer|min:0',
             'variants' => 'required|array|min:1',
             'deleted_photos' => 'nullable|string',
+            'is_bundle' => 'nullable|boolean',
+            'bundle_items' => 'nullable|array',
         ]);
 
         if ($validator->fails()) {
@@ -293,7 +308,28 @@ class ProductController extends Controller
                 'product_tier_id' => $request->product_tier_id,
                 'min_stock_alert' => $request->min_stock_alert,
                 'status' => $request->status,
+                'is_bundle' => $request->boolean('is_bundle'),
+                'price' => $request->boolean('is_bundle') && isset($request->variants[0]['price']) ? $request->variants[0]['price'] : 0,
             ]);
+
+            $isBundle = $request->boolean('is_bundle');
+
+            // Sync Bundle Items
+            if ($isBundle) {
+                // Remove deleted items
+                $product->bundleItems()->delete();
+                if ($request->has('bundle_items')) {
+                    foreach ($request->bundle_items as $bi) {
+                        \App\Models\BundleItem::create([
+                            'bundle_id' => $product->id,
+                            'product_id' => $bi['product_id'],
+                            'quantity' => $bi['quantity'],
+                        ]);
+                    }
+                }
+            } else {
+                $product->bundleItems()->delete();
+            }
 
             // Validate SKU uniqueness (excluding current product's existing SKUs)
             $merek = \App\Models\Merek::find($request->merek_id);

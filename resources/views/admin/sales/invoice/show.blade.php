@@ -68,7 +68,7 @@
                                         </tr>
                                     </thead>
                                     <tbody>
-                                        @foreach($transaction->items as $i => $item)
+                                        @foreach($transaction->items->where('parent_item_id', null) as $i => $item)
                                         @php
                                             $merek = trim($item->product->merek->name ?? '');
                                             $name = trim($item->product->name ?? '');

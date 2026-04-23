@@ -770,6 +770,7 @@
                 generate_invoice: $('#generate-invoice-check').is(':checked') ? 1 : 0,
                 created_at: $('#transaction-date').val(),
                 warehouse_id: $('#filter-warehouse').val(),
+                cash_received: $('#cash-received').val(),
                 notes: '-' // Default notes or pull from a field if added
             };
 
@@ -812,7 +813,7 @@
         // Item-level discount modal handler
         $(document).on('click', '.btn-item-discount', function() {
             let id = $(this).data('id');
-            let item = cart.find(i => i.batch_id == id);
+            let item = cart.find(i => i.pseudo_batch_id == id);
             if (item) {
                 $('#item-discount-batch-id').val(id);
                 $('#item-discount-product-name').text(item.name);
@@ -829,7 +830,7 @@
 
         $('#btn-save-item-discount').on('click', function() {
             let id = $('#item-discount-batch-id').val();
-            let item = cart.find(i => i.batch_id == id);
+            let item = cart.find(i => i.pseudo_batch_id == id);
             if (item) {
                 let type = $('#item-discount-type').val();
                 let value = parseFloat($('#item-discount-value').val()) || 0;
@@ -933,23 +934,43 @@
 
                 // Update batchList with fresh data from server
                 variants.forEach(v => {
-                    v.batches.forEach(b => {
-                        let existingBatch = batchList.find(bl => bl.id === b.id);
+                    if (v.is_bundle) {
+                        let pseudoId = 'bundle-' + v.product_id;
+                        let existingBatch = batchList.find(bl => bl.id === pseudoId);
                         if (!existingBatch) {
                             batchList.push({
-                                id: b.id,
+                                id: pseudoId,
                                 text: v.name,
-                                price: b.selling_price,
-                                stock: b.qty,
+                                price: v.offline_price,
+                                stock: v.total_stock,
                                 product_id: v.product_id,
-                                variant_id: v.variant_id,
-                                batch_no: b.batch_no
+                                variant_id: null,
+                                batch_no: 'BUNDLE',
+                                is_bundle: true
                             });
                         } else {
-                            existingBatch.stock = b.qty;
-                            existingBatch.price = b.selling_price;
+                            existingBatch.stock = v.total_stock;
+                            existingBatch.price = v.offline_price;
                         }
-                    });
+                    } else {
+                        v.batches.forEach(b => {
+                            let existingBatch = batchList.find(bl => bl.id === b.id);
+                            if (!existingBatch) {
+                                batchList.push({
+                                    id: b.id,
+                                    text: v.name,
+                                    price: b.selling_price,
+                                    stock: b.qty,
+                                    product_id: v.product_id,
+                                    variant_id: v.variant_id,
+                                    batch_no: b.batch_no
+                                });
+                            } else {
+                                existingBatch.stock = b.qty;
+                                existingBatch.price = b.selling_price;
+                            }
+                        });
+                    }
                 });
 
                 variants.forEach((v) => {
@@ -959,11 +980,16 @@
 
                     let uniqueId = 'variant-' + v.id;
 
-                    let batchOptions = v.batches.map(b =>
-                        `<option value="${b.id}" data-stock="${b.qty}" data-price="${b.selling_price}">${b.batch_no} (Stok: ${b.qty})</option>`
-                    ).join('');
+                    let batchOptions = '';
+                    if (v.is_bundle) {
+                        batchOptions = `<option value="bundle-${v.product_id}" data-stock="${v.total_stock}" data-price="${v.offline_price}">Paket Bundling (Stok: ${v.total_stock})</option>`;
+                    } else {
+                        batchOptions = v.batches.map(b =>
+                            `<option value="${b.id}" data-stock="${b.qty}" data-price="${b.selling_price}">${b.batch_no} (Stok: ${b.qty})</option>`
+                        ).join('');
+                    }
 
-                    let firstBatchPrice = v.batches.length > 0 ? v.batches[0].selling_price : v.offline_price;
+                    let firstBatchPrice = v.is_bundle ? v.offline_price : (v.batches.length > 0 ? v.batches[0].selling_price : v.offline_price);
 
                     let card = `
                         <div class="col-6 col-md-4 mb-3">
@@ -1017,7 +1043,7 @@
         let selectedOption = selector.find('option:selected');
         let sellingPrice = parseFloat(selectedOption.data('price')) || batch.price;
 
-        let existing = cart.find(item => item.batch_id == batchId);
+        let existing = cart.find(item => item.pseudo_batch_id == batchId);
         if (existing) {
             if (existing.qty >= batch.stock) {
                 iziToast.warning({ message: 'Stok Habis', position: 'topRight' });
@@ -1036,12 +1062,14 @@
             }
             cart.push({
                 product_id: productId,
-                batch_id: batch.id,
+                batch_id: batchId.toString().startsWith('bundle-') ? null : batch.id,
+                pseudo_batch_id: batchId, // Keep original for cart index
                 name: batch.text.split('(')[0].trim(),
                 price: sellingPrice,
                 qty: 1,
                 stock: batch.stock,
-                discount: 0
+                discount: 0,
+                is_bundle: batch.is_bundle || false
             });
         }
         saveCart();
@@ -1070,11 +1098,11 @@
                     <td class="text-right">
                         <div class="font-weight-bold">Rp ${itemSubtotal.toLocaleString('id-ID')}</div>
                         <div class="btn-group btn-group-sm mt-1">
-                            <button class="btn btn-light btn-qty" data-id="${item.batch_id}" data-action="minus"><i class="fas fa-minus small"></i></button>
+                            <button class="btn btn-light btn-qty" data-id="${item.pseudo_batch_id}" data-action="minus"><i class="fas fa-minus small"></i></button>
                             <button class="btn btn-light btn-qty font-weight-bold px-2" disabled>${item.qty}</button>
-                            <button class="btn btn-light btn-qty" data-id="${item.batch_id}" data-action="plus"><i class="fas fa-plus small"></i></button>
-                            <button class="btn btn-info btn-item-discount ml-1" data-id="${item.batch_id}"><i class="fas fa-tag small"></i></button>
-                            <button class="btn btn-light text-danger btn-remove-cart ml-1" data-id="${item.batch_id}"><i class="fas fa-trash small"></i></button>
+                            <button class="btn btn-light btn-qty" data-id="${item.pseudo_batch_id}" data-action="plus"><i class="fas fa-plus small"></i></button>
+                            <button class="btn btn-info btn-item-discount ml-1" data-id="${item.pseudo_batch_id}"><i class="fas fa-tag small"></i></button>
+                            <button class="btn btn-light text-danger btn-remove-cart ml-1" data-id="${item.pseudo_batch_id}"><i class="fas fa-trash small"></i></button>
                         </div>
                     </td>
                 </tr>
@@ -1084,7 +1112,7 @@
     }
 
     function updateCartQty(id, action) {
-        let item = cart.find(i => i.batch_id == id);
+        let item = cart.find(i => i.pseudo_batch_id == id);
         if (!item) return;
         if (action === 'plus') {
             if (item.qty < item.stock) item.qty++; else iziToast.warning({ message: 'Melebihi stok', position: 'topRight' });
@@ -1102,7 +1130,7 @@
         saveCart(); renderCart();
     }
 
-    function removeFromCart(id) { cart = cart.filter(item => item.batch_id != id); saveCart(); renderCart(); }
+    function removeFromCart(id) { cart = cart.filter(item => item.pseudo_batch_id != id); saveCart(); renderCart(); }
     function clearCart() { cart = []; saveCart(); renderCart(); }
     function saveCart() { localStorage.setItem('pos_cart', JSON.stringify(cart)); }
 

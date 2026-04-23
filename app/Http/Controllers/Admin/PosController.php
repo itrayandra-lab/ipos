@@ -13,6 +13,7 @@ use App\Models\Transaction;
 use App\Models\TransactionItem;
 use App\Models\Voucher;
 use App\Services\InvoiceService;
+use App\Services\StockService;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Str;
@@ -170,6 +171,7 @@ class PosController extends Controller
                     'id'            => $groupKey,
                     'product_id'    => $product->id,
                     'variant_id'    => $variant ? $variant->id : null,
+                    'is_bundle'     => $product->is_bundle,
                     'name'          => $displayName,
                     'netto'         => $nettoDisplay,
                     'offline_price' => $sellingPrice,
@@ -188,6 +190,56 @@ class PosController extends Controller
             $variantGroups[$groupKey]['total_stock'] += $batch->qty;
         }
 
+        // --- BUNDLING LOGIC ---
+        $bundleQuery = Product::where('is_bundle', true)
+            ->where('status', 'Y')
+            ->with(['merek', 'photos', 'bundleItems.product.batches', 'variants']);
+        if ($request->search) {
+            $bundleQuery->where(function($q) use ($request) {
+                $q->where('name', 'like', '%' . $request->search . '%')
+                  ->orWhereHas('merek', fn($mq) => $mq->where('name', 'like', '%' . $request->search . '%'));
+            });
+        }
+        if ($request->merek_id) {
+            $bundleQuery->where('merek_id', $request->merek_id);
+        }
+
+        $bundles = $bundleQuery->get();
+        foreach ($bundles as $bundle) {
+            $groupKey = 'b_' . $bundle->id;
+            
+            // Calculate virtual stock
+            $minStock = -1;
+            foreach ($bundle->bundleItems as $bi) {
+                $componentStock = $bi->product->batches->where('warehouse_id', $warehouseId)->sum('qty');
+                $possibleBundles = floor($componentStock / $bi->quantity);
+                if ($minStock == -1 || $possibleBundles < $minStock) {
+                    $minStock = $possibleBundles;
+                }
+            }
+            if ($minStock == -1) $minStock = 0;
+
+            $merekName   = $bundle->merek ? trim($bundle->merek->name) : '';
+            $productName = trim($bundle->name);
+            $displayName = trim($merekName . ' ' . $productName); // Simplified for bundles
+
+            $photo = $bundle->photos->first();
+
+            $variantGroups[$groupKey] = [
+                'id'            => $groupKey,
+                'product_id'    => $bundle->id,
+                'variant_id'    => null,
+                'is_bundle'     => true,
+                'name'          => "[BUNDLE] " . $displayName,
+                'netto'         => '',
+                'offline_price' => (int)($bundle->price ?: ($bundle->variants->first() ? $bundle->variants->first()->price : 0)),
+                'photo'         => $photo ? asset($photo->foto) : null,
+                'batches'       => [],
+                'total_stock'   => (int)$minStock,
+            ];
+        }
+        // --- END BUNDLING LOGIC ---
+
         // Filter out entries with no stock or no price, then re-index
         $result = array_values(array_filter($variantGroups, function($v) {
             return $v['total_stock'] > 0 && $v['offline_price'] > 0;
@@ -200,7 +252,7 @@ class PosController extends Controller
         $validator = Validator::make($request->all(), [
             'items' => 'required|array|min:1',
             'items.*.product_id' => 'required|exists:products,id',
-            'items.*.batch_id' => 'required|exists:product_batches,id',
+            'items.*.batch_id' => 'nullable|exists:product_batches,id',
             'items.*.qty' => 'required|integer|min:1',
             'items.*.discount' => 'nullable|numeric|min:0',
             'customer_name' => 'nullable|string|max:100',
@@ -214,6 +266,7 @@ class PosController extends Controller
             'generate_invoice' => 'nullable|boolean',
             'created_at' => 'nullable|date',
             'warehouse_id' => 'required|exists:warehouses,id',
+            'cash_received' => 'nullable|numeric',
         ]);
 
         if ($validator->fails()) {
@@ -246,21 +299,27 @@ class PosController extends Controller
                 }
             }
 
+            $stockService = new StockService();
+
             foreach ($request->items as $item) {
-                $batch = ProductBatch::with(['product', 'variant'])->findOrFail($item['batch_id']);
-                $product = $batch->product;
+                $product = Product::findOrFail($item['product_id']);
                 $qty = $item['qty'];
                 $itemDiscount = (float)($item['discount'] ?? 0);
 
-                if ($batch->qty < $qty) {
-                    throw new \Exception("Stok batch {$batch->batch_no} untuk produk {$product->name} tidak mencukupi.");
+                if ($product->is_bundle) {
+                    $basePrice = (int)$product->price;
+                    $batchId = null;
+                } else {
+                    $batch = ProductBatch::with(['product', 'variant'])->findOrFail($item['batch_id']);
+                    if ($batch->qty < $qty) {
+                        throw new \Exception("Stok batch {$batch->batch_no} untuk produk {$product->name} tidak mencukupi.");
+                    }
+                    if (!$batch->variant || $batch->variant->price <= 0) {
+                        throw new \Exception("Produk {$product->name} tidak memiliki harga jual pada variannya.");
+                    }
+                    $basePrice = (int)$batch->variant->price;
+                    $batchId = $batch->id;
                 }
-
-                // Use ONLY variant->price as the selling price
-                if (!$batch->variant || $batch->variant->price <= 0) {
-                    throw new \Exception("Produk {$product->name} tidak memiliki harga jual pada variannya.");
-                }
-                $basePrice = (int)$batch->variant->price;
                 
                 $finalPrice = $basePrice;
 
@@ -300,18 +359,17 @@ class PosController extends Controller
 
                 $itemsToCreate[] = [
                     'product_id' => $product->id,
-                    'product_batch_id' => $batch->id,
-                    'buy_price' => $batch->buy_price ?? 0,
+                    'product_batch_id' => $batchId,
+                    'buy_price' => $product->is_bundle ? 0 : ($batch->buy_price ?? 0),
                     'qty' => $qty,
-                    'price' => $finalPrice, // Price saved includes fee if ADD_TO_PRICE
+                    'price' => $finalPrice, 
                     'discount' => $itemDiscount,
                     'subtotal' => $subtotal,
+                    'is_bundle' => $product->is_bundle // Temporary marker
                 ];
 
-                if ($request->payment_status === 'paid') {
-                    $batch->decrement('qty', $qty);
-                    $product->decrement('stock', $qty);
-                }
+                // Manual decrement is handled later for single items, 
+                // but for bundles we will use StockService which handles it internally.
             }
             // Apply discounts
                 $finalDiscount = (float)($request->discount_manual ?? 0);
@@ -361,6 +419,14 @@ class PosController extends Controller
 
                 $finalTotal = $totalAmount - $finalDiscount;
 
+                // Validation: Cash Received
+                if ($request->payment_method === 'cash') {
+                    $cashReceived = (float)($request->cash_received ?? 0);
+                    if ($cashReceived < $finalTotal) {
+                        throw new \Exception("Uang yang diterima (" . number_format($cashReceived, 0, ',', '.') . ") kurang dari total belanja (" . number_format($finalTotal, 0, ',', '.') . ").");
+                    }
+                }
+
                 $transaction = Transaction::create([
                     'user_id' => auth()->id(),
                     'customer_id' => $request->customer_id,
@@ -390,8 +456,26 @@ class PosController extends Controller
                 }
 
                 foreach ($itemsToCreate as $itemData) {
+                    $isBundle = $itemData['is_bundle'] ?? false;
+                    unset($itemData['is_bundle']);
+
                     $itemData['transaction_id'] = $transaction->id;
-                    TransactionItem::create($itemData);
+                    $mainItem = TransactionItem::create($itemData);
+
+                    if ($request->payment_status === 'paid') {
+                        if ($isBundle) {
+                            $stockService->explodeBundleComponents($itemData['product_id'], $itemData['qty'], $transaction->id, $mainItem->id);
+                        } else {
+                            $batch = ProductBatch::find($itemData['product_batch_id']);
+                            if ($batch) {
+                                $batch->decrement('qty', $itemData['qty']);
+                            }
+                            $product = Product::find($itemData['product_id']);
+                            if ($product) {
+                                $product->decrement('stock', $itemData['qty']);
+                            }
+                        }
+                    }
                 }
 
                 return response()->json([

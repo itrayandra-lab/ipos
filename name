@@ -1,0 +1,21 @@
+
+   InvalidArgumentException 
+
+  Unexpected end of input
+
+  at D:\Iman Cangga\Herd\pos-beautylatory\vendor\psy\psysh\src\Shell.php:1102
+    1098▕ 
+    1099▕         if (!$this->hasValidCode()) {
+    1100▕             $this->popCodeStack();
+    1101▕ 
+  ➜ 1102▕             throw new \InvalidArgumentException('Unexpected end of input');
+    1103▕         }
+    1104▕     }
+    1105▕ 
+    1106▕     /**
+
+  1   D:\Iman Cangga\Herd\pos-beautylatory\vendor\psy\psysh\src\Shell.php:1640
+      Psy\Shell::setCode("App\Models\Warehouse::find(1)?-")
+
+  2   D:\Iman Cangga\Herd\pos-beautylatory\vendor\laravel\tinker\src\Console\TinkerCommand.php:77
+      Psy\Shell::execute("App\Models\Warehouse::find(1)?-")
