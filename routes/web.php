@@ -252,6 +252,15 @@ Route::prefix('admin')->middleware(['auth', 'role:admin'])->group(function () {
             Route::delete('{id}', [TransactionAdmin::class , 'destroy'])->name('admin.transactions.destroy');
             Route::get('print-struk/{id}', [TransactionAdmin::class , 'printStruk'])->name('admin.transactions.print_struk');
             Route::post('generate-invoice/{id}', [TransactionAdmin::class , 'generateInvoice'])->name('admin.transactions.generate_invoice');
+            Route::post('upload-receipt/{id}', [TransactionAdmin::class , 'uploadReceipt'])->name('admin.transactions.upload-receipt');
+            Route::post('settle/{id}', [TransactionAdmin::class , 'settlePayment'])->name('admin.transactions.settle');
+            Route::post('update-payment-receipt', [TransactionAdmin::class , 'updatePaymentReceipt'])->name('admin.transactions.update-payment-receipt');
+            Route::post('quick-upload-receipt/{id}', [TransactionAdmin::class , 'quickUploadReceipt'])->name('admin.transactions.quick-upload-receipt');
+
+            // Product Sales Report
+            Route::get('report/product', [TransactionAdmin::class, 'productReport'])->name('admin.transactions.report.product');
+            Route::get('report/product/all', [TransactionAdmin::class, 'productReportData']);
+            Route::get('report/product/print', [TransactionAdmin::class, 'printProductReport'])->name('admin.transactions.report.product.print');
         }
         );
 

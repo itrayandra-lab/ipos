@@ -101,7 +101,7 @@ class ProductController extends Controller
             ->addColumn('action', function (Product $product) {
             return '
                 <div class="dropdown d-inline dropleft">
-                    <button type="button" class="btn btn-primary btn-sm dropdown-toggle" aria-haspopup="true" data-toggle="dropdown">
+                    <button type="button" class="btn btn-action-custom btn-sm dropdown-toggle" aria-haspopup="true" data-toggle="dropdown">
                         Action
                     </button>
                     <ul class="dropdown-menu">

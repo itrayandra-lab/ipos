@@ -140,24 +140,25 @@
                                                 <th>Total Tagihan</th>
                                                 <td class="font-weight-bold text-primary">Rp {{ number_format($transaction->total_amount, 0, ',', '.') }}</td>
                                             </tr>
+                                            @php
+                                                $totalPaidActual = $transaction->payments->sum('amount');
+                                                $isPaidStatus = $transaction->payment_status === 'paid';
+                                                $remainingForAction = $transaction->total_amount - $totalPaidActual;
+                                                
+                                                // If paid, show full amount as paid and 0 remaining for UI purposes
+                                                $displayPaid = $isPaidStatus ? $transaction->total_amount : $totalPaidActual;
+                                                $displayRemaining = $isPaidStatus ? 0 : $remainingForAction;
+                                            @endphp
                                             <tr>
                                                 <th>Total Terbayar</th>
-                                                <td class="text-success font-weight-bold">Rp {{ number_format($transaction->payments->sum('amount'), 0, ',', '.') }}</td>
+                                                <td class="text-success font-weight-bold">Rp {{ number_format($displayPaid, 0, ',', '.') }}</td>
                                             </tr>
-                                            @php
-                                                $remaining = $transaction->total_amount - $transaction->payments->sum('amount');
-                                            @endphp
-                                            @if($remaining > 0)
                                             <tr class="bg-light">
                                                 <th>Sisa Tagihan</th>
-                                                <td class="text-danger font-weight-bold h6">Rp {{ number_format($remaining, 0, ',', '.') }}</td>
+                                                <td class="{{ $displayRemaining > 0 ? 'text-danger font-weight-bold h6' : 'text-success font-weight-bold' }}">
+                                                    {{ $displayRemaining > 0 ? 'Rp ' . number_format($displayRemaining, 0, ',', '.') : 'LUNAS' }}
+                                                </td>
                                             </tr>
-                                            @else
-                                            <tr class="bg-light">
-                                                <th>Sisa Tagihan</th>
-                                                <td class="text-muted">LUNAS</td>
-                                            </tr>
-                                            @endif
                                         </table>
                                     </div>
                                 </div>
@@ -195,6 +196,26 @@
                                 <div class="card card-info border shadow-sm">
                                     <div class="card-header">
                                         <h4><i class="fas fa-history"></i> Riwayat Pembayaran</h4>
+                                        @if($isPaidStatus)
+                                            <div class="card-header-action">
+                                                <button class="btn btn-info btn-sm" data-toggle="modal" data-target="#quickUploadModal">
+                                                    <i class="fas fa-upload"></i> Upload Bukti Pembayaran
+                                                </button>
+                                            </div>
+                                        @else
+                                            @if($remainingForAction > 0)
+                                                <div class="card-header-action">
+                                                    <button class="btn btn-primary btn-sm" data-toggle="modal" data-target="#receiptModal">
+                                                        <i class="fas fa-plus"></i> Tambah Pembayaran
+                                                    </button>
+                                                    @if($transaction->payment_status === 'credit')
+                                                        <button class="btn btn-warning btn-sm" data-toggle="modal" data-target="#settleModal">
+                                                            <i class="fas fa-check-circle"></i> Pelunasan
+                                                        </button>
+                                                    @endif
+                                                </div>
+                                            @endif
+                                        @endif
                                     </div>
                                     <div class="card-body p-0">
                                         <div class="table-responsive">
@@ -206,6 +227,7 @@
                                                         <th>Bank/Provider</th>
                                                         <th class="text-right">Nominal Diinput</th>
                                                         <th class="text-right">Jumlah Bayar (Real)</th>
+                                                        <th class="text-center">Bukti</th>
                                                         <th>Status</th>
                                                     </tr>
                                                 </thead>
@@ -217,11 +239,25 @@
                                                             <td>{{ $payment->bank_name ?? '-' }}</td>
                                                             <td class="text-right">Rp {{ number_format($payment->cash_received ?? $payment->amount, 0, ',', '.') }}</td>
                                                             <td class="text-right font-weight-bold">Rp {{ number_format($payment->amount, 0, ',', '.') }}</td>
+                                                            <td class="text-center">
+                                                                @if($payment->payment_receipt)
+                                                                    <a href="{{ asset($payment->payment_receipt) }}" target="_blank" class="badge badge-info">
+                                                                        <i class="fas fa-image"></i> Lihat
+                                                                    </a>
+                                                                @else
+                                                                    <button class="btn btn-sm btn-outline-primary btn-upload-receipt" 
+                                                                            data-id="{{ $payment->id }}"
+                                                                            data-amount="{{ number_format($payment->amount, 0, ',', '.') }}"
+                                                                            data-date="{{ \Carbon\Carbon::parse($payment->payment_date)->format('d/m/Y') }}">
+                                                                        <i class="fas fa-upload"></i> Upload
+                                                                    </button>
+                                                                @endif
+                                                            </td>
                                                             <td><span class="badge badge-success">Sukses</span></td>
                                                         </tr>
                                                     @empty
                                                         <tr>
-                                                            <td colspan="6" class="text-center py-3">Belum ada rincian riwayat pembayaran.</td>
+                                                            <td colspan="7" class="text-center py-3">Belum ada rincian riwayat pembayaran.</td>
                                                         </tr>
                                                     @endforelse
                                                 </tbody>
@@ -286,4 +322,156 @@
             </div>
         </section>
     </div>
+
+    <!-- Modal Tambah Pembayaran -->
+    <div class="modal fade" id="receiptModal" tabindex="-1" role="dialog" aria-labelledby="receiptModalLabel" aria-hidden="true">
+        <div class="modal-dialog" role="document">
+            <div class="modal-content">
+                <form action="{{ route('admin.transactions.upload-receipt', $transaction->id) }}" method="POST" enctype="multipart/form-data">
+                    @csrf
+                    <div class="modal-header">
+                        <h5 class="modal-title" id="receiptModalLabel">Tambah Pembayaran</h5>
+                        <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                            <span aria-hidden="true">&times;</span>
+                        </button>
+                    </div>
+                    <div class="modal-body">
+                        <div class="form-group">
+                            <label>Nominal Pembayaran (Rp)</label>
+                            <input type="number" name="amount" class="form-control" value="{{ $remainingForAction }}" required>
+                        </div>
+                        <div class="form-group">
+                            <label>Tanggal Bayar</label>
+                            <input type="date" name="payment_date" class="form-control" value="{{ date('Y-m-d') }}" required>
+                        </div>
+                        <div class="form-group">
+                            <label>Pilih Bukti (PNG, JPG, JPEG, PDF) - Opsional</label>
+                            <input type="file" name="receipt" class="form-control" accept="image/*,application/pdf">
+                            <small class="text-muted">Maksimal 2MB.</small>
+                        </div>
+                        <div class="form-group mb-0">
+                            <label>Catatan</label>
+                            <textarea name="notes" class="form-control" rows="2" placeholder="Contoh: Pembayaran DP, Cicilan #1, dll"></textarea>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-dismiss="modal">Batal</button>
+                        <button type="submit" class="btn btn-primary">Simpan Pembayaran</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal Pelunasan -->
+    <div class="modal fade" id="settleModal" tabindex="-1" role="dialog" aria-labelledby="settleModalLabel" aria-hidden="true">
+        <div class="modal-dialog" role="document">
+            <div class="modal-content">
+                <form action="{{ route('admin.transactions.settle', $transaction->id) }}" method="POST" enctype="multipart/form-data">
+                    @csrf
+                    <div class="modal-header bg-warning text-white">
+                        <h5 class="modal-title" id="settleModalLabel">Konfirmasi Pelunasan</h5>
+                        <button type="button" class="close text-white" data-dismiss="modal" aria-label="Close">
+                            <span aria-hidden="true">&times;</span>
+                        </button>
+                    </div>
+                    <div class="modal-body">
+                        <p>Apakah Anda yakin ingin memproses pelunasan untuk transaksi <strong>#{{ $transaction->id }}</strong>?</p>
+                        <div class="alert alert-warning py-2 mb-3 shadow-sm border-0">
+                            <div class="d-flex justify-content-between">
+                                <span>Sisa yang harus dibayar:</span>
+                                <span class="h5 mb-0 font-weight-bold text-dark">Rp {{ number_format($remainingForAction, 0, ',', '.') }}</span>
+                            </div>
+                        </div>
+                        <div class="form-group mb-0">
+                            <label>Upload Bukti Pelunasan (Opsional)</label>
+                            <input type="file" name="receipt" class="form-control" accept="image/*,application/pdf">
+                            <small class="text-muted">Bukti ini akan dicatat sebagai pembayaran pelunasan.</small>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-dismiss="modal">Batal</button>
+                        <button type="submit" class="btn btn-warning font-weight-bold px-4">PROSES LUNAS</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal Quick Upload (Lunas Saja) -->
+    <div class="modal fade" id="quickUploadModal" tabindex="-1" role="dialog" aria-hidden="true">
+        <div class="modal-dialog" role="document">
+            <div class="modal-content">
+                <form action="{{ route('admin.transactions.quick-upload-receipt', $transaction->id) }}" method="POST" enctype="multipart/form-data">
+                    @csrf
+                    <div class="modal-header">
+                        <h5 class="modal-title">Upload Bukti Pembayaran</h5>
+                        <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                            <span aria-hidden="true">&times;</span>
+                        </button>
+                    </div>
+                    <div class="modal-body">
+                        <p class="text-muted">Transaksi ini sudah berstatus <strong>Lunas</strong>. Silakan upload bukti bayar untuk keperluan validasi.</p>
+                        <div class="form-group mb-0">
+                            <label>Pilih Bukti (PNG, JPG, JPEG, PDF)</label>
+                            <input type="file" name="receipt" class="form-control" accept="image/*,application/pdf" required>
+                            <small class="text-muted">Maksimal 2MB.</small>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-dismiss="modal">Batal</button>
+                        <button type="submit" class="btn btn-info">Upload Sekarang</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal Update Bukti Saja -->
+    <div class="modal fade" id="updateReceiptModal" tabindex="-1" role="dialog" aria-hidden="true">
+        <div class="modal-dialog" role="document">
+            <div class="modal-content">
+                <form action="{{ route('admin.transactions.update-payment-receipt') }}" method="POST" enctype="multipart/form-data">
+                    @csrf
+                    <input type="hidden" name="payment_id" id="update_payment_id">
+                    <div class="modal-header">
+                        <h5 class="modal-title">Upload Bukti Pembayaran</h5>
+                        <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                            <span aria-hidden="true">&times;</span>
+                        </button>
+                    </div>
+                    <div class="modal-body">
+                        <div class="alert alert-info py-2">
+                            Melihat rincian: <strong id="update_payment_info"></strong>
+                        </div>
+                        <div class="form-group mb-0">
+                            <label>Pilih Bukti (PNG, JPG, JPEG, PDF)</label>
+                            <input type="file" name="receipt" class="form-control" accept="image/*,application/pdf" required>
+                            <small class="text-muted">Maksimal 2MB.</small>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-dismiss="modal">Batal</button>
+                        <button type="submit" class="btn btn-primary">Upload Bukti</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    @push('scripts')
+    <script>
+        $(document).ready(function() {
+            $('.btn-upload-receipt').on('click', function() {
+                const id = $(this).data('id');
+                const amount = $(this).data('amount');
+                const date = $(this).data('date');
+                
+                $('#update_payment_id').val(id);
+                $('#update_payment_info').text('Rp' + amount + ' (' + date + ')');
+                $('#updateReceiptModal').modal('show');
+            });
+        });
+    </script>
+    @endpush
 @endsection

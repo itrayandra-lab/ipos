@@ -52,23 +52,31 @@ class SalesDocumentController extends Controller
                 ->editColumn('payment_status', function ($row) {
                     $totalPaid = $row->payments()->sum('amount');
                     $labels = [
-                        'paid'     => '<span class="badge badge-success">Lunas</span>',
-                        'unpaid'   => '<span class="badge badge-warning">Belum Bayar</span>',
+                        'paid'     => '<span class="badge-soft badge-soft-success">Lunas</span>',
+                        'unpaid'   => '<span class="badge-soft badge-soft-danger">Belum Bayar</span>',
                         'credit'   => $totalPaid > 0 
-                                        ? '<span class="badge badge-info text-dark">DP Terbayar</span>' 
-                                        : '<span class="badge badge-warning">Menunggu DP</span>',
-                        'pending'  => '<span class="badge badge-warning">Pending</span>',
-                        'draft'    => '<span class="badge badge-secondary">Draft</span>',
-                        'canceled' => '<span class="badge badge-danger">Batal</span>',
+                                         ? '<span class="badge-soft badge-soft-info">DP Terbayar</span>' 
+                                         : '<span class="badge-soft badge-soft-warning">Menunggu DP</span>',
+                        'pending'  => '<span class="badge-soft badge-soft-warning">Pending</span>',
+                        'draft'    => '<span class="badge-soft badge-soft-secondary">Draft</span>',
+                        'canceled' => '<span class="badge-soft badge-soft-danger">Batal</span>',
                     ];
-                    return $labels[$row->payment_status] ?? strtoupper($row->payment_status);
+                    return $labels[$row->payment_status] ?? '<span class="badge-soft badge-soft-secondary">'.strtoupper($row->payment_status).'</span>';
                 })
                 ->addColumn('action', function ($row) {
-                    $show  = '<a href="' . route('admin.sales.invoices.show', $row->id) . '" class="btn btn-sm btn-info" title="Detail"><i class="fas fa-eye"></i></a>';
-                    $edit  = '<a href="' . route('admin.sales.invoices.edit', $row->id) . '" class="btn btn-sm btn-warning" title="Edit"><i class="fas fa-edit"></i></a>';
-                    $print = '<a href="' . route('admin.sales.invoices.print', $row->id) . '" target="_blank" class="btn btn-sm btn-primary" title="Cetak"><i class="fas fa-print"></i></a>';
-                    $del   = '<button onclick="deleteInvoice(' . $row->id . ')" class="btn btn-sm btn-danger" title="Hapus"><i class="fas fa-trash"></i></button>';
-                    return $show . ' ' . $edit . ' ' . $print . ' ' . $del;
+                    return '
+                    <div class="dropdown d-inline dropleft">
+                        <button type="button" class="btn btn-action-custom btn-sm dropdown-toggle" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+                            Action
+                        </button>
+                        <div class="dropdown-menu">
+                            <a class="dropdown-item has-icon" href="' . route('admin.sales.invoices.show', $row->id) . '"><i class="fas fa-eye text-info"></i> Detail</a>
+                            <a class="dropdown-item has-icon" href="' . route('admin.sales.invoices.edit', $row->id) . '"><i class="fas fa-edit text-warning"></i> Edit</a>
+                            <a class="dropdown-item has-icon" href="' . route('admin.sales.invoices.print', $row->id) . '" target="_blank"><i class="fas fa-print text-primary"></i> Cetak</a>
+                            <div class="dropdown-divider"></div>
+                            <a class="dropdown-item has-icon text-danger" href="javascript:void(0)" onclick="deleteInvoice(' . $row->id . ')"><i class="fas fa-trash"></i> Hapus</a>
+                        </div>
+                    </div>';
                 })
                 ->rawColumns(['payment_status', 'action'])
                 ->make(true);
@@ -621,11 +629,19 @@ class SalesDocumentController extends Controller
                         return \Carbon\Carbon::parse($row->transaction_date)->format('d/m/Y');
                     })
                     ->addColumn('action', function ($row) {
-                        $showBtn = '<a href="' . route('admin.sales.delivery_notes.show', $row->id) . '" class="btn btn-sm btn-info" title="Detail"><i class="fas fa-eye"></i></a>';
-                        $printBtn = '<a href="' . route('admin.sales.delivery_notes.print', $row->id) . '" target="_blank" class="btn btn-sm btn-primary ml-1" title="Cetak Surat Jalan"><i class="fas fa-print"></i></a>';
-                        $editBtn = '<a href="' . route('admin.sales.delivery_notes.edit', $row->id) . '" class="btn btn-sm btn-warning ml-1" title="Edit"><i class="fas fa-edit"></i></a>';
-                        $deleteBtn = '<button type="button" onclick="deleteDeliveryNote(' . $row->id . ')" class="btn btn-sm btn-danger ml-1" title="Hapus"><i class="fas fa-trash"></i></button>';
-                        return $showBtn . ' ' . $printBtn . ' ' . $editBtn . ' ' . $deleteBtn;
+                        return '
+                        <div class="dropdown d-inline dropleft">
+                            <button type="button" class="btn btn-action-custom btn-sm dropdown-toggle" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+                                Action
+                            </button>
+                            <div class="dropdown-menu">
+                                <a class="dropdown-item has-icon" href="' . route('admin.sales.delivery_notes.show', $row->id) . '"><i class="fas fa-eye text-info"></i> Detail</a>
+                                <a class="dropdown-item has-icon" href="' . route('admin.sales.delivery_notes.edit', $row->id) . '"><i class="fas fa-edit text-warning"></i> Edit</a>
+                                <a class="dropdown-item has-icon" href="' . route('admin.sales.delivery_notes.print', $row->id) . '" target="_blank"><i class="fas fa-print text-primary"></i> Cetak</a>
+                                <div class="dropdown-divider"></div>
+                                <a class="dropdown-item has-icon text-danger" href="javascript:void(0)" onclick="deleteDeliveryNote(' . $row->id . ')"><i class="fas fa-trash"></i> Hapus</a>
+                            </div>
+                        </div>';
                     })
                     ->rawColumns(['action'])
                     ->make(true);

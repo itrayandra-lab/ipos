@@ -478,6 +478,17 @@ class PosController extends Controller
                     }
                 }
 
+                // Create payment record if status is paid
+                if ($request->payment_status === 'paid') {
+                    TransactionPayment::create([
+                        'transaction_id' => $transaction->id,
+                        'amount'         => $finalTotal,
+                        'payment_date'   => $transaction->created_at,
+                        'payment_method' => $request->payment_method,
+                        'notes'          => 'Otomatis dari Kasir (POS)',
+                    ]);
+                }
+
                 return response()->json([
                     'success' => true, 
                     'message' => 'Transaksi berhasil disimpan',
