@@ -117,7 +117,7 @@ Route::prefix('admin')->middleware(['auth', 'role:admin'])->group(function () {
                 }
                 );
                 Route::prefix('products')->group(function () {
-                    Route::get('/', [ProductAdmin::class , 'index']);
+                    Route::get('/', [ProductAdmin::class , 'index'])->name('admin.products.index');
                     Route::post('/', [ProductAdmin::class , 'create']);
                     Route::get('/all', [ProductAdmin::class , 'getall'])->name('admin.products.all');
                     Route::get('/search', [ProductAdmin::class , 'search'])->name('admin.products.search');

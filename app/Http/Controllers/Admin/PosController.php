@@ -11,6 +11,7 @@ use App\Models\Merek;
 use App\Models\Customer;
 use App\Models\Transaction;
 use App\Models\TransactionItem;
+use App\Models\TransactionPayment;
 use App\Models\Voucher;
 use App\Services\InvoiceService;
 use App\Services\StockService;
