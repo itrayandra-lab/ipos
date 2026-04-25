@@ -239,6 +239,8 @@ Route::prefix('admin')->middleware(['auth', 'role:admin'])->group(function () {
             Route::get('/check', [CustomerAdmin::class , 'checkAjax'])->name('admin.customers.check');
             Route::post('/store-ajax', [CustomerAdmin::class , 'storeAjax'])->name('admin.customers.store_ajax');
             Route::get('/show/{id}', [CustomerAdmin::class , 'show'])->name('admin.customers.show');
+            Route::post('/import', [CustomerAdmin::class , 'import'])->name('admin.customers.import');
+            Route::get('/download-template', [CustomerAdmin::class , 'downloadTemplate'])->name('admin.customers.download_template');
         }
         );
 

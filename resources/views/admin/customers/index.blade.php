@@ -22,6 +22,7 @@
                                     <option value="newest">Terbaru</option>
                                     <option value="inactive">Tidak Aktif (>30 hari)</option>
                                 </select>
+                                <button class="btn btn-outline-success mr-2" data-toggle="modal" data-target="#modal-import">Import Excel</button>
                                 <button class="btn btn-primary" id="btn-add">Tambah Customer</button>
                             </div>
                         </div>
@@ -48,47 +49,87 @@
                     </div>
                 </div>
             </div>
-        </section>
-    </div>
 
-    <!-- Modal Form -->
-    <div class="modal fade" id="modal-form" tabindex="-1" role="dialog" aria-hidden="true">
-        <div class="modal-dialog" role="document">
-            <div class="modal-content">
-                <form id="form-customer">
-                    @csrf
-                    <input type="hidden" name="id" id="customer-id">
-                    <div class="modal-header">
-                        <h5 class="modal-title" id="modal-title">Tambah Customer</h5>
-                        <button type="button" class="close" data-dismiss="modal" aria-label="Close">
-                            <span aria-hidden="true">&times;</span>
-                        </button>
+            <!-- Modal Form -->
+            <div class="modal fade" id="modal-form" tabindex="-1" role="dialog" aria-hidden="true">
+                <div class="modal-dialog" role="document">
+                    <div class="modal-content">
+                        <form id="form-customer">
+                            @csrf
+                            <input type="hidden" name="id" id="customer-id">
+                            <div class="modal-header">
+                                <h5 class="modal-title" id="modal-title">Tambah Customer</h5>
+                                <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                                    <span aria-hidden="true">&times;</span>
+                                </button>
+                            </div>
+                            <div class="modal-body">
+                                <div class="form-group">
+                                    <label>Nama Customer</label>
+                                    <input type="text" name="name" id="name" class="form-control" required>
+                                </div>
+                                <div class="form-group">
+                                    <label>WA/Phone Number</label>
+                                    <input type="text" name="phone" id="phone" class="form-control" required placeholder="Contoh: 08123456789">
+                                </div>
+                                <div class="form-group">
+                                    <label>Email (Opsional)</label>
+                                    <input type="email" name="email" id="email" class="form-control">
+                                </div>
+                                <div class="form-group">
+                                    <label>Alamat (Opsional)</label>
+                                    <textarea name="address" id="address" class="form-control" rows="3" placeholder="Masukkan alamat lengkap"></textarea>
+                                </div>
+                            </div>
+                            <div class="modal-footer bg-whitesmoke br">
+                                <button type="button" class="btn btn-secondary" data-dismiss="modal">Batal</button>
+                                <button type="submit" class="btn btn-primary">Simpan</button>
+                            </div>
+                        </form>
                     </div>
-                    <div class="modal-body">
-                        <div class="form-group">
-                            <label>Nama Customer</label>
-                            <input type="text" name="name" id="name" class="form-control" required>
-                        </div>
-                        <div class="form-group">
-                            <label>WA/Phone Number</label>
-                            <input type="text" name="phone" id="phone" class="form-control" required placeholder="Contoh: 08123456789">
-                        </div>
-                        <div class="form-group">
-                            <label>Email (Opsional)</label>
-                            <input type="email" name="email" id="email" class="form-control">
-                        </div>
-                        <div class="form-group">
-                            <label>Alamat (Opsional)</label>
-                            <textarea name="address" id="address" class="form-control" rows="3" placeholder="Masukkan alamat lengkap"></textarea>
-                        </div>
-                    </div>
-                    <div class="modal-footer bg-whitesmoke br">
-                        <button type="button" class="btn btn-secondary" data-dismiss="modal">Batal</button>
-                        <button type="submit" class="btn btn-primary">Simpan</button>
-                    </div>
-                </form>
+                </div>
             </div>
-        </div>
+
+            <!-- Modal Import -->
+            <div class="modal fade" id="modal-import" tabindex="-1" role="dialog" aria-hidden="true">
+                <div class="modal-dialog" role="document">
+                    <div class="modal-content">
+                        <form id="form-import" enctype="multipart/form-data">
+                            @csrf
+                            <div class="modal-header">
+                                <h5 class="modal-title">Import Data Customer</h5>
+                                <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                                    <span aria-hidden="true">&times;</span>
+                                </button>
+                            </div>
+                            <div class="modal-body">
+                                <div class="alert alert-info">
+                                    <i class="fas fa-info-circle mr-2"></i> 
+                                    Pastikan file Excel memiliki header: 
+                                    <strong>Nama Customer, WA/Phone Number, Email, Alamat</strong>.
+                                </div>
+                                <div class="form-group">
+                                    <label>Download Template</label>
+                                    <div>
+                                        <a href="{{ route('admin.customers.download_template') }}" class="btn btn-info btn-sm">
+                                            <i class="fas fa-download mr-1"></i> Download Template Excel
+                                        </a>
+                                    </div>
+                                </div>
+                                <div class="form-group">
+                                    <label>Pilih File Excel (.xlsx, .xls, .csv)</label>
+                                    <input type="file" name="file" class="form-control" required accept=".xlsx, .xls, .csv">
+                                </div>
+                            </div>
+                            <div class="modal-footer bg-whitesmoke br">
+                                <button type="button" class="btn btn-secondary" data-dismiss="modal">Batal</button>
+                                <button type="submit" class="btn btn-success" id="btn-submit-import">Mulai Import</button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </section>
     </div>
 
     @push('scripts')
@@ -184,6 +225,36 @@
                                 table.draw();
                             }
                         });
+                    }
+                });
+            });
+
+            $('#form-import').on('submit', function(e) {
+                e.preventDefault();
+                let formData = new FormData(this);
+                let btn = $('#btn-submit-import');
+                
+                btn.addClass('btn-progress').attr('disabled', true);
+                
+                $.ajax({
+                    url: "{{ route('admin.customers.import') }}",
+                    method: 'POST',
+                    data: formData,
+                    processData: false,
+                    contentType: false,
+                    success: function(res) {
+                        btn.removeClass('btn-progress').attr('disabled', false);
+                        if (res.success) {
+                            swal('Berhasil', res.message, 'success');
+                            $('#modal-import').modal('hide');
+                            table.draw();
+                        } else {
+                            swal('Gagal', res.message, 'error');
+                        }
+                    },
+                    error: function(err) {
+                        btn.removeClass('btn-progress').attr('disabled', false);
+                        swal('Gagal', err.responseJSON?.message || 'Terjadi kesalahan sistem', 'error');
                     }
                 });
             });

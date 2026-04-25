@@ -8,6 +8,9 @@ use App\Models\TransactionItem;
 use Illuminate\Http\Request;
 use Yajra\DataTables\Facades\DataTables;
 use App\Models\Customer;
+use App\Imports\CustomerImport;
+use App\Exports\CustomerTemplateExport;
+use Maatwebsite\Excel\Facades\Excel;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Validator;
 
@@ -205,5 +208,24 @@ class CustomerController extends Controller
             'success' => true,
             'data' => $customer
         ]);
+    }
+
+    public function import(Request $request)
+    {
+        $request->validate([
+            'file' => 'required|mimes:xlsx,xls,csv'
+        ]);
+
+        try {
+            Excel::import(new CustomerImport, $request->file('file'));
+            return response()->json(['success' => true, 'message' => 'Data customer berhasil diimport']);
+        } catch (\Exception $e) {
+            return response()->json(['success' => false, 'message' => 'Gagal import: ' . $e->getMessage()], 500);
+        }
+    }
+
+    public function downloadTemplate()
+    {
+        return Excel::download(new CustomerTemplateExport, 'template_customer.xlsx');
     }
 }

@@ -19,24 +19,28 @@ class MerekController extends Controller
     public function getall(Request $request)
     {
         $query = Merek::select('id', 'name', 'code', 'slug', 'description')
-            ->orderBy('name', 'ASC')
-            ->get();
+            ->orderBy('name', 'ASC');
 
         return DataTables::of($query)
             ->addIndexColumn()
             ->addColumn('action', function (Merek $merek) {
-            return '
-                <div class="dropdown d-inline dropleft">
-                    <button type="button" class="btn btn-primary btn-sm dropdown-toggle" aria-haspopup="true" data-toggle="dropdown">
-                        Action
+                return '
+                <div class="dropdown d-inline">
+                    <button class="btn btn-primary dropdown-toggle btn-sm" type="button" data-toggle="dropdown">
+                        Aksi
                     </button>
-                    <ul class="dropdown-menu">
-                        <li><a data-id="' . $merek->id . '" class="dropdown-item edit">Edit</a></li>
-                        <li><a data-id="' . $merek->id . '" class="dropdown-item hapus" href="#">Hapus</a></li>
-                    </ul>
+                    <div class="dropdown-menu">
+                        <a class="dropdown-item has-icon edit" href="#" data-id="' . $merek->id . '">
+                            <i class="fas fa-edit text-primary"></i> Edit
+                        </a>
+                        <div class="dropdown-divider"></div>
+                        <a class="dropdown-item has-icon hapus text-danger" href="#" data-id="' . $merek->id . '">
+                            <i class="fas fa-trash"></i> Hapus
+                        </a>
+                    </div>
                 </div>
                 ';
-        })
+            })
             ->rawColumns(['action'])
             ->make(true);
     }
