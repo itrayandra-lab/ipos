@@ -572,14 +572,14 @@ class PosController extends Controller
 
     public function searchInvitation(Request $request)
     {
-        $phone = $request->get('phone', '');
-        if (strlen($phone) < 3) {
+        $search = $request->get('phone', '');
+        if (strlen($search) < 3) {
             return response()->json(['status' => 'error', 'data' => []]);
         }
 
         try {
             $response = \Illuminate\Support\Facades\Http::timeout(5)
-                ->get('https://invitation.apotekparahyangansuite.com/api-search.php', ['phone' => $phone]);
+                ->get('https://invitation.apotekparahyangansuite.com/api-search.php', ['phone' => $search]);
 
             return response()->json($response->json());
         } catch (\Exception $e) {

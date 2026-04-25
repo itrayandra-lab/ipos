@@ -243,14 +243,14 @@
             </div>
             <div class="modal-body">
                 <div class="form-group mb-4">
-                    <label class="font-weight-bold text-dark">Search WA Pelanggan (Cepat)</label>
+                    <label class="font-weight-bold text-dark">Search Pelanggan (Cepat)</label>
                     <div class="input-group">
-                        <input type="text" id="customer-phone" class="form-control form-control-lg" placeholder="08xxxxxxxx" autocomplete="new-password" spellcheck="false" autocorrect="off"  autocapitalize="off">
+                        <input type="text" id="customer-phone" class="form-control form-control-lg" placeholder="No WA / Nama Pelanggan" autocomplete="new-password" spellcheck="false" autocorrect="off"  autocapitalize="off">
                         <div class="input-group-append">
                             <span class="input-group-text bg-white"><i class="fab fa-whatsapp text-success h5 mb-0"></i></span>
                         </div>
                     </div>
-                    <small class="text-muted">Ketik nomor WA untuk mencari secara otomatis.</small>
+                    <small class="text-muted">Ketik nomor WA atau nama untuk mencari secara otomatis.</small>
                     <div id="wa-suggestions" class="list-group mt-1" style="display:none; position:relative; z-index:999;"></div>
                 </div>
 
@@ -617,13 +617,15 @@
                     let suggestions = [];
 
                     // Internal DB results
-                    if (internal && internal.success) {
-                        suggestions.push({
-                            name: internal.data.name,
-                            phone: internal.data.phone || phone,
-                            email: internal.data.email || '',
-                            id: internal.data.id,
-                            source: 'pelanggan'
+                    if (internal && internal.success && internal.data.length > 0) {
+                        internal.data.forEach(function(item) {
+                            suggestions.push({
+                                name: item.name,
+                                phone: item.phone || phone,
+                                email: item.email || '',
+                                id: item.id,
+                                source: 'pelanggan'
+                            });
                         });
                     }
 
@@ -631,17 +633,19 @@
                     if (invitation && invitation.status === 'success' && invitation.data.length > 0) {
                         let seen = {};
                         invitation.data.forEach(function(item) {
-                            let key = item.phone + '|' + item.name;
+                            let key = (item.phone || '') + '|' + (item.name || '');
                             if (seen[key]) return;
                             seen[key] = true;
                             let duplicate = suggestions.some(function(s) { return s.phone && s.phone === item.phone; });
-                            suggestions.push({
-                                name: item.name,
-                                phone: item.phone || phone,
-                                email: '',
-                                id: duplicate ? suggestions.find(function(s) { return s.phone === item.phone; }).id : null,
-                                source: duplicate ? 'pelanggan' : 'undangan'
-                            });
+                            if (!duplicate) {
+                                suggestions.push({
+                                    name: item.name,
+                                    phone: item.phone || phone,
+                                    email: '',
+                                    id: null,
+                                    source: 'undangan'
+                                });
+                            }
                         });
                     }
 

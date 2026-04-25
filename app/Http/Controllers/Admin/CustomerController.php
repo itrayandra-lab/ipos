@@ -183,11 +183,16 @@ class CustomerController extends Controller
 
     public function checkAjax(Request $request)
     {
-        $customer = Customer::where('phone', $request->phone)->first();
-        if ($customer) {
+        $search = $request->phone;
+        $customers = Customer::where('phone', 'like', '%' . $search . '%')
+            ->orWhere('name', 'like', '%' . $search . '%')
+            ->limit(10)
+            ->get();
+
+        if ($customers->isNotEmpty()) {
             return response()->json([
                 'success' => true,
-                'data' => $customer
+                'data' => $customers
             ]);
         }
         return response()->json(['success' => false]);
