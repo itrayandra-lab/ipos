@@ -139,6 +139,20 @@
                                     </div>
                                 </div>
 
+                                <!-- QRIS Payment Info -->
+                                <div id="qris-payment-info" class="mb-3" style="display:none;">
+                                    <button type="button" class="btn btn-primary btn-block tablet-btn" data-toggle="modal" data-target="#modal-qris-image">
+                                        <i class="fas fa-qrcode mr-2"></i> Tampilkan QRIS
+                                    </button>
+                                </div>
+
+                                <!-- Transfer Payment Info -->
+                                <div id="transfer-payment-info" class="mb-3" style="display:none;">
+                                    <button type="button" class="btn btn-info btn-block tablet-btn" data-toggle="modal" data-target="#modal-transfer-info">
+                                        <i class="fas fa-university mr-2"></i> Info Rekening
+                                    </button>
+                                </div>
+
                                 <!-- Secondary Contexts -->
                                 <div class="row no-gutters mb-2">
                                     <div class="col-6 pr-1">
@@ -387,6 +401,53 @@
                         <a href="#" target="_blank" class="btn btn-primary btn-block tablet-btn" id="btn-print-receipt"><i class="fas fa-print mr-2"></i> Print Struk</a>
                     </div>
                 </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal 5: QRIS Image -->
+<div class="modal fade" id="modal-qris-image" tabindex="-1" role="dialog">
+    <div class="modal-dialog modal-dialog-centered" role="document">
+        <div class="modal-content">
+            <div class="modal-header border-0 pb-0">
+                <button type="button" class="close" data-dismiss="modal"><span>&times;</span></button>
+            </div>
+            <div class="modal-body text-center p-0">
+                <img src="{{ asset('uploads/receipts/qr-beautylatory.jpg') }}" class="img-fluid rounded-bottom shadow-sm" alt="QRIS" style="max-height: 85vh; width: 100%; object-fit: contain;">
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal 6: Transfer Info -->
+<div class="modal fade" id="modal-transfer-info" tabindex="-1" role="dialog">
+    <div class="modal-dialog modal-dialog-centered" role="document">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Informasi Transfer</h5>
+                <button type="button" class="close" data-dismiss="modal"><span>&times;</span></button>
+            </div>
+            <div class="modal-body">
+                <div class="card bg-light border-0 mb-0">
+                    <div class="card-body">
+                        <div class="row mb-3">
+                            <div class="col-4 text-muted">Bank</div>
+                            <div class="col-8 h6 mb-0 font-weight-bold">BCA</div>
+                        </div>
+                        <div class="row mb-3">
+                            <div class="col-4 text-muted">No Rekening</div>
+                            <div class="col-8 h5 mb-0 font-weight-bold text-primary">6801307326</div>
+                        </div>
+                        <div class="row">
+                            <div class="col-4 text-muted">Atas Nama</div>
+                            <div class="col-8 h6 mb-0 font-weight-bold">R Wendra Wilendra</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary btn-block tablet-btn" data-dismiss="modal">Tutup</button>
             </div>
         </div>
     </div>
@@ -724,12 +785,19 @@
         });
         $('#affiliate-mode').on('change', renderCart);
 
-        // Payment: Cash Logic
+        // Payment Method Toggle logic
         $('#payment-method').on('change', function() {
-            if ($(this).val() === 'cash') {
+            let method = $(this).val();
+            
+            // Hide all payment specific info first
+            $('#cash-payment-info, #qris-payment-info, #transfer-payment-info').hide();
+            
+            if (method === 'cash') {
                 $('#cash-payment-info').slideDown();
-            } else {
-                $('#cash-payment-info').slideUp();
+            } else if (method === 'qris') {
+                $('#qris-payment-info').slideDown();
+            } else if (method === 'transfer') {
+                $('#transfer-payment-info').slideDown();
             }
         });
 
