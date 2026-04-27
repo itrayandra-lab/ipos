@@ -141,39 +141,48 @@ class TransactionController extends Controller
 
     public function print(Request $request)
     {
-        $query = Transaction::select(
-            'transactions.id',
-            'transactions.user_id',
-            'transactions.total_amount',
-            'transactions.payment_status',
-            'transactions.delivery_type',
-            'transactions.created_at',
-            'users.name as user_name'
-        )
-        ->join('users', 'transactions.user_id', '=', 'users.id');
+        $transactions = $this->getFilteredTransactions($request);
+        return view('admin.transaction.print', compact('transactions'));
+    }
+
+    public function exportExcel(Request $request)
+    {
+        $transactions = $this->getFilteredTransactions($request);
+        return \Maatwebsite\Excel\Facades\Excel::download(new \App\Exports\TransactionExport($transactions), 'Laporan-Transaksi-' . date('d-m-Y') . '.xlsx');
+    }
+
+    public function exportPdf(Request $request)
+    {
+        $transactions = $this->getFilteredTransactions($request);
+        // Use the print view but without the onload print
+        $pdf = \Barryvdh\DomPDF\Facade\Pdf::loadView('admin.transaction.print_pdf', compact('transactions'));
+        return $pdf->download('Laporan-Transaksi-' . date('d-m-Y') . '.pdf');
+    }
+
+    private function getFilteredTransactions(Request $request)
+    {
+        $query = Transaction::with(['user', 'customer', 'items.product.merek']);
 
         // Apply filters
         if ($request->has('delivery_type') && !empty($request->delivery_type)) {
-            $query->where('transactions.delivery_type', $request->delivery_type);
+            $query->where('delivery_type', $request->delivery_type);
         }
 
         if ($request->has('payment_status') && !empty($request->payment_status)) {
-            $query->where('transactions.payment_status', $request->payment_status);
+            $query->where('payment_status', $request->payment_status);
         }
 
         if ($request->has('start_date') && !empty($request->start_date)) {
             $startDate = Carbon::createFromFormat('Y-m-d', $request->start_date)->startOfDay();
-            $query->where('transactions.created_at', '>=', $startDate);
+            $query->where('created_at', '>=', $startDate);
         }
 
         if ($request->has('end_date') && !empty($request->end_date)) {
             $endDate = Carbon::createFromFormat('Y-m-d', $request->end_date)->endOfDay();
-            $query->where('transactions.created_at', '<=', $endDate);
+            $query->where('created_at', '<=', $endDate);
         }
 
-        $transactions = $query->orderBy('id', 'desc')->get();
-
-        return view('admin.transaction.print', compact('transactions'));
+        return $query->orderBy('id', 'desc')->get();
     }
 
     public function printStruk($id)

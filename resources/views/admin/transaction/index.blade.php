@@ -257,9 +257,22 @@
                             <a href="{{ route('admin.transactions.report.product') }}" class="btn btn-info btn-sm mr-2" style="border-radius: 8px; font-weight: 700;">
                                 <i class="fas fa-chart-line mr-1"></i> Laporan Per Produk
                             </a>
-                            <button type="button" class="btn btn-premium btn-sm" onclick="printData()">
-                                <i class="fas fa-print mr-1"></i> Cetak Laporan
-                            </button>
+                            <div class="dropdown d-inline">
+                                <button class="btn btn-premium btn-sm dropdown-toggle" type="button" id="exportDropdown" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+                                    <i class="fas fa-file-export mr-1"></i> Cetak Laporan
+                                </button>
+                                <div class="dropdown-menu dropdown-menu-right" aria-labelledby="exportDropdown" style="border-radius: 12px; border: none; box-shadow: 0 10px 30px rgba(0,0,0,0.1);">
+                                    <a class="dropdown-item" href="javascript:void(0)" onclick="printData()">
+                                        <i class="fas fa-print mr-2 text-primary"></i> Print Browser
+                                    </a>
+                                    <a class="dropdown-item" href="javascript:void(0)" onclick="exportExcel()">
+                                        <i class="fas fa-file-excel mr-2 text-success"></i> Export Excel
+                                    </a>
+                                    <a class="dropdown-item" href="javascript:void(0)" onclick="exportPdf()">
+                                        <i class="fas fa-file-pdf mr-2 text-danger"></i> Export PDF
+                                    </a>
+                                </div>
+                            </div>
                         </div>
                     </div>
                     <div class="card-body pb-0">
@@ -397,15 +410,20 @@
 
             // Print data
             window.printData = function() {
-                var delivery_type = $('#delivery_type').val();
-                var payment_status = $('#payment_status').val();
-                var start_date = $('#start_date').val();
-                var end_date = $('#end_date').val();
-                var url = "{{ url('admin/transactions/print') }}?delivery_type=" + delivery_type +
-                          "&payment_status=" + payment_status +
-                          "&start_date=" + start_date +
-                          "&end_date=" + end_date;
+                var url = "{{ route('admin.transactions.index') }}/print?" + $('#filter-form').serialize();
                 window.open(url, '_blank');
+            };
+
+            // Export Excel
+            window.exportExcel = function() {
+                var url = "{{ route('admin.transactions.export.excel') }}?" + $('#filter-form').serialize();
+                window.location.href = url;
+            };
+
+            // Export PDF
+            window.exportPdf = function() {
+                var url = "{{ route('admin.transactions.export.pdf') }}?" + $('#filter-form').serialize();
+                window.location.href = url;
             };
 
             // Delete transaction

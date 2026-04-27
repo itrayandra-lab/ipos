@@ -248,6 +248,8 @@ Route::prefix('admin')->middleware(['auth', 'role:admin'])->group(function () {
             Route::get('/', [TransactionAdmin::class , 'index'])->name('admin.transactions.index');
             Route::get('all', [TransactionAdmin::class , 'getall']);
             Route::get('print', [TransactionAdmin::class , 'print']);
+            Route::get('export/excel', [TransactionAdmin::class , 'exportExcel'])->name('admin.transactions.export.excel');
+            Route::get('export/pdf', [TransactionAdmin::class , 'exportPdf'])->name('admin.transactions.export.pdf');
             Route::get('show/{id}', [TransactionAdmin::class , 'show'])->name('admin.transactions.show');
             Route::get('edit/{id}', [TransactionAdmin::class , 'edit'])->name('admin.transactions.edit');
             Route::put('{id}', [TransactionAdmin::class , 'update'])->name('admin.transactions.update');
