@@ -54,7 +54,7 @@ Route::post('/voucher', [GuestController::class , 'voucher'])->name('checkout.vo
 
 
 # -------------------- ADMIN --------------------
-Route::prefix('admin')->middleware(['auth', 'role:admin'])->group(function () {
+Route::prefix('admin')->middleware(['auth', 'role:super_admin,store_manager,finance,admin,sales'])->group(function () {
     # Dashboard
     Route::get('/', [DashboardAdmin::class , 'index']);
 

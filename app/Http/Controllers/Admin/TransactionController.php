@@ -109,17 +109,28 @@ class TransactionController extends Controller
                     $invoiceBtn = '<li><a href="' . route('admin.sales.invoices.print', $transaction->id) . '" target="_blank" class="dropdown-item text-success"><i class="fas fa-print"></i> Cetak Invoice</a></li>';
                 }
 
+                $role = auth()->user()->role;
+                $editBtn = '<li><a href="' . route('admin.transactions.edit', $transaction->id) . '" class="dropdown-item">Edit</a></li>';
+                $deleteBtn = '<li><button type="button" onclick="deleteTransaction(' . $transaction->id . ')" class="dropdown-item text-danger">Hapus</button></li>';
+                $divider = '<div class="dropdown-divider"></div>';
+
+                if ($role == 'finance') {
+                    $editBtn = '';
+                    $deleteBtn = '';
+                    $divider = '';
+                }
+
                 return '<div class="dropdown d-inline dropleft">
                     <button type="button" class="btn btn-action-custom btn-sm dropdown-toggle" data-toggle="dropdown">
                         Action
                     </button>
                     <ul class="dropdown-menu">
                         <li><a href="' . url('admin/transactions/show/'. $transaction->id) . '" class="dropdown-item">Detail</a></li>
-                        <li><a href="' . route('admin.transactions.edit', $transaction->id) . '" class="dropdown-item">Edit</a></li>
+                        ' . $editBtn . '
                         <li><a href="' . route('admin.transactions.print_struk', $transaction->id) . '" target="_blank" class="dropdown-item">Print Struk</a></li>
                         ' . $invoiceBtn . '
-                        <div class="dropdown-divider"></div>
-                        <li><button type="button" onclick="deleteTransaction(' . $transaction->id . ')" class="dropdown-item text-danger">Hapus</button></li>
+                        ' . $divider . '
+                        ' . $deleteBtn . '
                     </ul>
                 </div>';
             })
