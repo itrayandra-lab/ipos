@@ -88,6 +88,15 @@
                     <li class="{{ $sb == 'Voucher' ? 'active' : '' }}"><a class="nav-link" href="{{ url('admin/manage-master/voucher') }}">Voucher / Diskon</a></li>
                 </ul>
             </li>
+            
+            <li class="nav-item dropdown {{ ($sb == 'PettyCash' || $sb == 'Expense' || $sb == 'FinanceReport') ? 'active' : '' }}">
+                <a href="#" class="nav-link has-dropdown"><i class="fas fa-wallet"></i> <span>Finance</span></a>
+                <ul class="dropdown-menu">
+                    <li class="{{ $sb == 'PettyCash' ? 'active' : '' }}"><a class="nav-link" href="{{ route('admin.finance.petty_cash.index') }}">Petty Cash</a></li>
+                    <li class="{{ $sb == 'Expense' ? 'active' : '' }}"><a class="nav-link" href="{{ route('admin.finance.expenses.index') }}">Pengeluaran (Expenses)</a></li>
+                    <li class="{{ $sb == 'FinanceReport' ? 'active' : '' }}"><a class="nav-link" href="{{ route('admin.finance.reports.index') }}">Laporan Keuangan</a></li>
+                </ul>
+            </li>
 
             <li class="nav-item dropdown {{ ($sb == 'Affiliate Users' || $sb == 'Customers' || $sb == 'User') ? 'active' : '' }}">
                 <a href="#" class="nav-link has-dropdown"><i class="fas fa-users-cog"></i> <span>Mitra</span></a>

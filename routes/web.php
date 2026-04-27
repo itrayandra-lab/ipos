@@ -261,12 +261,39 @@ Route::prefix('admin')->middleware(['auth', 'role:admin'])->group(function () {
             Route::post('update-payment-receipt', [TransactionAdmin::class , 'updatePaymentReceipt'])->name('admin.transactions.update-payment-receipt');
             Route::post('quick-upload-receipt/{id}', [TransactionAdmin::class , 'quickUploadReceipt'])->name('admin.transactions.quick-upload-receipt');
 
+
+
             // Product Sales Report
             Route::get('report/product', [TransactionAdmin::class, 'productReport'])->name('admin.transactions.report.product');
             Route::get('report/product/all', [TransactionAdmin::class, 'productReportData']);
             Route::get('report/product/print', [TransactionAdmin::class, 'printProductReport'])->name('admin.transactions.report.product.print');
         }
         );
+
+        // Finance Module
+        Route::prefix('finance')->group(function () {
+            // Petty Cash
+            Route::get('petty-cash', [App\Http\Controllers\Admin\Finance\PettyCashController::class, 'index'])->name('admin.finance.petty_cash.index');
+            Route::get('petty-cash/all', [App\Http\Controllers\Admin\Finance\PettyCashController::class, 'data'])->name('admin.finance.petty_cash.all');
+            Route::post('petty-cash', [App\Http\Controllers\Admin\Finance\PettyCashController::class, 'store'])->name('admin.finance.petty_cash.store');
+
+            // Expenses
+            Route::get('expenses', [App\Http\Controllers\Admin\Finance\ExpenseController::class, 'index'])->name('admin.finance.expenses.index');
+            Route::get('expenses/all', [App\Http\Controllers\Admin\Finance\ExpenseController::class, 'data'])->name('admin.finance.expenses.all');
+            Route::post('expenses', [App\Http\Controllers\Admin\Finance\ExpenseController::class, 'store'])->name('admin.finance.expenses.store');
+            Route::delete('expenses/{id}', [App\Http\Controllers\Admin\Finance\ExpenseController::class, 'destroy'])->name('admin.finance.expenses.destroy');
+
+            // Expense Categories
+            Route::get('expense-categories', [App\Http\Controllers\Admin\Finance\ExpenseCategoryController::class, 'index'])->name('admin.finance.expense_categories.index');
+            Route::get('expense-categories/all', [App\Http\Controllers\Admin\Finance\ExpenseCategoryController::class, 'data'])->name('admin.finance.expense_categories.all');
+            Route::post('expense-categories', [App\Http\Controllers\Admin\Finance\ExpenseCategoryController::class, 'store'])->name('admin.finance.expense_categories.store');
+            Route::post('expense-categories/{id}', [App\Http\Controllers\Admin\Finance\ExpenseCategoryController::class, 'update'])->name('admin.finance.expense_categories.update');
+            Route::get('expense-categories/{id}', [App\Http\Controllers\Admin\Finance\ExpenseCategoryController::class, 'show'])->name('admin.finance.expense_categories.show');
+            Route::delete('expense-categories/{id}', [App\Http\Controllers\Admin\Finance\ExpenseCategoryController::class, 'destroy'])->name('admin.finance.expense_categories.destroy');
+
+            // Reports
+            Route::get('reports', function() { return view('admin.finance.reports.index')->with('sb', 'FinanceReport'); })->name('admin.finance.reports.index');
+        });
 
         // Sales Documents (Penjualan)
         Route::prefix('sales')->group(function () {
