@@ -29,15 +29,47 @@
                         </div>
                     </div>
                 </div>
+                <div class="col-lg-4 col-md-6 col-sm-6 col-12">
+                    <div class="card card-statistic-1">
+                        <div class="card-icon bg-success">
+                            <i class="fas fa-arrow-down"></i>
+                        </div>
+                        <div class="card-wrap">
+                            <div class="card-header">
+                                <h4>Masuk (Bulan Ini)</h4>
+                            </div>
+                            <div class="card-body">
+                                Rp {{ number_format($monthIn, 0, ',', '.') }}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-lg-4 col-md-6 col-sm-6 col-12">
+                    <div class="card card-statistic-1">
+                        <div class="card-icon bg-danger">
+                            <i class="fas fa-arrow-up"></i>
+                        </div>
+                        <div class="card-wrap">
+                            <div class="card-header">
+                                <h4>Keluar (Bulan Ini)</h4>
+                            </div>
+                            <div class="card-body">
+                                Rp {{ number_format($monthOut, 0, ',', '.') }}
+                            </div>
+                        </div>
+                    </div>
+                </div>
             </div>
 
             <div class="card">
                 <div class="card-header">
                     <h4>Riwayat Transaksi Kas Kecil</h4>
                     <div class="card-header-form">
+                        @if(auth()->user()->role == 'finance' || auth()->user()->role == 'super_admin')
                         <button class="btn btn-success mr-2" onclick="openTopUpModal()">
                             <i class="fas fa-arrow-alt-circle-down mr-1"></i> Top Up Saldo
                         </button>
+                        @endif
                         <button class="btn btn-primary" onclick="openTransactionModal()">
                             <i class="fas fa-plus mr-1"></i> Tambah Transaksi
                         </button>
@@ -82,7 +114,9 @@
                     <div class="form-group">
                         <label>Tipe Transaksi</label>
                         <select class="form-control" name="type" required>
+                            @if(auth()->user()->role == 'finance' || auth()->user()->role == 'super_admin')
                             <option value="in">Kas Masuk (Pengisian Saldo)</option>
+                            @endif
                             <option value="out">Kas Keluar</option>
                         </select>
                     </div>

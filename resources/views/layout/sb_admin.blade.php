@@ -79,17 +79,19 @@
             @endif
 
             {{-- Pembelian Group --}}
-            @if(in_array($role, ['super_admin', 'store_manager', 'admin', 'sales']))
+            @if(in_array($role, ['super_admin', 'store_manager', 'finance', 'admin', 'sales']))
             <li class="nav-item dropdown @if ($sb == 'PurchaseOrder' || $sb == 'GoodsReceipt' || $sb == 'Supplier') active @endif">
                 <a href="#" class="nav-link has-dropdown" data-toggle="dropdown"><i class="fas fa-shopping-cart"></i>
                     <span>Pembelian</span></a>
                 <ul class="dropdown-menu">
                     <li class="@if ($sb == 'PurchaseOrder') active @endif"><a class="nav-link"
                             href="{{ route('admin.purchasing.purchase_orders.index') }}">Order Pembelian</a></li>
+                    @if(in_array($role, ['super_admin', 'store_manager', 'admin', 'sales']))
                     <li class="@if ($sb == 'GoodsReceipt') active @endif"><a class="nav-link"
                             href="{{ route('admin.purchasing.goods_receipts.index') }}">Penerimaan Barang</a></li>
                     <li class="@if ($sb == 'Supplier') active @endif"><a class="nav-link"
                             href="{{ route('admin.purchasing.suppliers.index') }}">Supplier</a></li>
+                    @endif
                 </ul>
             </li>
             @endif
@@ -100,11 +102,15 @@
                 <a href="#" class="nav-link has-dropdown"><i class="fas fa-money-bill-wave"></i> <span>Penjualan</span></a>
                 <ul class="dropdown-menu">
                     <li class="{{ $sb == 'Transaction' ? 'active' : '' }}"><a class="nav-link" href="{{ url('admin/transactions') }}">Data Transaksi</a></li>
+                    @if(in_array($role, ['super_admin', 'store_manager', 'admin', 'sales']))
                     <li class="{{ $sb == 'SalesInvoices' ? 'active' : '' }}"><a class="nav-link" href="{{ route('admin.sales.invoices.index') }}">Invoice Penjualan</a></li>
+                    @endif
                     @if(in_array($role, ['super_admin', 'store_manager', 'admin']))
                     <li class="{{ $sb == 'SalesDeliveryNotes' ? 'active' : '' }}"><a class="nav-link" href="{{ route('admin.sales.delivery_notes.index') }}">Surat Jalan</a></li>
                     @endif
+                    @if(in_array($role, ['super_admin', 'store_manager', 'admin', 'sales']))
                     <li class="{{ $sb == 'SalesReceipts' ? 'active' : '' }}"><a class="nav-link" href="{{ route('admin.sales.receipts.index') }}">Kuitansi</a></li>
+                    @endif
                     @if(in_array($role, ['super_admin', 'store_manager', 'admin']))
                     <li class="{{ $sb == 'OnlineSale' ? 'active' : '' }}"><a class="nav-link" href="{{ route('admin.online_sale.index') }}">Marketplace</a></li>
                     <li class="{{ $sb == 'Voucher' ? 'active' : '' }}"><a class="nav-link" href="{{ url('admin/manage-master/voucher') }}">Voucher / Diskon</a></li>
@@ -114,13 +120,15 @@
             @endif
             
             {{-- Finance Group --}}
-            @if(in_array($role, ['super_admin', 'store_manager', 'finance']))
+            @if(in_array($role, ['super_admin', 'store_manager', 'finance', 'admin']))
             <li class="nav-item dropdown {{ ($sb == 'PettyCash' || $sb == 'Expense' || $sb == 'FinanceReport') ? 'active' : '' }}">
                 <a href="#" class="nav-link has-dropdown"><i class="fas fa-wallet"></i> <span>Finance</span></a>
                 <ul class="dropdown-menu">
                     <li class="{{ $sb == 'PettyCash' ? 'active' : '' }}"><a class="nav-link" href="{{ route('admin.finance.petty_cash.index') }}">Petty Cash</a></li>
                     <li class="{{ $sb == 'Expense' ? 'active' : '' }}"><a class="nav-link" href="{{ route('admin.finance.expenses.index') }}">Pengeluaran (Expenses)</a></li>
+                    @if(in_array($role, ['super_admin', 'store_manager', 'finance']))
                     <li class="{{ $sb == 'FinanceReport' ? 'active' : '' }}"><a class="nav-link" href="{{ route('admin.finance.reports.index') }}">Laporan Keuangan</a></li>
+                    @endif
                 </ul>
             </li>
             @endif
@@ -153,7 +161,7 @@
                     <li class="{{ $sb == 'Warehouse' ? 'active' : '' }}"><a class="nav-link" href="{{ route('admin.settings.warehouses.index') }}">Data Gudang</a></li>
                     <li class="{{ Request::is('admin/settings/channels') ? 'active' : '' }}"><a class="nav-link" href="{{ route('admin.settings.channels') }}">Saluran Penjualan</a></li>
                     <li class="{{ Request::is('admin/settings/store') ? 'active' : '' }}"><a class="nav-link" href="{{ route('admin.settings.store') }}">Toko</a></li>
-                    @if(in_array($role, ['super_admin', 'store_manager']))
+                    @if(in_array($role, ['super_admin', 'store_manager', 'admin']))
                     <li class="{{ $sb == 'User' ? 'active' : '' }}"><a class="nav-link" href="{{ url('admin/manage-master/users') }}">Data User</a></li>
                     @endif
                     @endif

@@ -15,7 +15,18 @@ class PettyCashController extends Controller
     {
         $latest = PettyCashTransaction::latest()->first();
         $balance = $latest ? $latest->balance_after : 0;
-        return view('admin.finance.petty_cash.index', compact('balance'))->with('sb', 'PettyCash');
+        
+        $monthIn = PettyCashTransaction::where('type', 'in')
+            ->whereMonth('created_at', now()->month)
+            ->whereYear('created_at', now()->year)
+            ->sum('amount');
+            
+        $monthOut = PettyCashTransaction::where('type', 'out')
+            ->whereMonth('created_at', now()->month)
+            ->whereYear('created_at', now()->year)
+            ->sum('amount');
+
+        return view('admin.finance.petty_cash.index', compact('balance', 'monthIn', 'monthOut'))->with('sb', 'PettyCash');
     }
 
     public function data()
