@@ -105,7 +105,7 @@
                     @if(in_array($role, ['super_admin', 'store_manager', 'admin', 'sales']))
                     <li class="{{ $sb == 'SalesInvoices' ? 'active' : '' }}"><a class="nav-link" href="{{ route('admin.sales.invoices.index') }}">Invoice Penjualan</a></li>
                     @endif
-                    @if(in_array($role, ['super_admin', 'store_manager', 'admin']))
+                    @if(in_array($role, ['super_admin', 'store_manager', 'admin', 'sales']))
                     <li class="{{ $sb == 'SalesDeliveryNotes' ? 'active' : '' }}"><a class="nav-link" href="{{ route('admin.sales.delivery_notes.index') }}">Surat Jalan</a></li>
                     @endif
                     @if(in_array($role, ['super_admin', 'store_manager', 'admin', 'sales']))
