@@ -325,7 +325,12 @@
                     <td>
                         <div style="font-weight: 600;">{{ $displayLabel }}</div>
                     </td>
-                    <td class="text-right">Rp {{ number_format($item->price, 0, ',', '.') }}</td>
+                    <td class="text-right">
+                        <div>Rp {{ number_format($item->price, 0, ',', '.') }}</div>
+                        @if($item->discount > 0)
+                            <div style="font-size: 10px; color: #e74c3c; margin-top: 2px;">- Rp {{ number_format($item->discount, 0, ',', '.') }} (diskon)</div>
+                        @endif
+                    </td>
                     <td class="text-center">{{ $item->qty }}</td>
                     <td class="text-right">Rp {{ number_format($item->subtotal, 0, ',', '.') }}</td>
                 </tr>

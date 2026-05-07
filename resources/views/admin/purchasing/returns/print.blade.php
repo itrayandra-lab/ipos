@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Surat Jalan #{{ $deliveryNote->delivery_note_no }}</title>
+    <title>Return Barang #{{ $return->return_number }}</title>
     <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700&display=swap" rel="stylesheet">
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -43,36 +43,36 @@
     <!-- Header -->
     <div class="header">
         <div class="header-left">
-            <h2>SURAT JALAN</h2>
-            @if($storeSetting)
-                <p><strong>{{ $storeSetting->store_name }}</strong></p>
-                <p>{{ $storeSetting->address }}</p>
-                @if($storeSetting->email)
-                    <p>Email: {{ $storeSetting->email }}</p>
+            <h2>RETURN BARANG</h2>
+            @if($setting)
+                <p><strong>{{ $setting->store_name }}</strong></p>
+                <p>{{ $setting->address }}</p>
+                @if($setting->email)
+                    <p>Email: {{ $setting->email }}</p>
                 @endif
-                @if($storeSetting->whatsapp)
-                    <p>WA: {{ $storeSetting->whatsapp }}</p>
+                @if($setting->whatsapp)
+                    <p>WA: {{ $setting->whatsapp }}</p>
                 @endif
             @endif
         </div>
         <div class="header-center"></div>
         <div class="header-right">
-            @if($storeSetting && $storeSetting->logo_path)
-                <img src="{{ asset($storeSetting->logo_path) }}" alt="Logo">
+            @if($setting && $setting->logo_path)
+                <img src="{{ asset($setting->logo_path) }}" alt="Logo">
             @endif
         </div>
     </div>
 
-    <!-- Info Section (No boxes) -->
+    <!-- Info Section -->
     <div class="info-row">
         <div class="info-col">
-            <p><strong>Penerima :</strong> <span>{{ $deliveryNote->customer_name ?? ($deliveryNote->customer ? $deliveryNote->customer->name : 'Umum') }}</span></p>
-            <p><strong>No Telpon :</strong> <span>{{ $deliveryNote->customer_phone ?? ($deliveryNote->customer ? $deliveryNote->customer->phone : '-') }}</span></p>
-            <p><strong>Alamat :</strong> <span class="address-text">{{ $deliveryNote->delivery_address ?? ($deliveryNote->customer ? $deliveryNote->customer->address : '-') }}</span></p>
+            <p><strong>Supplier :</strong> <span>{{ $return->supplier->name }}</span></p>
+            <p><strong>Gudang :</strong> <span>{{ $return->warehouse->name }}</span></p>
+            <p><strong>Alamat :</strong> <span class="address-text">{{ $return->supplier->address ?: '-' }}</span></p>
         </div>
         <div class="info-col">
-            <p><strong>No Surat Jalan :</strong> <span>{{ $deliveryNote->delivery_note_no }}</span></p>
-            <p><strong>Tanggal :</strong> <span>{{ \Carbon\Carbon::parse($deliveryNote->transaction_date)->format('d/m/Y') }}</span></p>
+            <p><strong>No Return :</strong> <span>{{ $return->return_number }}</span></p>
+            <p><strong>Tanggal :</strong> <span>{{ \Carbon\Carbon::parse($return->return_date)->format('d/m/Y') }}</span></p>
         </div>
     </div>
 
@@ -81,35 +81,26 @@
         <thead>
             <tr>
                 <th class="text-center" style="width: 5%;">No</th>
-                <th style="width: 52%;">Nama Barang</th>
-                <th class="text-center" style="width: 12%;">Qty</th>
-                <th style="width: 31%;">Keterangan</th>
+                <th style="width: 45%;">Nama Barang</th>
+                <th class="text-center" style="width: 15%;">Batch No</th>
+                <th class="text-center" style="width: 10%;">Qty</th>
+                <th style="width: 25%;">Keterangan</th>
             </tr>
         </thead>
         <tbody>
-            @foreach($deliveryNote->items as $index => $item)
+            @foreach($return->items as $index => $item)
             <tr>
                 <td class="text-center">{{ $index + 1 }}</td>
                 <td>
-                    @if($item->product)
-                        @if($item->product->merek)
-                            <strong>{{ $item->product->merek->name }}</strong> - 
-                        @endif
-                        {{ $item->product->name }}
-                        @if($item->batch && $item->batch->variant && $item->batch->variant->netto)
-                            @php
-                                $netto = $item->batch->variant->netto;
-                            @endphp
-                            <br><small>Netto: {{ $netto->netto_value }} {{ $netto->satuan }} | Batch: {{ $item->batch->batch_no }}</small>
-                        @elseif($item->batch)
-                            <br><small>Batch: {{ $item->batch->batch_no }}</small>
-                        @endif
-                    @else
-                        -
-                    @endif
+                    @php
+                        $merek = $item->product->merek ? $item->product->merek->name . ' ' : '';
+                        $netto = ($item->variant && $item->variant->netto) ? ' ' . $item->variant->netto->netto_value . ' ' . $item->variant->netto->satuan : '';
+                    @endphp
+                    <strong>{{ $merek }}{{ $item->product->name }}{{ $netto }}</strong>
                 </td>
+                <td class="text-center">{{ $item->batch ? $item->batch->batch_no : '-' }}</td>
                 <td class="text-center">{{ $item->qty }}</td>
-                <td>{{ $item->description ?? '-' }}</td>
+                <td>{{ $item->reason ?? '-' }}</td>
             </tr>
             @endforeach
         </tbody>
@@ -117,15 +108,15 @@
 
     <!-- Footer -->
     <div class="footer">
-        <p style="font-size: 9px;">Mohon barang diperiksa dengan baik. Barang yang sudah dibeli tidak dapat dikembalikan tanpa perjanjian sebelumnya.</p>
+        <p style="font-size: 9px;">Catatan: {{ $return->notes ?: 'Tidak ada catatan.' }}</p>
     </div>
 
     <!-- Signatures -->
     <div class="signatures">
         <div class="signature-box">
-            <p>Hormat Kami,</p>
+            <p>Dibuat Oleh,</p>
             <div class="signature-line"></div>
-            <p>( {{ $deliveryNote->user ? $deliveryNote->user->name : auth()->user()->name }} )</p>
+            <p>( {{ $return->user ? $return->user->name : auth()->user()->name }} )</p>
         </div>
         <div class="signature-box">
             <p>Gudang,</p>
@@ -133,7 +124,7 @@
             <p>( ............ )</p>
         </div>
         <div class="signature-box">
-            <p>Penerima,</p>
+            <p>Mengetahui,</p>
             <div class="signature-line"></div>
             <p>( ............ )</p>
         </div>

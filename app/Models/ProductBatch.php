@@ -19,6 +19,8 @@ class ProductBatch extends Model
         'buy_price',
     ];
 
+    protected $appends = ['current_stock'];
+
     protected $casts = [
         'expiry_date' => 'date',
     ];
@@ -43,12 +45,20 @@ class ProductBatch extends Model
         return $this->hasMany(TransactionItem::class , 'product_batch_id');
     }
 
+    public function supplierReturnItems()
+    {
+        return $this->hasMany(SupplierReturnItem::class, 'product_batch_id');
+    }
+
     /**
      * Get current stock for this batch.
      * Formula: qty (initial) - SUM(transaction_items.qty)
      */
     public function getCurrentStockAttribute()
     {
-        return $this->qty - $this->transactionItems()->sum('qty');
+        $sales = $this->transaction_items_sum_qty ?? $this->transactionItems()->sum('qty');
+        $returns = $this->supplier_return_items_sum_qty ?? $this->supplierReturnItems()->sum('qty');
+        
+        return (int)($this->qty - ($sales ?? 0) - ($returns ?? 0));
     }
 }

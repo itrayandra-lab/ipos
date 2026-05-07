@@ -61,7 +61,7 @@ class PosController extends Controller
                 'id'        => $batch->id,
                 'text'      => $labelText . ' (' . $batch->batch_no . ' - ' . $batch->qty . ')',
                 'price'     => $batch->variant ? (int)$batch->variant->price : 0,
-                'stock'     => $batch->qty,
+                'stock'     => $batch->current_stock,
                 'buy_price' => $batch->buy_price ?? 0,
                 'product_id' => $product->id,
                 'batch_no'  => $batch->batch_no,
@@ -469,7 +469,7 @@ class PosController extends Controller
                         } else {
                             $batch = ProductBatch::find($itemData['product_batch_id']);
                             if ($batch) {
-                                $batch->decrement('qty', $itemData['qty']);
+                                // $batch->decrement('qty', $itemData['qty']);
                             }
                             $product = Product::find($itemData['product_id']);
                             if ($product) {

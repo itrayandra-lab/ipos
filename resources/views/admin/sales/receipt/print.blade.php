@@ -4,45 +4,50 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Kwitansi Pembayaran #{{ $transaction->id }}</title>
+    <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Birthstone&display=swap" rel="stylesheet">
     <style>
-        body { font-family: 'Arial', sans-serif; font-size: 14px; margin: 0; padding: 20px; }
+        body { font-family: 'Nunito', sans-serif; font-size: 14px; margin: 0; padding: 20px; color: #333; }
         .receipt-container { 
             border: 2px solid #555; 
-            padding: 20px; 
+            padding: 30px; 
             background-color: #fff;
             max-width: 800px;
             margin: 0 auto;
+            position: relative;
         }
-        .header { text-align: center; margin-bottom: 20px; }
-        .header h1 { margin: 0; font-size: 20px; font-weight: bold; text-decoration: underline; letter-spacing: 1px;}
-        .top-info { display: flex; justify-content: space-between; margin-bottom: 20px; }
-        .top-info p { margin: 0; font-weight: bold;}
+        .header { text-align: center; margin-bottom: 30px; }
+        .header h1 { margin: 0; font-size: 22px; font-weight: 800; text-decoration: underline; letter-spacing: 2px; color: #000; }
         
-        .content { margin-bottom: 30px; }
-        .row { display: flex; align-items: flex-start; margin-bottom: 15px; }
-        .label { width: 150px; }
-        .value { flex: 1; border-bottom: 1px dotted #000; padding-bottom: 2px; }
-        .value-multi-line { flex: 1; border-bottom: 1px dotted #000; line-height: 24px; min-height: 48px; 
-            background-image: linear-gradient(to right, black 33%, rgba(255,255,255,0) 0%);
-            background-position: bottom;
-            background-size: 3px 1px;
-            background-repeat: repeat-x;
-            border-bottom: none;
+        .top-info { 
+            display: flex; 
+            flex-direction: column;
+            align-items: flex-end; 
+            margin-bottom: 25px; 
+            gap: 5px;
         }
-        .value-multi-line span { 
-            display: inline;
-            line-height: 24px;
-            background: linear-gradient(transparent 23px, #000 23px, #000 24px, transparent 24px);
-            background-size: 100% 24px;
+        .top-info p { margin: 0; font-weight: 700; font-size: 13px; }
+        
+        .content { margin-bottom: 35px; }
+        .row { display: flex; align-items: flex-start; margin-bottom: 18px; }
+        .label { width: 160px; font-weight: 600; }
+        .value { flex: 1; border-bottom: 1px dotted #000; padding-bottom: 2px; font-weight: 500; }
+        .terbilang-value { 
+            font-family: 'Birthstone', cursive; 
+            font-size: 24px; 
+            font-style: italic;
+            padding-bottom: 0;
+            line-height: 1;
+            color: #000;
         }
         
-        .footer { display: flex; justify-content: space-between; align-items: flex-end; margin-top: 30px; }
+        .footer { display: flex; justify-content: space-between; align-items: flex-end; margin-top: 40px; }
         .amount-box { 
-            border: 2px solid #000; 
-            padding: 10px 15px; 
-            font-size: 18px; 
-            font-weight: bold; 
-            min-width: 200px;
+            border: 3px solid #000; 
+            padding: 12px 20px; 
+            font-size: 20px; 
+            font-weight: 800; 
+            min-width: 220px;
             transform: skew(-15deg);
             background: #fff;
         }
@@ -51,24 +56,28 @@
             transform: skew(15deg);
         }
         
-        .signatures { display: flex; gap: 50px; }
-        .signature-box { text-align: center; width: 150px; }
-        .signature-line { border-bottom: 1px solid #000; margin-bottom: 5px; height: 60px; }
-        .signature-box p { margin: 0; font-size: 12px; }
+        .signatures { display: flex; gap: 60px; }
+        .signature-box { text-align: center; width: 160px; }
+        .signature-line { border-bottom: 1px solid #000; margin-bottom: 8px; height: 70px; }
+        .signature-box p { margin: 0; font-size: 12px; font-weight: 600; }
         
-        .logo-placeholder { position: absolute; top: 20px; left: 20px; max-width: 100px; }
-        .logo-placeholder img { max-width: 100%; height: auto;}
+        .logo-placeholder { position: absolute; top: 30px; left: 30px; }
+        .logo-placeholder img { max-height: 70px; width: auto; }
 
         @media print {
             .no-print { display: none; }
             body { padding: 0; }
+            .receipt-container { border: 2px solid #000; }
         }
     </style>
 </head>
-<!-- Removed onload="window.print()" to allow user to inspect first if needed -->
-<body>
-    <div class="receipt-container" style="position: relative;">
-        @if(file_exists(public_path('assets/img/logo-black.png')))
+<body onload="window.print()">
+    <div class="receipt-container">
+        @if(isset($setting) && $setting->logo_path)
+        <div class="logo-placeholder">
+            <img src="{{ asset($setting->logo_path) }}" alt="Logo">
+        </div>
+        @elseif(file_exists(public_path('assets/img/logo-black.png')))
         <div class="logo-placeholder">
             <img src="{{ asset('assets/img/logo-black.png') }}" alt="Logo">
         </div>
@@ -90,7 +99,7 @@
             </div>
             <div class="row">
                 <div class="label">Terbilang</div>
-                <div class="value">: # {{ \App\Helpers\Terbilang::make($transaction->total_amount) }} Rupiah #</div>
+                <div class="value terbilang-value">: {{ ucwords(\App\Helpers\Terbilang::make($transaction->total_amount)) }} Rupiah</div>
             </div>
             
             @php

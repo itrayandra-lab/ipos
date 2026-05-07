@@ -389,6 +389,21 @@ Route::prefix('admin')->middleware(['auth', 'role:super_admin,store_manager,fina
                 }
                 );
 
+                // Returns
+                Route::controller(\App\Http\Controllers\Admin\Purchasing\ReturnController::class)->group(function () {
+                    Route::get('/returns', 'index')->name('admin.purchasing.returns.index');
+                    Route::get('/returns/create', 'create')->name('admin.purchasing.returns.create');
+                    Route::get('/returns/all', 'getall')->name('admin.purchasing.returns.getall');
+                    Route::get('/returns/batches', 'getBatches')->name('admin.purchasing.returns.get_batches');
+                    Route::post('/returns', 'store')->name('admin.purchasing.returns.store');
+                    Route::get('/returns/{id}', 'show')->name('admin.purchasing.returns.show');
+                    Route::get('/returns/{id}/edit', 'edit')->name('admin.purchasing.returns.edit');
+                    Route::get('/returns/{id}/print', 'print')->name('admin.purchasing.returns.print');
+                    Route::get('/returns/{id}/print-sj', 'printSJ')->name('admin.purchasing.returns.print_sj');
+                    Route::put('/returns/{id}', 'update')->name('admin.purchasing.returns.update');
+                    Route::delete('/returns/{id}', 'destroy')->name('admin.purchasing.returns.destroy');
+                });
+
                 // Stock Movements
                 Route::controller(\App\Http\Controllers\Admin\Inventory\StockMovementController::class)->group(function () {
                     Route::get('/stock-movements', 'index')->name('admin.stock_movements.index');

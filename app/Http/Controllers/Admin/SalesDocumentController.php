@@ -157,6 +157,7 @@ class SalesDocumentController extends Controller
             'items.*.product_batch_id' => 'required|string',
             'items.*.qty' => 'required|integer|min:1',
             'items.*.price' => 'required|numeric|min:0',
+            'items.*.discount' => 'nullable|numeric|min:0',
             'down_payment_amount' => 'nullable|numeric|min:0',
         ]);
 
@@ -168,7 +169,8 @@ class SalesDocumentController extends Controller
                     $isBundle = str_starts_with($item['product_batch_id'], 'bundle-');
                     $qty      = (int) $item['qty'];
                     $price    = (float) $item['price'];
-                    $subtotal = $price * $qty;
+                    $discount = (float) ($item['discount'] ?? 0);
+                    $subtotal = ($price - $discount) * $qty;
                     $totalAmount += $subtotal;
 
                     if ($isBundle) {
@@ -189,6 +191,7 @@ class SalesDocumentController extends Controller
                         'buy_price'        => $buyPrice,
                         'qty'              => $qty,
                         'price'            => $price,
+                        'discount'         => $discount,
                         'subtotal'         => $subtotal,
                         'is_bundle_main'   => $isBundle // Temporary flag for logic
                     ];

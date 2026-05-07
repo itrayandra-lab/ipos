@@ -89,6 +89,8 @@
                     @if(in_array($role, ['super_admin', 'store_manager', 'admin', 'sales']))
                     <li class="@if ($sb == 'GoodsReceipt') active @endif"><a class="nav-link"
                             href="{{ route('admin.purchasing.goods_receipts.index') }}">Penerimaan Barang</a></li>
+                    <li class="@if ($sb == 'ReturnToSupplier') active @endif"><a class="nav-link"
+                            href="{{ route('admin.purchasing.returns.index') }}">Return Barang</a></li>
                     <li class="@if ($sb == 'Supplier') active @endif"><a class="nav-link"
                             href="{{ route('admin.purchasing.suppliers.index') }}">Supplier</a></li>
                     @endif

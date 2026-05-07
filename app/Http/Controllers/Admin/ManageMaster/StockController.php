@@ -30,16 +30,15 @@ class StockController extends Controller
             ->join('warehouses', 'product_batches.warehouse_id', '=', 'warehouses.id')
             ->leftJoin('product_variants', 'product_batches.product_variant_id', '=', 'product_variants.id')
             ->leftJoin('product_nettos', 'product_variants.product_netto_id', '=', 'product_nettos.id')
-            ->select('product_batches.product_id', 'product_batches.product_variant_id', 'product_batches.warehouse_id')
+            ->select('product_batches.product_id', 'product_batches.product_variant_id', 'product_batches.warehouse_id', 'product_batches.id')
             ->selectRaw('products.name as p_name, merek.name as m_name, warehouses.name as w_name')
             ->selectRaw('product_nettos.netto_value, product_nettos.satuan')
-            ->selectRaw('COUNT(*) as batch_count')
-            ->selectRaw('SUM(product_batches.qty) as total_initial_qty')
+            ->selectRaw('product_batches.qty as initial_qty')
+            ->selectRaw('(SELECT COALESCE(SUM(qty), 0) FROM transaction_items WHERE product_batch_id = product_batches.id) as sold_qty')
+            ->selectRaw('(SELECT COALESCE(SUM(qty), 0) FROM supplier_return_items WHERE product_batch_id = product_batches.id) as returned_qty')
             ->when($warehouseId, function ($q) use ($warehouseId) {
                 $q->where('product_batches.warehouse_id', $warehouseId);
-            })
-            ->groupBy('product_batches.product_id', 'product_batches.product_variant_id', 'product_batches.warehouse_id', 
-                      'products.name', 'merek.name', 'warehouses.name', 'product_nettos.netto_value', 'product_nettos.satuan');
+            });
 
         return DataTables::of($batches)
             ->addIndexColumn()
@@ -52,20 +51,14 @@ class StockController extends Controller
             ->addColumn('warehouse_name', function ($row) {
                 return $row->w_name;
             })
-            ->filterColumn('warehouse_name', function($query, $keyword) {
-                $query->where('warehouses.name', 'LIKE', "%{$keyword}%");
-            })
             ->addColumn('netto', function ($row) {
                 return $row->netto_value ? $row->netto_value . $row->satuan : '-';
             })
+            ->addColumn('batch_count', function($row) {
+                return 1;
+            })
             ->addColumn('total_current_stock', function ($row) {
-                $batchIds = ProductBatch::where('product_id', $row->product_id)
-                    ->where('product_variant_id', $row->product_variant_id)
-                    ->where('warehouse_id', $row->warehouse_id)
-                    ->pluck('id');
-                
-                $sold = \App\Models\TransactionItem::whereIn('product_batch_id', $batchIds)->sum('qty');
-                return $row->total_initial_qty - $sold;
+                return (int)($row->initial_qty - $row->sold_qty - $row->returned_qty);
             })
             ->addColumn('action', function ($row) {
                 return '
@@ -234,7 +227,8 @@ class StockController extends Controller
             ->get()
             ->map(function($batch) {
                 $sold = $batch->transactionItems()->sum('qty');
-                $batch->current_qty = $batch->qty - $sold;
+                $returned = $batch->supplierReturnItems()->sum('qty');
+                $batch->current_qty = $batch->qty - $sold - $returned;
                 return $batch;
             });
 
@@ -306,8 +300,21 @@ class StockController extends Controller
                 ];
             });
 
+        $returns = \App\Models\SupplierReturnItem::with(['supplierReturn.supplier'])
+            ->whereIn('product_batch_id', $batchIds)
+            ->get()
+            ->map(function($item) {
+                return [
+                    'type' => 'Return Supplier',
+                    'ref_no' => $item->supplierReturn->return_number ?? '-',
+                    'destination' => 'Ke: ' . ($item->supplierReturn->supplier->name ?? '-'),
+                    'qty' => $item->qty,
+                    'date' => $item->supplierReturn->return_date
+                ];
+            });
+
         // Gabungkan dan urutkan berdasarkan tanggal terbaru
-        $outgoing = $transactions->concat($movements)->sortByDesc('date')->values();
+        $outgoing = $transactions->concat($movements)->concat($returns)->sortByDesc('date')->values();
 
         // Ambil info netto dari variant
         $nettoInfo = null;

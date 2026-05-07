@@ -15,6 +15,19 @@
     }
     #items-table th, #items-table td {
         vertical-align: middle !important;
+        padding: 6px 8px !important;
+    }
+    #items-table .form-control {
+        height: 32px !important;
+        padding: 4px 8px !important;
+        font-size: 13px !important;
+    }
+    .select2-container .select2-selection--single {
+        min-height: 32px !important;
+    }
+    .select2-container--default .select2-selection--single .select2-selection__rendered {
+        padding: 4px 10px !important;
+        font-size: 13px !important;
     }
     .satuan-input {
         padding: 5px !important;
@@ -22,7 +35,7 @@
     /* Fixed width for Produk column */
     #items-table th:first-child,
     #items-table td:first-child {
-        min-width: 350px !important;
+        min-width: 250px !important;
     }
 </style>
 @endpush
@@ -205,11 +218,11 @@
                             <table class="table table-bordered" id="items-table">
                                 <thead class="bg-light">
                                     <tr>
-                                        <th style="width: 200px !important; min-width: 200px !important;">Produk & Varian</th>
-                                        <th style="width:15%">Qty</th>
-                                        <th style="width:20%">Harga (Rp)</th>
-                                        <th style="width:20%">Total</th>
-                                        <th style="width:5%"></th>
+                                        <th style="min-width: 250px;">Produk & Varian</th>
+                                        <th style="width: 140px;">Qty</th>
+                                        <th style="width: 200px;">Harga (Rp)</th>
+                                        <th style="width: 160px;">Total</th>
+                                        <th style="width: 100px;">Aksi</th>
                                     </tr>
                                 </thead>
                                 <tbody id="item-rows">
@@ -340,9 +353,10 @@ const batchData = @json($batchList);
     function recalc() {
         let subtotal = 0;
         $('#item-rows tr').each(function() {
-            const qty   = parseFloat($(this).find('.qty-input').val()) || 0;
-            const price = parseFloat($(this).find('.price-input').val()) || 0;
-            const sub   = qty * price;
+            const qty      = parseFloat($(this).find('.qty-input').val()) || 0;
+            const price    = parseFloat($(this).find('.price-input').val()) || 0;
+            const discount = parseFloat($(this).find('.discount-item-input').val()) || 0;
+            const sub      = (price - discount) * qty;
             $(this).find('.subtotal-text').text(formatNumber(sub));
             subtotal += sub;
         });
@@ -360,7 +374,7 @@ const batchData = @json($batchList);
         $('#label-tax').text('Rp ' + formatNumber(tax));
         $('#val-tax-amount').val(tax);
 
-        // Discount
+        // Global Discount
         let discVal = parseFloat($('#modal-discount-val').val()) || 0;
         let discType = $('#modal-discount-type').val();
         let discFinal = (discType === 'percent') ? (subtotal * (discVal / 100)) : discVal;
@@ -406,10 +420,21 @@ const batchData = @json($batchList);
             </td>
             <td>
                 <input type="number" name="items[${idx}][price]" class="form-control price-input" value="0" min="0" required>
+                <input type="hidden" name="items[${idx}][discount]" class="discount-item-input" value="0">
+                <input type="hidden" class="discount-item-type" value="fixed">
+                <input type="hidden" class="discount-item-raw-val" value="0">
+                <div class="discount-display small text-danger font-italic mt-1" style="display:none;">
+                    - Rp <span class="discount-text">0</span>
+                </div>
             </td>
             <td class="text-right"><strong>Rp <span class="subtotal-text">0</span></strong></td>
             <td class="text-center">
-                <button type="button" class="btn btn-sm btn-danger remove-row"><i class="fas fa-trash"></i></button>
+                <div class="btn-group">
+                    <button type="button" class="btn btn-sm btn-outline-warning btn-item-discount" title="Diskon Item">
+                        <i class="fas fa-tag"></i>
+                    </button>
+                    <button type="button" class="btn btn-sm btn-danger remove-row"><i class="fas fa-trash"></i></button>
+                </div>
             </td>
         </tr>`;
         $('#item-rows').append(row);
@@ -418,13 +443,89 @@ const batchData = @json($batchList);
         });
         recalc();
     }
+</script>
 
+{{-- Item Discount Modal --}}
+<div class="modal fade" id="itemDiscountModal" tabindex="-1" role="dialog" aria-hidden="true">
+    <div class="modal-dialog modal-sm" role="document">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Diskon Per Item</h5>
+                <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                    <span aria-hidden="true">&times;</span>
+                </button>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label>Tipe Diskon</label>
+                    <select id="modal-item-discount-type" class="form-control">
+                        <option value="fixed">Nominal (Rp)</option>
+                        <option value="percent">Persentase (%)</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Nilai Diskon</label>
+                    <input type="number" id="modal-item-discount-val" class="form-control" placeholder="0">
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-primary btn-block" id="apply-item-discount">Terapkan</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
     $(document).ready(function() {
         addRow();
 
         $('#add-row').on('click', addRow);
         $(document).on('click', '.remove-row', function() { $(this).closest('tr').remove(); recalc(); });
         $(document).on('input', '.qty-input, .price-input', recalc);
+        
+        // Item Discount Modal Trigger
+        let activeRow = null;
+        $(document).on('click', '.btn-item-discount', function() {
+            activeRow = $(this).closest('tr');
+            const currentRaw = activeRow.find('.discount-item-raw-val').val() || 0;
+            const currentType = activeRow.find('.discount-item-type').val() || 'fixed';
+            
+            $('#modal-item-discount-val').val(currentRaw);
+            $('#modal-item-discount-type').val(currentType);
+            $('#itemDiscountModal').modal('show');
+        });
+
+        $('#apply-item-discount').on('click', function() {
+            if (activeRow) {
+                const rawVal = parseFloat($('#modal-item-discount-val').val()) || 0;
+                const type = $('#modal-item-discount-type').val();
+                const price = parseFloat(activeRow.find('.price-input').val()) || 0;
+                
+                let finalNominal = 0;
+                if (type === 'percent') {
+                    finalNominal = price * (rawVal / 100);
+                } else {
+                    finalNominal = rawVal;
+                }
+                
+                activeRow.find('.discount-item-raw-val').val(rawVal);
+                activeRow.find('.discount-item-type').val(type);
+                activeRow.find('.discount-item-input').val(finalNominal);
+                
+                if (finalNominal > 0) {
+                    activeRow.find('.discount-text').text(formatNumber(finalNominal));
+                    activeRow.find('.discount-display').show();
+                    activeRow.find('.btn-item-discount').removeClass('btn-outline-warning').addClass('btn-warning');
+                } else {
+                    activeRow.find('.discount-display').hide();
+                    activeRow.find('.btn-item-discount').removeClass('btn-warning').addClass('btn-outline-warning');
+                }
+                
+                recalc();
+                $('#itemDiscountModal').modal('hide');
+            }
+        });
+
         $('#tax_type, #payment_status, #down_payment_amount').on('change input', recalc);
 
         $(document).on('change', '.batch-select', function() {

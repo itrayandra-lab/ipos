@@ -102,7 +102,7 @@
                         <a class="nav-link" id="incoming-tab" data-toggle="tab" href="#tab-incoming" role="tab">Riwayat Masuk (Supplier)</a>
                     </li>
                     <li class="nav-item">
-                        <a class="nav-link" id="outgoing-tab" data-toggle="tab" href="#tab-outgoing" role="tab">Riwayat Keluar (Penjualan)</a>
+                        <a class="nav-link" id="outgoing-tab" data-toggle="tab" href="#tab-outgoing" role="tab">Riwayat Keluar (Penjualan & Return)</a>
                     </li>
                 </ul>
                 <div class="tab-content pt-3" id="auditTabContent">
@@ -147,7 +147,7 @@
                                     <tr class="bg-light">
                                         <th>Tipe</th>
                                         <th>No. Referensi</th>
-                                        <th>Tujuan / Customer</th>
+                                        <th>Tujuan (Customer/Supplier)</th>
                                         <th class="text-right">Qty Keluar</th>
                                         <th>Tgl Transaksi</th>
                                     </tr>
@@ -446,7 +446,10 @@
                     $('#table-det-outgoing tbody').empty();
                     if(res.outgoing.length) {
                         res.outgoing.forEach(o => {
-                            let badge = o.type === 'Penjualan' ? 'badge-success' : 'badge-info';
+                            let badge = 'badge-info';
+                            if (o.type === 'Penjualan') badge = 'badge-success';
+                            if (o.type === 'Return Supplier') badge = 'badge-danger';
+                            
                             $('#table-det-outgoing tbody').append(`
                                 <tr>
                                     <td><span class="badge ${badge}">${o.type}</span></td>
