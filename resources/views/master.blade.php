@@ -12,6 +12,7 @@
 
     <script src="{{ asset('assets/mix/app.js') }}"></script>
     <script src="{{asset('dist/select2/js/select2.min.js')}}"></script>
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     <link href="https://cdn.jsdelivr.net/npm/summernote@0.9.0/dist/summernote.min.css" rel="stylesheet">
     @stack('styles')
 </head>
@@ -24,16 +25,13 @@
 
     <div id="app">
         <div class="main-wrapper">
-                @if (Auth::user()?->role === 'admin')
+                @if (in_array(Auth::user()?->role, ['super_admin', 'store_manager', 'finance', 'admin', 'sales']))
                     @include('layout.sb_admin')
-                @endif
-                @if (Auth::user()?->role === 'sales')
-                    @include('layout.sb_sales')
                 @endif
 
                 @yield('content')
 
-                @if (Auth::user()?->role === 'admin' || Auth::user()?->role === 'sales')
+                @if (in_array(Auth::user()?->role, ['super_admin', 'store_manager', 'finance', 'admin', 'sales']))
                     @include('layout.footer')
                 @endif
         </div>
@@ -41,7 +39,7 @@
 
     {{-- Profile Modal --}}
     @auth
-        @if (Auth::user()->role === 'admin')
+        @if (in_array(Auth::user()->role, ['super_admin', 'store_manager', 'finance', 'admin']))
             <div class="modal fade" id="updateModalProfie" tabindex="-1" aria-labelledby="updateModalProfie"
                 aria-hidden="true">
                 <div class="modal-dialog">

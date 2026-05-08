@@ -4,26 +4,26 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Surat Jalan #{{ $deliveryNote->delivery_note_no }}</title>
+    <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700&display=swap" rel="stylesheet">
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
-        body { font-family: 'Open Sans', Courier, monospace; font-size: 11px; padding: 20px; }
+        body { font-family: 'Nunito', sans-serif; font-size: 11px; padding: 20px; color: #333; }
         .header { display: flex; margin-bottom: 20px; border-bottom: 2px solid #000; padding-bottom: 15px; gap: 20px; align-items: flex-start; }
         .header-left { flex: 0 0 40%; }
-        .header-left h2 { font-size: 20px; font-weight: bold; margin-bottom: 10px; }
+        .header-left h2 { font-size: 20px; font-weight: bold; margin-bottom: 5px; color: #000; }
         .header-left p { margin: 2px 0; font-size: 10px; line-height: 1.3; }
         .header-center { flex: 1; }
         .header-right { flex: 0 0 auto; text-align: right; display: flex; align-items: flex-start; justify-content: flex-end; }
-        .header-right img { max-height: 100px; width: auto; max-width: 150px; object-fit: contain; }
+        .header-right img { max-height: 80px; width: auto; max-width: 150px; object-fit: contain; }
         .info-row { display: flex; gap: 40px; margin-bottom: 15px; font-size: 10px; }
         .info-col { flex: 1; }
         .info-col p { margin: 2px 0; display: flex; align-items: flex-start; }
         .info-col strong { display: inline-block; width: 100px; flex-shrink: 0; }
         .info-col .address-text { word-wrap: break-word; flex: 1; }
         .table { width: 100%; border-collapse: collapse; margin-bottom: 20px; }
-        .table th { border-top: 1px solid #000; border-bottom: 1px solid #000; padding: 6px; font-weight: bold; background-color: #141414ff; color: white; font-size: 10px; }
-        .table td { border-bottom: 1px solid #000; padding: 6px; font-size: 10px; }
-        .table tbody tr:nth-child(odd) td { background-color: rgba(0, 0, 0, 0.1); }
-        .table tbody tr:nth-child(even) td { background-color: rgba(0, 0, 0, 0.2); }
+        .table th { border-top: 1px solid #000; border-bottom: 1px solid #000; padding: 8px 6px; font-weight: bold; background-color: #f8f9fa !important; color: #000 !important; font-size: 10px; text-transform: uppercase; -webkit-print-color-adjust: exact; }
+        .table td { border-bottom: 1px solid #000; padding: 6px; font-size: 10px; vertical-align: top; }
+        .table tbody tr:nth-child(odd) td { background-color: rgba(0, 0, 0, 0.02); }
         .text-right { text-align: right !important; }
         .text-center { text-align: center !important; }
         .text-left { text-align: left !important; }
@@ -35,6 +35,7 @@
         @media print {
             .no-print { display: none; }
             body { padding: 0; }
+            .table th { background-color: #f8f9fa !important; color: #000 !important; }
         }
     </style>
 </head>
@@ -56,7 +57,7 @@
         </div>
         <div class="header-center"></div>
         <div class="header-right">
-            @if($storeSetting && $storeSetting->logo_path && file_exists(public_path($storeSetting->logo_path)))
+            @if($storeSetting && $storeSetting->logo_path)
                 <img src="{{ asset($storeSetting->logo_path) }}" alt="Logo">
             @endif
         </div>

@@ -30,16 +30,15 @@ class StockController extends Controller
             ->join('warehouses', 'product_batches.warehouse_id', '=', 'warehouses.id')
             ->leftJoin('product_variants', 'product_batches.product_variant_id', '=', 'product_variants.id')
             ->leftJoin('product_nettos', 'product_variants.product_netto_id', '=', 'product_nettos.id')
-            ->select('product_batches.product_id', 'product_batches.product_variant_id', 'product_batches.warehouse_id')
+            ->select('product_batches.product_id', 'product_batches.product_variant_id', 'product_batches.warehouse_id', 'product_batches.id')
             ->selectRaw('products.name as p_name, merek.name as m_name, warehouses.name as w_name')
             ->selectRaw('product_nettos.netto_value, product_nettos.satuan')
-            ->selectRaw('COUNT(*) as batch_count')
-            ->selectRaw('SUM(product_batches.qty) as total_initial_qty')
+            ->selectRaw('product_batches.qty as initial_qty')
+            ->selectRaw('(SELECT COALESCE(SUM(qty), 0) FROM transaction_items WHERE product_batch_id = product_batches.id) as sold_qty')
+            ->selectRaw('(SELECT COALESCE(SUM(qty), 0) FROM supplier_return_items WHERE product_batch_id = product_batches.id) as returned_qty')
             ->when($warehouseId, function ($q) use ($warehouseId) {
                 $q->where('product_batches.warehouse_id', $warehouseId);
-            })
-            ->groupBy('product_batches.product_id', 'product_batches.product_variant_id', 'product_batches.warehouse_id', 
-                      'products.name', 'merek.name', 'warehouses.name', 'product_nettos.netto_value', 'product_nettos.satuan');
+            });
 
         return DataTables::of($batches)
             ->addIndexColumn()
@@ -52,20 +51,14 @@ class StockController extends Controller
             ->addColumn('warehouse_name', function ($row) {
                 return $row->w_name;
             })
-            ->filterColumn('warehouse_name', function($query, $keyword) {
-                $query->where('warehouses.name', 'LIKE', "%{$keyword}%");
-            })
             ->addColumn('netto', function ($row) {
                 return $row->netto_value ? $row->netto_value . $row->satuan : '-';
             })
+            ->addColumn('batch_count', function($row) {
+                return 1;
+            })
             ->addColumn('total_current_stock', function ($row) {
-                $batchIds = ProductBatch::where('product_id', $row->product_id)
-                    ->where('product_variant_id', $row->product_variant_id)
-                    ->where('warehouse_id', $row->warehouse_id)
-                    ->pluck('id');
-                
-                $sold = \App\Models\TransactionItem::whereIn('product_batch_id', $batchIds)->sum('qty');
-                return $row->total_initial_qty - $sold;
+                return (int)($row->initial_qty - $row->sold_qty - $row->returned_qty);
             })
             ->addColumn('action', function ($row) {
                 return '
@@ -145,6 +138,66 @@ class StockController extends Controller
         return response()->json(['success' => true, 'message' => 'Batch berhasil dihapus']);
     }
 
+    public function addNetto(Request $request)
+    {
+        $validator = Validator::make($request->all(), [
+            'product_id'   => 'required|exists:products,id',
+            'variant_id'   => 'required|exists:product_variants,id',
+            'warehouse_id' => 'required|exists:warehouses,id',
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json(['success' => false, 'message' => $validator->errors()->first()], 422);
+        }
+
+        // Assign variant ke semua batch produk ini di warehouse ini yang belum punya variant
+        $updated = ProductBatch::where('product_id', $request->product_id)
+            ->where('warehouse_id', $request->warehouse_id)
+            ->whereNull('product_variant_id')
+            ->update(['product_variant_id' => $request->variant_id]);
+
+        return response()->json(['success' => true, 'message' => "Varian berhasil dihubungkan ke {$updated} batch"]);
+    }
+
+    public function getNetto(Request $request)
+    {
+        $variant = ProductVariant::with('netto')->findOrFail($request->variant_id);
+        return response()->json([
+            'success' => true,
+            'data' => [
+                'variant_id'   => $variant->id,
+                'variant_name' => $variant->variant_name,
+                'sku_code'     => $variant->sku_code,
+                'price'        => $variant->price,
+                'netto_id'     => $variant->netto ? $variant->netto->id : null,
+                'netto_value'  => $variant->netto ? $variant->netto->netto_value : '',
+                'satuan'       => $variant->netto ? $variant->netto->satuan : '',
+            ]
+        ]);
+    }
+
+    public function updateNetto(Request $request)
+    {
+        $validator = Validator::make($request->all(), [
+            'variant_id'     => 'required|exists:product_variants,id',
+            'new_variant_id' => 'required|exists:product_variants,id',
+            'product_id'     => 'required|exists:products,id',
+            'warehouse_id'   => 'required|exists:warehouses,id',
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json(['success' => false, 'message' => $validator->errors()->first()], 422);
+        }
+
+        // Update semua batch produk ini di warehouse ini yang punya variant lama ke variant baru
+        $updated = ProductBatch::where('product_id', $request->product_id)
+            ->where('warehouse_id', $request->warehouse_id)
+            ->where('product_variant_id', $request->variant_id)
+            ->update(['product_variant_id' => $request->new_variant_id]);
+
+        return response()->json(['success' => true, 'message' => "Varian berhasil diperbarui pada {$updated} batch"]);
+    }
+
     public function getVariants(Request $request)
     {
         $variants = ProductVariant::whereHas('netto', function ($q) use ($request) {
@@ -174,7 +227,8 @@ class StockController extends Controller
             ->get()
             ->map(function($batch) {
                 $sold = $batch->transactionItems()->sum('qty');
-                $batch->current_qty = $batch->qty - $sold;
+                $returned = $batch->supplierReturnItems()->sum('qty');
+                $batch->current_qty = $batch->qty - $sold - $returned;
                 return $batch;
             });
 
@@ -246,14 +300,38 @@ class StockController extends Controller
                 ];
             });
 
+        $returns = \App\Models\SupplierReturnItem::with(['supplierReturn.supplier'])
+            ->whereIn('product_batch_id', $batchIds)
+            ->get()
+            ->map(function($item) {
+                return [
+                    'type' => 'Return Supplier',
+                    'ref_no' => $item->supplierReturn->return_number ?? '-',
+                    'destination' => 'Ke: ' . ($item->supplierReturn->supplier->name ?? '-'),
+                    'qty' => $item->qty,
+                    'date' => $item->supplierReturn->return_date
+                ];
+            });
+
         // Gabungkan dan urutkan berdasarkan tanggal terbaru
-        $outgoing = $transactions->concat($movements)->sortByDesc('date')->values();
+        $outgoing = $transactions->concat($movements)->concat($returns)->sortByDesc('date')->values();
+
+        // Ambil info netto dari variant
+        $nettoInfo = null;
+        if ($variantId) {
+            $variant = \App\Models\ProductVariant::with('netto')->find($variantId);
+            if ($variant && $variant->netto) {
+                $nettoInfo = trim($variant->netto->netto_value . ' ' . ($variant->netto->satuan ?? ''));
+            }
+        }
 
         return response()->json([
             'success' => true,
             'product' => [
-                'name' => ($product->merek ? $product->merek->name . ' ' : '') . $product->name,
-                'warehouse' => $warehouse->name
+                'id'        => $product->id,
+                'name'      => ($product->merek ? $product->merek->name . ' ' : '') . $product->name,
+                'warehouse' => $warehouse->name,
+                'netto'     => $nettoInfo,
             ],
             'batches' => $batches,
             'incoming' => $incoming,

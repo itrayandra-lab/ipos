@@ -50,19 +50,28 @@ class PurchaseOrderController extends Controller
             return $po->po_date->format('d/m/Y');
         })
             ->addColumn('action', function ($po) {
-            return '
-                    <div class="dropdown d-inline dropleft">
-                        <button type="button" class="btn btn-primary btn-sm dropdown-toggle" aria-haspopup="true" data-toggle="dropdown">
-                            Action
-                        </button>
-                        <ul class="dropdown-menu">
-                            <li><a href="' . route('admin.purchasing.purchase_orders.show', $po->id) . '" class="dropdown-item">Detail</a></li>
-                            <li><a href="' . route('admin.purchasing.purchase_orders.edit', $po->id) . '" class="dropdown-item">Edit</a></li>
-                            <li><a href="' . route('admin.purchasing.purchase_orders.print', $po->id) . '" target="_blank" class="dropdown-item">Print PO</a></li>
-                            <li><a href="#" data-id="' . $po->id . '" class="dropdown-item btn-delete text-danger">Hapus</a></li>
-                        </ul>
-                    </div>';
-        })
+                return '
+                <div class="dropdown d-inline">
+                    <button class="btn btn-primary dropdown-toggle btn-sm" type="button" data-toggle="dropdown">
+                        Aksi
+                    </button>
+                    <div class="dropdown-menu">
+                        <a class="dropdown-item has-icon" href="' . route('admin.purchasing.purchase_orders.show', $po->id) . '">
+                            <i class="fas fa-eye text-info"></i> Detail
+                        </a>
+                        <a class="dropdown-item has-icon" href="' . route('admin.purchasing.purchase_orders.edit', $po->id) . '">
+                            <i class="fas fa-edit text-primary"></i> Edit
+                        </a>
+                        <a class="dropdown-item has-icon" href="' . route('admin.purchasing.purchase_orders.print', $po->id) . '" target="_blank">
+                            <i class="fas fa-print text-success"></i> Print PO
+                        </a>
+                        <div class="dropdown-divider"></div>
+                        <a class="dropdown-item has-icon btn-delete text-danger" href="#" data-id="' . $po->id . '">
+                            <i class="fas fa-trash"></i> Hapus
+                        </a>
+                    </div>
+                </div>';
+            })
             ->rawColumns(['action'])
             ->make(true);
     }

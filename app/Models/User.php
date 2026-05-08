@@ -19,7 +19,22 @@ class User extends Authenticatable
         return $this->hasMany(Transaction::class);
     }
 
-    public function isAdmin(): bool
+    public function isSuperAdmin(): bool
+    {
+        return $this->role === 'super_admin';
+    }
+
+    public function isStoreManager(): bool
+    {
+        return $this->role === 'store_manager';
+    }
+
+    public function isFinance(): bool
+    {
+        return $this->role === 'finance';
+    }
+
+    public function isOperations(): bool
     {
         return $this->role === 'admin';
     }

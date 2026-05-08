@@ -138,11 +138,13 @@
         <table>
             <thead>
                 <tr>
-                    <th>#</th>
-                    <th>User</th>
-                    <th>Total Amount</th>
-                    <th>Payment Status</th>
-                    <th>Delivery Type</th>
+                    <th>No</th>
+                    <th>Customer</th>
+                    <th>Produk (Merek + Produk)</th>
+                    <th>Subtotal</th>
+                    <th>Diskon</th>
+                    <th>Total Bayar</th>
+                    <th>Status</th>
                     <th>Tanggal</th>
                 </tr>
             </thead>
@@ -150,11 +152,30 @@
                 @foreach ($transactions as $index => $transaction)
                     <tr>
                         <td>{{ $index + 1 }}</td>
-                        <td>{{ $transaction->user_name }}</td>
-                        <td class="total-amount">Rp. {{ number_format($transaction->total_amount,0,',','.') }}</td>
-                        <td>{{ $transaction->payment_status }}</td>
-                        <td>{{ $transaction->delivery_type }}</td>
-                        <td>{{ $transaction->created_at->format('d-m-Y H:i') }}</td>
+                        <td>{{ $transaction->customer->name ?? ($transaction->customer_name ?? '-') }}</td>
+                        <td>
+                            @php
+                                $mainItems = $transaction->items->whereNull('parent_item_id');
+                            @endphp
+                            @foreach ($mainItems as $item)
+                                {{ $item->product->merek->name ?? '' }} {{ $item->product->name }} ({{ $item->qty }})@if(!$loop->last), <br> @endif
+                            @endforeach
+                        </td>
+                        <td>Rp. {{ number_format($transaction->items->sum('subtotal'), 0, ',', '.') }}</td>
+                        <td>Rp. {{ number_format($transaction->discount, 0, ',', '.') }}</td>
+                        <td class="total-amount">Rp. {{ number_format($transaction->total_amount, 0, ',', '.') }}</td>
+                        <td>
+                            @if($transaction->payment_status == 'paid')
+                                <span style="color: green; font-weight: bold;">Lunas</span>
+                            @elseif($transaction->payment_status == 'unpaid')
+                                <span style="color: red; font-weight: bold;">Belum Bayar</span>
+                            @elseif($transaction->payment_status == 'credit')
+                                <span style="color: orange; font-weight: bold;">Kredit/DP</span>
+                            @else
+                                {{ ucfirst($transaction->payment_status) }}
+                            @endif
+                        </td>
+                        <td>{{ $transaction->created_at->format('d-m-Y') }}</td>
                     </tr>
                 @endforeach
             </tbody>

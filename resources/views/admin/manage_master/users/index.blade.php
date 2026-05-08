@@ -102,8 +102,11 @@
                         <div class="form-group">
                             <label>Role</label>
                             <select name="role" class="form-control" required="">
-                                <option value="admin">Admin</option>
-                                <option value="sales">Sales</option>
+                                <option value="super_admin">Super Admin</option>
+                                <option value="store_manager">Store Manager</option>
+                                <option value="finance">Finance</option>
+                                <option value="admin">Admin (Operations)</option>
+                                <option value="sales">Sales (Kasir)</option>
                             </select>
                             <div class="invalid-feedback">
                                 Pilih Role
@@ -156,8 +159,11 @@
                         <div class="form-group">
                             <label>Role</label>
                             <select name="role" class="form-control" required="" id="role">
-                                <option value="admin">Admin</option>
-                                <option value="sales">Sales</option>
+                                <option value="super_admin">Super Admin</option>
+                                <option value="store_manager">Store Manager</option>
+                                <option value="finance">Finance</option>
+                                <option value="admin">Admin (Operations)</option>
+                                <option value="sales">Sales (Kasir)</option>
                             </select>
                             <div class="invalid-feedback">
                                 Pilih Role

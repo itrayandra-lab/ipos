@@ -192,7 +192,7 @@
         </div>
 
         <div class="items-section">
-            @foreach($transaction->items as $item)
+            @foreach($transaction->items->where('parent_item_id', null) as $item)
             <div class="item-row">
                 <div class="item-name">{{ $item->product->name }}</div>
                 <div class="item-detail">

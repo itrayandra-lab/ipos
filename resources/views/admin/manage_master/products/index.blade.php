@@ -3,51 +3,166 @@
 @section('content')
     <div class="main-content">
         <style>
+            /* Premium Aesthetic Enhancements */
+            :root {
+                --primary-gradient: linear-gradient(135deg, #0d9488 0%, #0f766e 100%);
+            }
+
+            .section-header {
+                background: #fff;
+                padding: 20px 25px !important;
+                border-radius: 12px;
+                box-shadow: 0 4px 20px rgba(0,0,0,0.05);
+                margin-bottom: 25px !important;
+                border-left: 5px solid #0d9488;
+            }
+
+            .section-header h1 {
+                font-weight: 800 !important;
+                color: #1e293b !important;
+                letter-spacing: -0.5px;
+            }
+
+            .card {
+                border-radius: 15px !important;
+                border: none !important;
+                box-shadow: 0 10px 30px rgba(0,0,0,0.04) !important;
+            }
+
+            .card-header {
+                border-bottom: 1px solid #f1f5f9 !important;
+                padding: 20px 25px !important;
+            }
+
+            .card-header h4 {
+                color: #0d9488 !important;
+                font-weight: 700 !important;
+            }
+
             #products-table {
-                font-size: 12px !important;
+                font-size: 13px !important;
+                border: none !important;
             }
-            /* Fix Produk Column */
-            #products-table th:nth-child(3), 
-            #products-table td:nth-child(3) {
-                min-width: 200px !important;
-                white-space: normal !important;
-            }
-            .select2-container .select2-selection--single {
-                height: 42px !important;
-                line-height: 42px !important;
-                border-color: #e4e6fc !important;
-            }
-            .satuan-input {
-                padding: 5px !important;
-            }
+
             #products-table thead th {
-                font-weight: 700;
-                text-transform: uppercase;
-                letter-spacing: 0.5px;
+                background-color: #f8fafc !important;
+                color: #64748b !important;
+                text-transform: none !important; /* Title Case */
+                font-weight: 600 !important;
+                padding: 15px 12px !important;
+                border-top: none !important;
             }
+
             #products-table tbody td {
+                padding: 15px 12px !important;
                 vertical-align: middle !important;
+                border-bottom: 1px solid #f1f5f9 !important;
             }
-            .img-thumbnail {
-                padding: 0.15rem;
-                background-color: #fff;
-                border: 1px solid #dee2e6;
-                border-radius: 0.25rem;
-                max-width: 100%;
-                height: auto;
+
+            /* Custom Badges */
+            .badge-soft-success {
+                background-color: #dcfce7;
+                color: #15803d;
+                padding: 6px 12px;
+                border-radius: 50px;
+                font-weight: 600;
+                font-size: 11px;
+                display: inline-flex;
+                align-items: center;
+            }
+            .badge-soft-success::before {
+                content: "";
+                width: 6px;
+                height: 6px;
+                background: #15803d;
+                border-radius: 50%;
+                margin-right: 6px;
+            }
+
+            .badge-soft-secondary {
+                background-color: #f1f5f9;
+                color: #475569;
+                padding: 6px 12px;
+                border-radius: 50px;
+                font-weight: 600;
+                font-size: 11px;
+            }
+
+            /* Table Photo Styling */
+            .img-thumbnail-custom {
+                width: 48px;
+                height: 48px;
+                object-fit: cover;
+                border-radius: 10px;
+                border: 2px solid #f1f5f9;
+                box-shadow: 0 4px 6px rgba(0,0,0,0.05);
+                transition: transform 0.2s;
+            }
+            .img-thumbnail-custom:hover {
+                transform: scale(1.1);
+            }
+
+            .hierarchy-text {
+                color: #64748b;
+                font-size: 11px;
+            }
+            .hierarchy-main {
+                color: #1e293b;
+                font-weight: 600;
+                display: block;
+            }
+
+            /* Action Button Refinement */
+            .btn-action-custom {
+                border-radius: 8px !important;
+                font-weight: 600 !important;
+                padding: 5px 15px !important;
+                background-color: #f8fafc !important;
+                border: 1px solid #e2e8f0 !important;
+                color: #475569 !important;
+                box-shadow: none !important;
+            }
+            .btn-action-custom:hover {
+                background-color: #f1f5f9 !important;
+                color: #1e293b !important;
+            }
+
+            .btn-tambah-custom {
+                background: var(--primary-gradient) !important;
+                border: none !important;
+                border-radius: 8px !important;
+                padding: 10px 20px !important;
+                font-weight: 700 !important;
+                box-shadow: 0 4px 12px rgba(13, 148, 136, 0.3) !important;
+                transition: all 0.3s;
+            }
+            .btn-tambah-custom:hover {
+                transform: translateY(-2px);
+                box-shadow: 0 6px 15px rgba(13, 148, 136, 0.4) !important;
+            }
+
+            /* DataTable search and entries refinement */
+            .dataTables_wrapper .dataTables_filter input {
+                border-radius: 8px !important;
+                border: 1px solid #e2e8f0 !important;
+                padding: 8px 12px !important;
+            }
+            .dataTables_wrapper .dataTables_length select {
+                border-radius: 8px !important;
+                border: 1px solid #e2e8f0 !important;
             }
         </style>
         <section class="section">
             <div class="section-header">
                 <h1>Data Produk</h1>
                 <div class="section-header-breadcrumb">
-                    <div class="breadcrumb-item">Data Produk</div>
+                    <div class="breadcrumb-item active"><a href="{{ url('admin') }}">Dashboard</a></div>
+                    <div class="breadcrumb-item">Produk</div>
                 </div>
             </div>
 
             <div class="section-body">
-                <h2 class="section-title">Data Produk</h2>
-                <p class="section-lead">Berikut adalah Data Produk.</p>
+                <!-- Redundant titles removed to improve focus and vertical space -->
                 @if (session()->has('message'))
                     <div class="alert alert-success alert-dismissible fade show" role="alert">
                         {{ session()->get('message') }}
@@ -79,18 +194,11 @@
                 @endif
                 <div class="card">
                     <div class="card-header">
-                        <h4>Data Seluruh Produk</h4>
+                        <h4>Daftar Seluruh Produk</h4>
                         <div class="card-header-form">
-                            <div class="dropdown d-inline dropleft">
-                                <button type="button" class="btn btn-primary btn-sm dropdown-toggle" aria-haspopup="true"
-                                    data-toggle="dropdown" aria-expanded="false">
-                                    Tambah
-                                </button>
-                                <ul class="dropdown-menu">
-                                    <li><a class="dropdown-item" data-toggle="modal" data-target="#addModal"
-                                            href="#">Input Manual</a></li>
-                                </ul>
-                            </div>
+                            <a href="{{ route('admin.products.create') }}" class="btn btn-primary btn-tambah-custom">
+                                <i class="fas fa-plus mr-2"></i> Tambah Produk Baru
+                            </a>
                         </div>
                     </div>
                     <div class="card-body">
@@ -100,10 +208,10 @@
                                     <th width="10px">#</th>
                                     <th>Merk</th>
                                     <th>Produk</th>
-                                    <th>Hirarki</th>
-                                    <th>Jumlah Varian</th>
+                                    <th>Kategori / Tipe</th>
+                                    <th>SKUs</th>
                                     <th>Status</th>
-                                    <th>Foto</th>
+                                    <th class="text-center">Foto</th>
                                     <th width="10px">Action</th>
                                 </tr>
                             </thead>
@@ -114,168 +222,6 @@
                 </div>
             </div>
         </section>
-    </div>
-
-    <!-- Add Modal -->
-    <div class="modal fade" id="addModal" tabindex="-1" aria-labelledby="addModalLabel" aria-hidden="true">
-        <div class="modal-dialog modal-lg">
-            <div class="modal-content">
-                <div class="modal-header">
-                    <h5 class="modal-title" id="addModalLabel">Tambah Produk</h5>
-                    <button type="button" class="close" data-dismiss="modal" aria-label="Close">
-                        <span aria-hidden="true">×</span>
-                    </button>
-                </div>
-                <form action="{{ url('admin/manage-master/products') }}" method="POST" class="needs-validation" novalidate="" enctype="multipart/form-data">
-                    @csrf
-                    <div class="modal-body">
-                        <div class="row">
-                            <div class="col-md-4">
-                                <div class="form-group">
-                                    <label>Nama Produk</label>
-                                    <input type="text" placeholder="Masukkan Nama Produk" class="form-control" name="name" required>
-                                </div>
-                            </div>
-                            <div class="col-md-4">
-                                <div class="form-group">
-                                    <label>Kode Produk</label>
-                                    <input type="text" placeholder="Contoh: CRM" class="form-control" name="code" required>
-                                </div>
-                            </div>
-                            <div class="col-md-4">
-                                <div class="form-group">
-                                    <label>Merk</label>
-                                    <select class="form-control" name="merek_id" required>
-                                        <option value="">Pilih Merk</option>
-                                        @foreach ($merek as $m)
-                                            @php /** @var \App\Models\Merek $m */ @endphp
-                                            <option value="{{ $m->id }}">{{ $m->name }}</option>
-                                        @endforeach
-                                    </select>
-                                </div>
-                            </div>
-                        </div>
-
-                        <div class="row">
-                            <div class="col-md-4">
-                                <div class="form-group">
-                                    <label>Kategori</label>
-                                    <select class="form-control select-category" name="category_id" id="add-category" required>
-                                        <option value="">Pilih Kategori</option>
-                                        @foreach ($categories as $c)
-                                            <option value="{{ $c->id }}">{{ $c->name }}</option>
-                                        @endforeach
-                                    </select>
-                                </div>
-                            </div>
-                            <div class="col-md-4">
-                                <div class="form-group">
-                                    <label>Sub Kategori</label>
-                                    <select class="form-control" name="sub_category_id" id="add-sub-category">
-                                        <option value="">Pilih Sub Kategori</option>
-                                    </select>
-                                </div>
-                            </div>
-                            <div class="col-md-4">
-                                <div class="form-group">
-                                    <label>Tipe Produk</label>
-                                    <select class="form-control" name="product_type_id" id="add-product-type" required>
-                                        <option value="">Pilih Tipe Produk</option>
-                                        @foreach($productTypes as $pt)
-                                            <option value="{{ $pt->id }}">{{ $pt->name }}</option>
-                                        @endforeach
-                                    </select>
-                                </div>
-                            </div>
-                        </div>
-
-                        <div class="row">
-                            <div class="col-md-6">
-                                <div class="form-group">
-                                    <label>Product Tier</label>
-                                    <select class="form-control select-tier" name="product_tier_id" id="add-product-tier">
-                                        <option value="">Tanpa Tier (Manual)</option>
-                                        @foreach($productTiers as $tier)
-                                            <option value="{{ $tier->id }}" data-multiplier="{{ $tier->multiplier }}">{{ $tier->name }} (x{{ $tier->multiplier }})</option>
-                                        @endforeach
-                                    </select>
-                                </div>
-                            </div>
-                            <div class="col-md-6">
-                                <div class="form-group">
-                                    <label>Min. Stock Alert</label>
-                                    <input type="number" placeholder="Batas stok minimum untuk alert" class="form-control" name="min_stock_alert" required min="0" value="0">
-                                </div>
-                            </div>
-                        </div>
-
-                        <div class="form-group">
-                            <label class="d-block">Varian Produk (SKU) <button type="button" class="btn btn-sm btn-success float-right mb-2" id="btn-add-variant"><i class="fas fa-plus"></i> Tambah Varian</button></label>
-                            <div class="table-responsive">
-                                <table class="table table-sm table-bordered" id="table-variants">
-                                    <thead>
-                                        <tr>
-                                            <th>Netto</th>
-                                            <th>Satuan</th>
-                                            <th>SKU Code</th>
-                                            <th class="d-none">Harga Modal (Rp)</th>
-                                            <th class="d-none">Harga Kategori (Rp)</th>
-                                            <th>Harga Jual (Rp)</th>
-                                            <th width="50px"></th>
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        <tr>
-                                            <td><input type="text" name="variants[0][netto]" class="form-control form-control-sm" placeholder="100" required></td>
-                                            <td>
-                                                <select name="variants[0][satuan]" class="form-control form-control-sm satuan-input" style="height: calc(1.5em + 0.5rem + 2px);" required>
-                                                    <option value="">Pilih Satuan</option>
-                                                    @foreach($netto_attributes as $attr)
-                                                        <option value="{{ $attr->name }}">{{ $attr->name }}</option>
-                                                    @endforeach
-                                                </select>
-                                            </td>
-                                            <td><input type="text" name="variants[0][sku]" class="form-control form-control-sm" placeholder="SKU001" required></td>
-                                            <td class="d-none">
-                                                <input type="hidden" name="variants[0][price_real]" value="0">
-                                            </td>
-                                            <td class="d-none">
-                                                <input type="hidden" name="variants[0][price_tier]" value="0">
-                                            </td>
-                                            <td>
-                                                <input type="text" class="form-control form-control-sm rupiah-variant" placeholder="Rp 0" required>
-                                                <input type="hidden" name="variants[0][price]" class="raw-price-variant">
-                                            </td>
-                                            <td></td>
-                                        </tr>
-                                    </tbody>
-                                </table>
-                            </div>
-                        </div>
-
-                        <div class="form-group">
-                            <label>Status</label>
-                            <select class="form-control" name="status" required>
-                                <option value="Y">Aktif</option>
-                                <option value="N">Non Aktif</option>
-                            </select>
-                        </div>
-                        <div class="form-group">
-                            <label>Gambar Produk <small>(optional, multiple)</small></label>
-                            <div class="custom-file">
-                                <input type="file" class="custom-file-input" id="foto" name="foto[]" multiple accept="image/*">
-                                <label class="custom-file-label" for="foto">Pilih gambar...</label>
-                            </div>
-                            <div id="image-preview-add" class="mt-3 d-flex flex-wrap"></div>
-                        </div>
-                    </div>
-                    <div class="modal-footer">
-                        <button type="button" class="btn btn-secondary" data-dismiss="modal">Batal</button>
-                        <button type="button" class="btn btn-primary" id="btn-save-product">Simpan</button>
-                    </div>
-                </form>
-            </div>
-        </div>
     </div>
 
     <!-- Update Modal -->
@@ -365,11 +311,44 @@
                                     </select>
                                 </div>
                             </div>
-                            <div class="col-md-6">
+                            <div class="col-md-3">
                                 <div class="form-group">
                                     <label>Min. Stock Alert</label>
                                     <input type="number" placeholder="Batas stok minimum untuk alert" class="form-control" name="min_stock_alert" id="min_stock_alert" required min="0">
                                 </div>
+                            </div>
+                            <div class="col-md-3">
+                                <div class="form-group">
+                                    <label>Produk Bundling?</label>
+                                    <div class="custom-control custom-checkbox mt-2">
+                                        <input type="checkbox" class="custom-control-input" name="is_bundle" id="is_bundle_edit" value="1">
+                                        <label class="custom-control-label" for="is_bundle_edit">Ya, Bundling</label>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Bundling Items Section (Edit) -->
+                        <div id="bundle-items-section-edit" class="card card-primary d-none">
+                            <div class="card-header">
+                                <h4>Daftar Komponen Bundling</h4>
+                                <div class="card-header-action">
+                                    <button type="button" class="btn btn-success btn-sm" id="btn-add-bundle-item-edit"><i class="fas fa-plus"></i> Tambah Komponen</button>
+                                </div>
+                            </div>
+                            <div class="card-body p-0">
+                                <table class="table table-sm" id="table-bundle-items-edit">
+                                    <thead>
+                                        <tr>
+                                            <th>Produk Satuan</th>
+                                            <th width="120px">Jumlah</th>
+                                            <th width="50px"></th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <!-- Dynamic items -->
+                                    </tbody>
+                                </table>
                             </div>
                         </div>
 
@@ -572,11 +551,42 @@
                 columns: [
                     { data: 'DT_RowIndex', name: 'DT_RowIndex' },
                     { data: 'merek_name', name: 'merek_name' },
-                    { data: 'name', name: 'name' },
-                    { data: 'hierarchy', name: 'hierarchy' },
+                    { 
+                        data: 'name', 
+                        name: 'name',
+                        render: function(data, type, row) {
+                            return `<span class="hierarchy-main">${data}</span>`;
+                        }
+                    },
+                    { 
+                        data: 'hierarchy', 
+                        name: 'hierarchy',
+                        render: function(data, type, row) {
+                            return `<span class="hierarchy-text">${data}</span>`;
+                        }
+                    },
                     { data: 'variant_count', name: 'variant_count' },
-                    { data: 'status', name: 'status' },
-                    { data: 'photos_preview', name: 'photos_preview' },
+                    { 
+                        data: 'status', 
+                        name: 'status',
+                        render: function(data, type, row) {
+                            if (data === 'Aktif') {
+                                return `<span class="badge-soft-success">Aktif</span>`;
+                            }
+                            return `<span class="badge-soft-secondary">${data}</span>`;
+                        }
+                    },
+                    { 
+                        data: 'photos_preview', 
+                        name: 'photos_preview',
+                        className: 'text-center',
+                        render: function(data, type, row) {
+                            // Extract src from the string returned by controller
+                            const srcMatch = data.match(/src="([^"]+)"/);
+                            const src = srcMatch ? srcMatch[1] : '';
+                            return `<img src="${src}" class="img-thumbnail-custom">`;
+                        }
+                    },
                     { data: 'action', name: 'action' }
                 ]
             });
@@ -783,6 +793,24 @@
                             }
                         });
 
+                        // Bundling Logic in Edit
+                        if (data.is_bundle) {
+                            $('#is_bundle_edit').prop('checked', true).trigger('change');
+                            $('#table-bundle-items-edit tbody').empty();
+                            if (data.bundle_items && data.bundle_items.length > 0) {
+                                data.bundle_items.forEach(item => {
+                                    addBundleRow('#table-bundle-items-edit', {
+                                        product_id: item.product_id,
+                                        product_name: (item.product && item.product.merek ? item.product.merek.name + ' ' : '') + (item.product ? item.product.name : 'Produk tidak ditemukan'),
+                                        quantity: item.quantity
+                                    });
+                                });
+                            }
+                        } else {
+                            $('#is_bundle_edit').prop('checked', false).trigger('change');
+                            $('#table-bundle-items-edit tbody').empty();
+                        }
+
                         $('#deleted_photos').val('');
                         let preview = $('#image-preview-update');
                         preview.empty();
@@ -815,13 +843,11 @@
                             </select>
                         </td>
                         <td><input type="text" name="variants[${variantIndexEdit}][sku]" class="form-control form-control-sm" required></td>
-                        <td>
-                            <input type="text" class="form-control form-control-sm rupiah-modal" placeholder="Rp 0" required>
-                            <input type="hidden" name="variants[${variantIndexEdit}][price_real]" class="raw-modal-variant">
+                        <td class="d-none">
+                             <input type="hidden" name="variants[${variantIndexEdit}][price_real]" value="0">
                         </td>
-                        <td>
-                            <input type="text" class="form-control form-control-sm rupiah-tier" placeholder="Rp 0" readonly>
-                            <input type="hidden" name="variants[${variantIndexEdit}][price_tier]" class="raw-tier-variant">
+                        <td class="d-none">
+                             <input type="hidden" name="variants[${variantIndexEdit}][price_tier]" value="0">
                         </td>
                         <td>
                             <input type="text" class="form-control form-control-sm rupiah-variant" placeholder="Rp 0" required>
@@ -906,6 +932,96 @@
                     }
                 });
             });
+
+            // --- BUNDLING JS LOGIC ---
+            
+            // Toggle Section for Add Modal
+            $('#is_bundle_add').on('change', function() {
+                if ($(this).is(':checked')) {
+                    $('#bundle-items-section-add').removeClass('d-none');
+                } else {
+                    $('#bundle-items-section-add').addClass('d-none');
+                    $('#table-bundle-items-add tbody').empty();
+                }
+            });
+
+            // Toggle Section for Edit Modal
+            $('#is_bundle_edit').on('change', function() {
+                if ($(this).is(':checked')) {
+                    $('#bundle-items-section-edit').removeClass('d-none');
+                } else {
+                    $('#bundle-items-section-edit').addClass('d-none');
+                    $('#table-bundle-items-edit tbody').empty();
+                }
+            });
+
+            let bundleItemIndex = 0;
+            function addBundleRow(tableSelector, data = null) {
+                const namePrefix = 'bundle_items';
+                const html = `
+                    <tr>
+                        <td>
+                            <select name="${namePrefix}[${bundleItemIndex}][product_id]" class="form-control select2-product-bundle" required>
+                                ${data ? `<option value="${data.product_id}" selected>${data.product_name}</option>` : '<option value="">Cari Produk...</option>'}
+                            </select>
+                        </td>
+                        <td>
+                            <input type="number" name="${namePrefix}[${bundleItemIndex}][quantity]" class="form-control" value="${data ? data.quantity : 1}" min="1" step="0.01" required>
+                        </td>
+                        <td>
+                            <button type="button" class="btn btn-danger btn-sm btn-remove-bundle-item"><i class="fas fa-trash"></i></button>
+                        </td>
+                    </tr>
+                `;
+                $(tableSelector + ' tbody').append(html);
+                
+                // Initialize Select2 for the new row
+                const newRow = $(tableSelector + ' tbody tr:last');
+                initProductSelect2(newRow.find('.select2-product-bundle'));
+                
+                bundleItemIndex++;
+            }
+
+            function initProductSelect2(element) {
+                element.select2({
+                    dropdownParent: element.closest('.modal'),
+                    ajax: {
+                        url: "{{ url('admin/manage-master/products/search') }}",
+                        dataType: 'json',
+                        delay: 250,
+                        data: function (params) {
+                            return {
+                                search: params.term
+                            };
+                        },
+                        processResults: function (data) {
+                            return {
+                                results: data.map(item => ({
+                                    id: item.id,
+                                    text: (item.merek ? item.merek.name + ' ' : '') + item.name
+                                }))
+                            };
+                        },
+                        cache: true
+                    },
+                    minimumInputLength: 0,
+                    placeholder: 'Cari Produk Satuan...'
+                });
+            }
+
+            $('#btn-add-bundle-item').on('click', function() {
+                addBundleRow('#table-bundle-items-add');
+            });
+
+            $('#btn-add-bundle-item-edit').on('click', function() {
+                addBundleRow('#table-bundle-items-edit');
+            });
+
+            $(document).on('click', '.btn-remove-bundle-item', function() {
+                $(this).closest('tr').remove();
+            });
+
+            // --- END BUNDLING JS LOGIC ---
 
             // Handle edit from query param
             const urlParams = new URLSearchParams(window.location.search);

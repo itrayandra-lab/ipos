@@ -70,7 +70,7 @@
     <div class="divider"></div>
 
     <table>
-        @foreach($transaction->items->groupBy('product_id') as $productId => $group)
+        @foreach($transaction->items->where('parent_item_id', null)->groupBy('product_id') as $productId => $group)
             @php
                 $firstItem = $group->first();
                 $totalQty = $group->sum('qty');

@@ -54,7 +54,7 @@ Route::post('/voucher', [GuestController::class , 'voucher'])->name('checkout.vo
 
 
 # -------------------- ADMIN --------------------
-Route::prefix('admin')->middleware(['auth', 'role:admin'])->group(function () {
+Route::prefix('admin')->middleware(['auth', 'role:super_admin,store_manager,finance,admin,sales'])->group(function () {
     # Dashboard
     Route::get('/', [DashboardAdmin::class , 'index']);
 
@@ -117,7 +117,8 @@ Route::prefix('admin')->middleware(['auth', 'role:admin'])->group(function () {
                 }
                 );
                 Route::prefix('products')->group(function () {
-                    Route::get('/', [ProductAdmin::class , 'index']);
+                    Route::get('/', [ProductAdmin::class , 'index'])->name('admin.products.index');
+                    Route::get('/create', [ProductAdmin::class , 'create_view'])->name('admin.products.create');
                     Route::post('/', [ProductAdmin::class , 'create']);
                     Route::get('/all', [ProductAdmin::class , 'getall'])->name('admin.products.all');
                     Route::get('/search', [ProductAdmin::class , 'search'])->name('admin.products.search');
@@ -145,6 +146,9 @@ Route::prefix('admin')->middleware(['auth', 'role:admin'])->group(function () {
                     Route::delete('/', [\App\Http\Controllers\Admin\ManageMaster\StockController::class , 'delete']);
                     Route::get('/variants/{product_id}', [\App\Http\Controllers\Admin\ManageMaster\StockController::class , 'getVariants']);
                     Route::post('/detail', [\App\Http\Controllers\Admin\ManageMaster\StockController::class , 'getDetail']);
+                    Route::post('/get-netto', [\App\Http\Controllers\Admin\ManageMaster\StockController::class , 'getNetto']);
+                    Route::post('/update-netto', [\App\Http\Controllers\Admin\ManageMaster\StockController::class , 'updateNetto']);
+                    Route::post('/add-netto', [\App\Http\Controllers\Admin\ManageMaster\StockController::class , 'addNetto']);
                 }
                 );
 
@@ -236,6 +240,8 @@ Route::prefix('admin')->middleware(['auth', 'role:admin'])->group(function () {
             Route::get('/check', [CustomerAdmin::class , 'checkAjax'])->name('admin.customers.check');
             Route::post('/store-ajax', [CustomerAdmin::class , 'storeAjax'])->name('admin.customers.store_ajax');
             Route::get('/show/{id}', [CustomerAdmin::class , 'show'])->name('admin.customers.show');
+            Route::post('/import', [CustomerAdmin::class , 'import'])->name('admin.customers.import');
+            Route::get('/download-template', [CustomerAdmin::class , 'downloadTemplate'])->name('admin.customers.download_template');
         }
         );
 
@@ -243,14 +249,52 @@ Route::prefix('admin')->middleware(['auth', 'role:admin'])->group(function () {
             Route::get('/', [TransactionAdmin::class , 'index'])->name('admin.transactions.index');
             Route::get('all', [TransactionAdmin::class , 'getall']);
             Route::get('print', [TransactionAdmin::class , 'print']);
+            Route::get('export/excel', [TransactionAdmin::class , 'exportExcel'])->name('admin.transactions.export.excel');
+            Route::get('export/pdf', [TransactionAdmin::class , 'exportPdf'])->name('admin.transactions.export.pdf');
             Route::get('show/{id}', [TransactionAdmin::class , 'show'])->name('admin.transactions.show');
             Route::get('edit/{id}', [TransactionAdmin::class , 'edit'])->name('admin.transactions.edit');
             Route::put('{id}', [TransactionAdmin::class , 'update'])->name('admin.transactions.update');
             Route::delete('{id}', [TransactionAdmin::class , 'destroy'])->name('admin.transactions.destroy');
             Route::get('print-struk/{id}', [TransactionAdmin::class , 'printStruk'])->name('admin.transactions.print_struk');
             Route::post('generate-invoice/{id}', [TransactionAdmin::class , 'generateInvoice'])->name('admin.transactions.generate_invoice');
+            Route::post('upload-receipt/{id}', [TransactionAdmin::class , 'uploadReceipt'])->name('admin.transactions.upload-receipt');
+            Route::post('settle/{id}', [TransactionAdmin::class , 'settlePayment'])->name('admin.transactions.settle');
+            Route::post('update-payment-receipt', [TransactionAdmin::class , 'updatePaymentReceipt'])->name('admin.transactions.update-payment-receipt');
+            Route::post('quick-upload-receipt/{id}', [TransactionAdmin::class , 'quickUploadReceipt'])->name('admin.transactions.quick-upload-receipt');
+
+
+
+            // Product Sales Report
+            Route::get('report/product', [TransactionAdmin::class, 'productReport'])->name('admin.transactions.report.product');
+            Route::get('report/product/all', [TransactionAdmin::class, 'productReportData']);
+            Route::get('report/product/print', [TransactionAdmin::class, 'printProductReport'])->name('admin.transactions.report.product.print');
         }
         );
+
+        // Finance Module
+        Route::prefix('finance')->group(function () {
+            // Petty Cash
+            Route::get('petty-cash', [App\Http\Controllers\Admin\Finance\PettyCashController::class, 'index'])->name('admin.finance.petty_cash.index');
+            Route::get('petty-cash/all', [App\Http\Controllers\Admin\Finance\PettyCashController::class, 'data'])->name('admin.finance.petty_cash.all');
+            Route::post('petty-cash', [App\Http\Controllers\Admin\Finance\PettyCashController::class, 'store'])->name('admin.finance.petty_cash.store');
+
+            // Expenses
+            Route::get('expenses', [App\Http\Controllers\Admin\Finance\ExpenseController::class, 'index'])->name('admin.finance.expenses.index');
+            Route::get('expenses/all', [App\Http\Controllers\Admin\Finance\ExpenseController::class, 'data'])->name('admin.finance.expenses.all');
+            Route::post('expenses', [App\Http\Controllers\Admin\Finance\ExpenseController::class, 'store'])->name('admin.finance.expenses.store');
+            Route::delete('expenses/{id}', [App\Http\Controllers\Admin\Finance\ExpenseController::class, 'destroy'])->name('admin.finance.expenses.destroy');
+
+            // Expense Categories
+            Route::get('expense-categories', [App\Http\Controllers\Admin\Finance\ExpenseCategoryController::class, 'index'])->name('admin.finance.expense_categories.index');
+            Route::get('expense-categories/all', [App\Http\Controllers\Admin\Finance\ExpenseCategoryController::class, 'data'])->name('admin.finance.expense_categories.all');
+            Route::post('expense-categories', [App\Http\Controllers\Admin\Finance\ExpenseCategoryController::class, 'store'])->name('admin.finance.expense_categories.store');
+            Route::post('expense-categories/{id}', [App\Http\Controllers\Admin\Finance\ExpenseCategoryController::class, 'update'])->name('admin.finance.expense_categories.update');
+            Route::get('expense-categories/{id}', [App\Http\Controllers\Admin\Finance\ExpenseCategoryController::class, 'show'])->name('admin.finance.expense_categories.show');
+            Route::delete('expense-categories/{id}', [App\Http\Controllers\Admin\Finance\ExpenseCategoryController::class, 'destroy'])->name('admin.finance.expense_categories.destroy');
+
+            // Reports
+            Route::get('reports', function() { return view('admin.finance.reports.index')->with('sb', 'FinanceReport'); })->name('admin.finance.reports.index');
+        });
 
         // Sales Documents (Penjualan)
         Route::prefix('sales')->group(function () {
@@ -303,6 +347,7 @@ Route::prefix('admin')->middleware(['auth', 'role:admin'])->group(function () {
             Route::post('/verify-voucher', [PosAdmin::class , 'verifyVoucher'])->name('admin.pos.verify-voucher');
             Route::post('/', [PosAdmin::class , 'store'])->name('admin.pos.store');
             Route::get('/receipt/{id}', [PosAdmin::class , 'printReceipt'])->name('admin.pos.receipt');
+            Route::get('/search-invitation', [PosAdmin::class , 'searchInvitation'])->name('admin.pos.search_invitation');
         }
         );
 
@@ -344,6 +389,21 @@ Route::prefix('admin')->middleware(['auth', 'role:admin'])->group(function () {
                     Route::get('/goods-receipts/{id}', 'show')->name('admin.purchasing.goods_receipts.show');
                 }
                 );
+
+                // Returns
+                Route::controller(\App\Http\Controllers\Admin\Purchasing\ReturnController::class)->group(function () {
+                    Route::get('/returns', 'index')->name('admin.purchasing.returns.index');
+                    Route::get('/returns/create', 'create')->name('admin.purchasing.returns.create');
+                    Route::get('/returns/all', 'getall')->name('admin.purchasing.returns.getall');
+                    Route::get('/returns/batches', 'getBatches')->name('admin.purchasing.returns.get_batches');
+                    Route::post('/returns', 'store')->name('admin.purchasing.returns.store');
+                    Route::get('/returns/{id}', 'show')->name('admin.purchasing.returns.show');
+                    Route::get('/returns/{id}/edit', 'edit')->name('admin.purchasing.returns.edit');
+                    Route::get('/returns/{id}/print', 'print')->name('admin.purchasing.returns.print');
+                    Route::get('/returns/{id}/print-sj', 'printSJ')->name('admin.purchasing.returns.print_sj');
+                    Route::put('/returns/{id}', 'update')->name('admin.purchasing.returns.update');
+                    Route::delete('/returns/{id}', 'destroy')->name('admin.purchasing.returns.destroy');
+                });
 
                 // Stock Movements
                 Route::controller(\App\Http\Controllers\Admin\Inventory\StockMovementController::class)->group(function () {

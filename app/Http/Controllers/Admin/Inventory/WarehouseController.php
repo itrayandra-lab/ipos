@@ -41,7 +41,7 @@ class WarehouseController extends Controller
     {
         $validator = Validator::make($request->all(), [
             'name' => 'required|string|max:255',
-            'type' => 'required|in:main,store',
+            'type' => 'required|in:main,branch',
             'status' => 'required|in:active,inactive',
         ]);
 
@@ -65,7 +65,7 @@ class WarehouseController extends Controller
         $validator = Validator::make($request->all(), [
             'id' => 'required|exists:warehouses,id',
             'name' => 'required|string|max:255',
-            'type' => 'required|in:main,store',
+            'type' => 'required|in:main,branch',
             'status' => 'required|in:active,inactive',
         ]);
 

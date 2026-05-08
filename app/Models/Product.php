@@ -26,8 +26,14 @@ class Product extends Model
         'min_stock_alert',
         'neto',
         'pieces',
-        'product_tier_id'
+        'product_tier_id',
+        'is_bundle'
     ];
+
+    public function bundleItems()
+    {
+        return $this->hasMany(BundleItem::class, 'bundle_id');
+    }
 
     public function category()
     {
@@ -84,15 +90,32 @@ class Product extends Model
         return $this->hasMany(Voucher::class);
     }
 
+    public function supplierReturnItems()
+    {
+        return $this->hasMany(SupplierReturnItem::class);
+    }
+
     /**
      * Recalculate and sync the stock column.
      * Formula: SUM(batches.incoming_qty) - SUM(transaction_items.qty)
      */
     public function syncStock()
     {
-        $incoming = $this->batches()->sum('qty');
-        $outgoing = $this->transactionItems()->sum('qty');
+        self::bulkSyncStock([$this->id]);
+    }
 
-        $this->update(['stock' => $incoming - $outgoing]);
+    public static function bulkSyncStock($productIds)
+    {
+        if (empty($productIds)) return;
+        
+        $ids = implode(',', array_map('intval', $productIds));
+        
+        \DB::statement("
+            UPDATE products 
+            SET stock = (SELECT COALESCE(SUM(qty), 0) FROM product_batches WHERE product_id = products.id) 
+                       - (SELECT COALESCE(SUM(qty), 0) FROM transaction_items WHERE product_id = products.id) 
+                       - (SELECT COALESCE(SUM(qty), 0) FROM supplier_return_items WHERE product_id = products.id)
+            WHERE id IN ($ids)
+        ");
     }
 }

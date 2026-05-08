@@ -77,11 +77,20 @@
             </div>
             <div class="modal-body">
                 <div class="row mb-3">
-                    <div class="col-md-6">
+                    <div class="col-md-8">
                         <table class="table table-sm table-borderless">
                             <tr><th width="120">Produk</th><td>: <span id="det-info-name"></span></td></tr>
                             <tr><th>Lokasi Gudang</th><td>: <span id="det-info-warehouse" class="badge badge-info"></span></td></tr>
+                            <tr><th>Netto</th><td>: <span id="det-info-netto" class="font-weight-bold text-primary">-</span></td></tr>
                         </table>
+                    </div>
+                    <div class="col-md-4 text-right">
+                        <button class="btn btn-warning btn-sm" id="btn-edit-netto" style="display:none;">
+                            <i class="fas fa-exchange-alt"></i> Ganti Varian
+                        </button>
+                        <button class="btn btn-success btn-sm" id="btn-add-netto" style="display:none;">
+                            <i class="fas fa-link"></i> Hubungkan Varian
+                        </button>
                     </div>
                 </div>
 
@@ -93,7 +102,7 @@
                         <a class="nav-link" id="incoming-tab" data-toggle="tab" href="#tab-incoming" role="tab">Riwayat Masuk (Supplier)</a>
                     </li>
                     <li class="nav-item">
-                        <a class="nav-link" id="outgoing-tab" data-toggle="tab" href="#tab-outgoing" role="tab">Riwayat Keluar (Penjualan)</a>
+                        <a class="nav-link" id="outgoing-tab" data-toggle="tab" href="#tab-outgoing" role="tab">Riwayat Keluar (Penjualan & Return)</a>
                     </li>
                 </ul>
                 <div class="tab-content pt-3" id="auditTabContent">
@@ -138,7 +147,7 @@
                                     <tr class="bg-light">
                                         <th>Tipe</th>
                                         <th>No. Referensi</th>
-                                        <th>Tujuan / Customer</th>
+                                        <th>Tujuan (Customer/Supplier)</th>
                                         <th class="text-right">Qty Keluar</th>
                                         <th>Tgl Transaksi</th>
                                     </tr>
@@ -251,12 +260,78 @@
         </div>
     </div>
 </div>
+<!-- Modal Tambah Netto -->
+<div class="modal fade" id="modal-add-netto" tabindex="-1" role="dialog">
+    <div class="modal-dialog" role="document">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Hubungkan ke Varian</h5>
+                <button type="button" class="close" data-dismiss="modal"><span>&times;</span></button>
+            </div>
+            <form id="form-add-netto">
+                @csrf
+                <input type="hidden" name="product_id" id="add-netto-product-id">
+                <input type="hidden" name="warehouse_id" id="add-netto-warehouse-id">
+                <div class="modal-body">
+                    <div class="alert alert-info py-2 small">
+                        Pilih varian yang sesuai. Semua batch produk ini yang belum memiliki varian akan dihubungkan ke varian yang dipilih.
+                    </div>
+                    <div class="form-group">
+                        <label>Pilih Varian <span class="text-danger">*</span></label>
+                        <select class="form-control" name="variant_id" id="add-netto-variant-select" required>
+                            <option value="">-- Pilih Varian --</option>
+                        </select>
+                        <small class="text-muted">Data varian diambil dari produk ini (Netto + Satuan)</small>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-dismiss="modal">Batal</button>
+                    <button type="submit" class="btn btn-success">Hubungkan</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Modal Edit Netto & Harga Jual -->
+<div class="modal fade" id="modal-edit-netto" tabindex="-1" role="dialog">
+    <div class="modal-dialog" role="document">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Ganti Varian</h5>
+                <button type="button" class="close" data-dismiss="modal"><span>&times;</span></button>
+            </div>
+            <form id="form-edit-netto">
+                @csrf
+                <input type="hidden" name="variant_id" id="netto-variant-id">
+                <input type="hidden" name="product_id" id="netto-product-id">
+                <input type="hidden" name="warehouse_id" id="netto-warehouse-id">
+                <div class="modal-body">
+                    <div class="alert alert-warning py-2 small">
+                        Pilih varian yang sesuai. Semua batch produk ini di gudang ini akan dipindahkan ke varian yang dipilih.
+                    </div>
+                    <div class="form-group">
+                        <label>Pilih Varian <span class="text-danger">*</span></label>
+                        <select class="form-control" name="new_variant_id" id="netto-variant-select" required>
+                            <option value="">-- Pilih Varian --</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-dismiss="modal">Batal</button>
+                    <button type="submit" class="btn btn-primary">Simpan Perubahan</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
 @endsection
 
 @push('scripts')
 <script>
     let table;
     let activeWarehouseId = '';
+    let activeVariantId = null;
 
     $(document).ready(function() {
         table = $('#table-stock').DataTable({
@@ -303,16 +378,35 @@
         // Detail Audit Button
         $(document).on('click', '.btn-detail', function() {
             let data = $(this).data();
-            $.post('{{ url("admin/manage-master/stock/detail") }}', { 
-                _token: '{{ csrf_token() }}', 
-                product_id: data.product_id, 
-                variant_id: data.variant_id, 
-                warehouse_id: data.warehouse_id 
+            // Simpan variant_id dan warehouse_id aktif
+            activeVariantId = data.variant_id || null;
+
+            $.post('{{ url("admin/manage-master/stock/detail") }}', {
+                _token: '{{ csrf_token() }}',
+                product_id: data.product_id,
+                variant_id: data.variant_id,
+                warehouse_id: data.warehouse_id
             }, function(res) {
                 if (res.success) {
                     $('#det-info-name').text(res.product.name);
                     $('#det-info-warehouse').text(res.product.warehouse);
-                    
+                    $('#det-info-netto').text(res.product.netto || '-');
+
+                    // Tampilkan tombol sesuai kondisi netto
+                    if (activeVariantId) {
+                        $('#btn-edit-netto').show();
+                        $('#btn-add-netto').hide();
+                        // Simpan product_id dan warehouse_id untuk form edit netto
+                        $('#netto-product-id').val(data.product_id);
+                        $('#netto-warehouse-id').val(data.warehouse_id);
+                    } else {
+                        $('#btn-edit-netto').hide();
+                        $('#btn-add-netto').show();
+                        // Simpan product_id dan warehouse_id untuk form tambah netto
+                        $('#add-netto-product-id').val(data.product_id);
+                        $('#add-netto-warehouse-id').val(data.warehouse_id);
+                    }
+
                     // Render Batches
                     $('#table-det-batches tbody').empty();
                     res.batches.forEach(b => {
@@ -344,13 +438,18 @@
                                 </tr>
                             `);
                         });
-                    } else { $('#table-det-incoming tbody').append('<tr><td colspan="4" class="text-center text-muted">Tidak ada data incoming</td></tr>'); }
+                    } else {
+                        $('#table-det-incoming tbody').append('<tr><td colspan="4" class="text-center text-muted">Tidak ada data incoming</td></tr>');
+                    }
 
                     // Render Outgoing
                     $('#table-det-outgoing tbody').empty();
                     if(res.outgoing.length) {
                         res.outgoing.forEach(o => {
-                            let badge = o.type === 'Penjualan' ? 'badge-success' : 'badge-info';
+                            let badge = 'badge-info';
+                            if (o.type === 'Penjualan') badge = 'badge-success';
+                            if (o.type === 'Return Supplier') badge = 'badge-danger';
+                            
                             $('#table-det-outgoing tbody').append(`
                                 <tr>
                                     <td><span class="badge ${badge}">${o.type}</span></td>
@@ -361,7 +460,9 @@
                                 </tr>
                             `);
                         });
-                    } else { $('#table-det-outgoing tbody').append('<tr><td colspan="5" class="text-center text-muted">Tidak ada data outgoing</td></tr>'); }
+                    } else {
+                        $('#table-det-outgoing tbody').append('<tr><td colspan="5" class="text-center text-muted">Tidak ada data outgoing</td></tr>');
+                    }
 
                     $('#modal-detail').modal('show');
                 }
@@ -383,7 +484,7 @@
             });
         });
 
-        // Edit inside modal
+        // Edit Batch
         $(document).on('click', '.btn-edit-batch', function() {
             let id = $(this).data('id');
             $.post('{{ url("admin/manage-master/stock/get") }}', { _token: '{{ csrf_token() }}', id: id }, function(res) {
@@ -406,13 +507,12 @@
                 success: function(res) {
                     $('#modal-edit').modal('hide');
                     iziToast.success({ title: 'Berhasil', message: res.message });
-                    // Re-trigger detail refresh or just reload table
                     table.ajax.reload();
                 }
             });
         });
 
-        // Delete inside modal
+        // Delete Batch
         $(document).on('click', '.btn-delete-batch', function() {
             let id = $(this).data('id');
             swal({ title: 'Hapus Batch?', text: 'Data tidak bisa dikembalikan', icon: 'warning', buttons: true, dangerMode: true })
@@ -428,6 +528,88 @@
                             iziToast.success({ title: 'Berhasil', message: res.message });
                         }
                     });
+                }
+            });
+        });
+
+        // Tambah Netto (untuk batch yang belum punya variant)
+        $('#btn-add-netto').on('click', function() {
+            let productId = $('#add-netto-product-id').val();
+            let select = $('#add-netto-variant-select');
+            select.html('<option value="">-- Memuat varian... --</option>');
+
+            $.get('{{ url("admin/manage-master/stock/variants") }}/' + productId, function(res) {
+                select.html('<option value="">-- Pilih Varian --</option>');
+                if (res.data && res.data.length > 0) {
+                    res.data.forEach(v => {
+                        let label = v.netto_value + (v.satuan ? ' ' + v.satuan : '');
+                        select.append(`<option value="${v.id}">${label}</option>`);
+                    });
+                } else {
+                    select.html('<option value="">Tidak ada varian tersedia</option>');
+                }
+                $('#modal-add-netto').modal('show');
+            });
+        });
+
+        $('#form-add-netto').on('submit', function(e) {
+            e.preventDefault();
+            $.ajax({
+                url: '{{ url("admin/manage-master/stock/add-netto") }}',
+                method: 'POST',
+                data: $(this).serialize(),
+                success: function(res) {
+                    $('#modal-add-netto').modal('hide');
+                    $('#modal-detail').modal('hide');
+                    table.ajax.reload();
+                    iziToast.success({ title: 'Berhasil', message: res.message });
+                },
+                error: function(err) {
+                    iziToast.error({ title: 'Error', message: err.responseJSON?.message || 'Gagal menyimpan' });
+                }
+            });
+        });
+
+        // Edit Netto & Harga Jual
+        $('#btn-edit-netto').on('click', function() {
+            if (!activeVariantId) {
+                iziToast.warning({ message: 'Tidak ada varian yang dipilih', position: 'topRight' });
+                return;
+            }
+            let productId = $('#netto-product-id').val();
+            let select = $('#netto-variant-select');
+            select.html('<option value="">-- Memuat varian... --</option>');
+
+            $.get('{{ url("admin/manage-master/stock/variants") }}/' + productId, function(res) {
+                select.html('<option value="">-- Pilih Varian --</option>');
+                if (res.data && res.data.length > 0) {
+                    res.data.forEach(v => {
+                        let label = v.netto_value + (v.satuan ? ' ' + v.satuan : '');
+                        let selected = (v.id == activeVariantId) ? 'selected' : '';
+                        select.append(`<option value="${v.id}" ${selected}>${label}</option>`);
+                    });
+                }
+                $('#netto-variant-id').val(activeVariantId);
+                $('#modal-edit-netto').modal('show');
+            });
+        });
+
+        // Update satuan saat dropdown varian berubah - dihapus
+
+        $('#form-edit-netto').on('submit', function(e) {
+            e.preventDefault();
+            $.ajax({
+                url: '{{ url("admin/manage-master/stock/update-netto") }}',
+                method: 'POST',
+                data: $(this).serialize(),
+                success: function(res) {
+                    $('#modal-edit-netto').modal('hide');
+                    $('#modal-detail').modal('hide');
+                    table.ajax.reload();
+                    iziToast.success({ title: 'Berhasil', message: res.message });
+                },
+                error: function(err) {
+                    iziToast.error({ title: 'Error', message: err.responseJSON?.message || 'Gagal menyimpan' });
                 }
             });
         });

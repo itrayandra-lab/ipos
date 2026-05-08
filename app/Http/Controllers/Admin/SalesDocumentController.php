@@ -52,23 +52,31 @@ class SalesDocumentController extends Controller
                 ->editColumn('payment_status', function ($row) {
                     $totalPaid = $row->payments()->sum('amount');
                     $labels = [
-                        'paid'     => '<span class="badge badge-success">Lunas</span>',
-                        'unpaid'   => '<span class="badge badge-warning">Belum Bayar</span>',
+                        'paid'     => '<span class="badge-soft badge-soft-success">Lunas</span>',
+                        'unpaid'   => '<span class="badge-soft badge-soft-danger">Belum Bayar</span>',
                         'credit'   => $totalPaid > 0 
-                                        ? '<span class="badge badge-info text-dark">DP Terbayar</span>' 
-                                        : '<span class="badge badge-warning">Menunggu DP</span>',
-                        'pending'  => '<span class="badge badge-warning">Pending</span>',
-                        'draft'    => '<span class="badge badge-secondary">Draft</span>',
-                        'canceled' => '<span class="badge badge-danger">Batal</span>',
+                                         ? '<span class="badge-soft badge-soft-info">DP Terbayar</span>' 
+                                         : '<span class="badge-soft badge-soft-warning">Menunggu DP</span>',
+                        'pending'  => '<span class="badge-soft badge-soft-warning">Pending</span>',
+                        'draft'    => '<span class="badge-soft badge-soft-secondary">Draft</span>',
+                        'canceled' => '<span class="badge-soft badge-soft-danger">Batal</span>',
                     ];
-                    return $labels[$row->payment_status] ?? strtoupper($row->payment_status);
+                    return $labels[$row->payment_status] ?? '<span class="badge-soft badge-soft-secondary">'.strtoupper($row->payment_status).'</span>';
                 })
                 ->addColumn('action', function ($row) {
-                    $show  = '<a href="' . route('admin.sales.invoices.show', $row->id) . '" class="btn btn-sm btn-info" title="Detail"><i class="fas fa-eye"></i></a>';
-                    $edit  = '<a href="' . route('admin.sales.invoices.edit', $row->id) . '" class="btn btn-sm btn-warning" title="Edit"><i class="fas fa-edit"></i></a>';
-                    $print = '<a href="' . route('admin.sales.invoices.print', $row->id) . '" target="_blank" class="btn btn-sm btn-primary" title="Cetak"><i class="fas fa-print"></i></a>';
-                    $del   = '<button onclick="deleteInvoice(' . $row->id . ')" class="btn btn-sm btn-danger" title="Hapus"><i class="fas fa-trash"></i></button>';
-                    return $show . ' ' . $edit . ' ' . $print . ' ' . $del;
+                    return '
+                    <div class="dropdown d-inline dropleft">
+                        <button type="button" class="btn btn-action-custom btn-sm dropdown-toggle" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+                            Action
+                        </button>
+                        <div class="dropdown-menu">
+                            <a class="dropdown-item has-icon" href="' . route('admin.sales.invoices.show', $row->id) . '"><i class="fas fa-eye text-info"></i> Detail</a>
+                            <a class="dropdown-item has-icon" href="' . route('admin.sales.invoices.edit', $row->id) . '"><i class="fas fa-edit text-warning"></i> Edit</a>
+                            <a class="dropdown-item has-icon" href="' . route('admin.sales.invoices.print', $row->id) . '" target="_blank"><i class="fas fa-print text-primary"></i> Cetak</a>
+                            <div class="dropdown-divider"></div>
+                            <a class="dropdown-item has-icon text-danger" href="javascript:void(0)" onclick="deleteInvoice(' . $row->id . ')"><i class="fas fa-trash"></i> Hapus</a>
+                        </div>
+                    </div>';
                 })
                 ->rawColumns(['payment_status', 'action'])
                 ->make(true);
@@ -112,6 +120,21 @@ class SalesDocumentController extends Controller
             ];
         }
 
+        // Add bundles to batchList
+        $bundles = Product::where('is_bundle', true)->where('status', 'Y')->with('merek')->get();
+        foreach ($bundles as $bundle) {
+            $merekName = $bundle->merek ? trim($bundle->merek->name) : '';
+            $labelText = implode(' ', array_filter([$merekName, trim($bundle->name)]));
+            
+            $batchList[] = [
+                'id'        => 'bundle-' . $bundle->id,
+                'text'      => $labelText . ' (Bundling)',
+                'price'     => $bundle->price > 0 ? $bundle->price : ($bundle->variants->first()->price ?? 0),
+                'stock'     => 999,
+                'buy_price' => 0,
+            ];
+        }
+
         $nextInvoiceNumber = InvoiceService::generate();
         return view('admin.sales.invoice.create', compact('customers', 'batchList', 'nextInvoiceNumber', 'bankAccounts'))
             ->with('sb', 'SalesInvoices');
@@ -131,9 +154,10 @@ class SalesDocumentController extends Controller
             'transaction_type' => 'required|in:produk,kelas',
             'notes' => 'nullable|string',
             'items' => 'required|array|min:1',
-            'items.*.product_batch_id' => 'required|exists:product_batches,id',
+            'items.*.product_batch_id' => 'required|string',
             'items.*.qty' => 'required|integer|min:1',
             'items.*.price' => 'required|numeric|min:0',
+            'items.*.discount' => 'nullable|numeric|min:0',
             'down_payment_amount' => 'nullable|numeric|min:0',
         ]);
 
@@ -142,26 +166,46 @@ class SalesDocumentController extends Controller
                 $totalAmount   = 0;
                 $itemsToCreate = [];
                 foreach ($request->items as $item) {
-                    $batch    = ProductBatch::with('product')->findOrFail($item['product_batch_id']);
-                    $product  = $batch->product;
+                    $isBundle = str_starts_with($item['product_batch_id'], 'bundle-');
                     $qty      = (int) $item['qty'];
                     $price    = (float) $item['price'];
-                    $subtotal = $price * $qty;
+                    $discount = (float) ($item['discount'] ?? 0);
+                    $subtotal = ($price - $discount) * $qty;
                     $totalAmount += $subtotal;
+
+                    if ($isBundle) {
+                        $bundleId = str_replace('bundle-', '', $item['product_batch_id']);
+                        $product = Product::findOrFail($bundleId);
+                        $batchId = null;
+                        $buyPrice = 0;
+                    } else {
+                        $batch    = ProductBatch::with('product')->findOrFail($item['product_batch_id']);
+                        $product  = $batch->product;
+                        $batchId  = $batch->id;
+                        $buyPrice = $batch->buy_price ?? 0;
+                    }
+
                     $itemsToCreate[] = [
                         'product_id'       => $product->id,
-                        'product_batch_id' => $batch->id,
-                        'buy_price'        => $batch->buy_price ?? 0,
+                        'product_batch_id' => $batchId,
+                        'buy_price'        => $buyPrice,
                         'qty'              => $qty,
                         'price'            => $price,
+                        'discount'         => $discount,
                         'subtotal'         => $subtotal,
+                        'is_bundle_main'   => $isBundle // Temporary flag for logic
                     ];
+
                     if (in_array($request->payment_status, ['paid', 'credit'])) {
-                        if ($batch->qty < $qty) {
-                            throw new \Exception("Stok batch {$batch->batch_no} untuk produk {$product->name} tidak mencukupi (tersisa {$batch->qty}).");
+                        if ($isBundle) {
+                            // Bundle stock logic handled later via StockService
+                        } else {
+                            if ($batch->qty < $qty) {
+                                throw new \Exception("Stok batch {$batch->batch_no} untuk produk {$product->name} tidak mencukupi (tersisa {$batch->qty}).");
+                            }
+                            $batch->decrement('qty', $qty);
+                            $product->decrement('stock', $qty);
                         }
-                        $batch->decrement('qty', $qty);
-                        $product->decrement('stock', $qty);
                     }
                 }
                 $taxAmount    = (float) ($request->tax_amount ?? 0);
@@ -195,9 +239,17 @@ class SalesDocumentController extends Controller
                 ]);
                 $invNum = $request->invoice_number ?: InvoiceService::generate($txDate);
                 $transaction->update(['invoice_number' => $invNum]);
+                $stockService = new \App\Services\StockService();
                 foreach ($itemsToCreate as $itemData) {
+                    $isBundleMain = $itemData['is_bundle_main'] ?? false;
+                    unset($itemData['is_bundle_main']);
+
                     $itemData['transaction_id'] = $transaction->id;
-                    TransactionItem::create($itemData);
+                    $mainItem = TransactionItem::create($itemData);
+
+                    if (in_array($request->payment_status, ['paid', 'credit']) && $isBundleMain) {
+                        $stockService->explodeBundleComponents($itemData['product_id'], $itemData['qty'], $transaction->id, $mainItem->id);
+                    }
                 }
                 return $transaction;
             });
@@ -256,6 +308,21 @@ class SalesDocumentController extends Controller
             ];
         }
 
+        // Add bundles
+        $bundles = Product::where('is_bundle', true)->where('status', 'Y')->with('merek')->get();
+        foreach ($bundles as $bundle) {
+            $merekName = $bundle->merek ? trim($bundle->merek->name) : '';
+            $labelText = implode(' ', array_filter([$merekName, trim($bundle->name)]));
+            
+            $batchList[] = [
+                'id'        => 'bundle-' . $bundle->id,
+                'text'      => $labelText . ' (Bundling)',
+                'price'     => $bundle->price > 0 ? $bundle->price : ($bundle->variants->first()->price ?? 0),
+                'stock'     => 999,
+                'buy_price' => 0,
+            ];
+        }
+
         return view('admin.sales.invoice.edit', compact('transaction', 'customers', 'batchList', 'bankAccounts'))
             ->with('sb', 'SalesInvoices');
     }
@@ -274,7 +341,7 @@ class SalesDocumentController extends Controller
             'payment_status' => 'required|in:draft,unpaid,paid,canceled,credit',
             'notes' => 'nullable|string',
             'items' => 'required|array|min:1',
-            'items.*.product_batch_id' => 'required|exists:product_batches,id',
+            'items.*.product_batch_id' => 'required|string',
             'items.*.qty' => 'required|integer|min:1',
             'items.*.price' => 'required|numeric|min:0',
         ]);
@@ -285,19 +352,32 @@ class SalesDocumentController extends Controller
                 $itemsToCreate = [];
                 
                 foreach ($request->items as $item) {
-                    $batch    = ProductBatch::with('product')->findOrFail($item['product_batch_id']);
-                    $product  = $batch->product;
+                    $isBundle = str_starts_with($item['product_batch_id'], 'bundle-');
                     $qty      = (int) $item['qty'];
                     $price    = (float) $item['price'];
                     $subtotal = $price * $qty;
                     $totalAmount += $subtotal;
+
+                    if ($isBundle) {
+                        $bundleId = str_replace('bundle-', '', $item['product_batch_id']);
+                        $product = Product::findOrFail($bundleId);
+                        $batchId = null;
+                        $buyPrice = 0;
+                    } else {
+                        $batch    = ProductBatch::with('product')->findOrFail($item['product_batch_id']);
+                        $product  = $batch->product;
+                        $batchId = $batch->id;
+                        $buyPrice = $batch->buy_price ?? 0;
+                    }
+
                     $itemsToCreate[] = [
                         'product_id'       => $product->id,
-                        'product_batch_id' => $batch->id,
-                        'buy_price'        => $batch->buy_price ?? 0,
+                        'product_batch_id' => $batchId,
+                        'buy_price'        => $buyPrice,
                         'qty'              => $qty,
                         'price'            => $price,
                         'subtotal'         => $subtotal,
+                        'is_bundle_main'   => $isBundle
                     ];
                 }
                 
@@ -330,9 +410,17 @@ class SalesDocumentController extends Controller
                 TransactionItem::where('transaction_id', $id)->delete();
                 
                 // Buat items baru
+                $stockService = new \App\Services\StockService();
                 foreach ($itemsToCreate as $itemData) {
+                    $isBundleMain = $itemData['is_bundle_main'] ?? false;
+                    unset($itemData['is_bundle_main']);
+
                     $itemData['transaction_id'] = $transaction->id;
-                    TransactionItem::create($itemData);
+                    $mainItem = TransactionItem::create($itemData);
+
+                    if (in_array($request->payment_status, ['paid', 'credit']) && $isBundleMain) {
+                        $stockService->explodeBundleComponents($itemData['product_id'], $itemData['qty'], $transaction->id, $mainItem->id);
+                    }
                 }
             });
             
@@ -544,11 +632,19 @@ class SalesDocumentController extends Controller
                         return \Carbon\Carbon::parse($row->transaction_date)->format('d/m/Y');
                     })
                     ->addColumn('action', function ($row) {
-                        $showBtn = '<a href="' . route('admin.sales.delivery_notes.show', $row->id) . '" class="btn btn-sm btn-info" title="Detail"><i class="fas fa-eye"></i></a>';
-                        $printBtn = '<a href="' . route('admin.sales.delivery_notes.print', $row->id) . '" target="_blank" class="btn btn-sm btn-primary ml-1" title="Cetak Surat Jalan"><i class="fas fa-print"></i></a>';
-                        $editBtn = '<a href="' . route('admin.sales.delivery_notes.edit', $row->id) . '" class="btn btn-sm btn-warning ml-1" title="Edit"><i class="fas fa-edit"></i></a>';
-                        $deleteBtn = '<button type="button" onclick="deleteDeliveryNote(' . $row->id . ')" class="btn btn-sm btn-danger ml-1" title="Hapus"><i class="fas fa-trash"></i></button>';
-                        return $showBtn . ' ' . $printBtn . ' ' . $editBtn . ' ' . $deleteBtn;
+                        return '
+                        <div class="dropdown d-inline dropleft">
+                            <button type="button" class="btn btn-action-custom btn-sm dropdown-toggle" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+                                Action
+                            </button>
+                            <div class="dropdown-menu">
+                                <a class="dropdown-item has-icon" href="' . route('admin.sales.delivery_notes.show', $row->id) . '"><i class="fas fa-eye text-info"></i> Detail</a>
+                                <a class="dropdown-item has-icon" href="' . route('admin.sales.delivery_notes.edit', $row->id) . '"><i class="fas fa-edit text-warning"></i> Edit</a>
+                                <a class="dropdown-item has-icon" href="' . route('admin.sales.delivery_notes.print', $row->id) . '" target="_blank"><i class="fas fa-print text-primary"></i> Cetak</a>
+                                <div class="dropdown-divider"></div>
+                                <a class="dropdown-item has-icon text-danger" href="javascript:void(0)" onclick="deleteDeliveryNote(' . $row->id . ')"><i class="fas fa-trash"></i> Hapus</a>
+                            </div>
+                        </div>';
                     })
                     ->rawColumns(['action'])
                     ->make(true);

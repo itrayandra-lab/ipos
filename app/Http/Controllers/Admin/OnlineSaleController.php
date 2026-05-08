@@ -18,73 +18,65 @@ class OnlineSaleController extends Controller
 {
     public function create()
     {
-        $products = Product::where('status', 'Y')
-            ->orderBy('name', 'asc')
-            ->with(['batches' => function ($q) {
-            $q->orderBy('batch_no', 'asc');
-        }])
+        $customers = \App\Models\Customer::orderBy('name')->get();
+        $warehouses = \App\Models\Warehouse::where('status', 'active')->get();
+        $merek = \App\Models\Merek::orderBy('name', 'asc')->get();
+        $categories = \App\Models\Category::orderBy('name', 'asc')->get();
+        $affiliates = \App\Models\Affiliate::where('is_active', true)->get();
+        $channels = \App\Models\ChannelSetting::where('slug', '!=', 'offline')->get();
+        
+        $mainWarehouse = \App\Models\Warehouse::where('type', 'main')->first();
+        $mainWarehouseId = $mainWarehouse ? $mainWarehouse->id : 1;
+
+        $batches = ProductBatch::with(['product.merek', 'variant'])
+            ->where('warehouse_id', $mainWarehouseId)
+            ->where('qty', '>', 0)
+            ->whereHas('product', fn($q) => $q->where('status', 'Y'))
             ->get();
 
-        $channels = \App\Models\ChannelSetting::all();
-
         $batchList = [];
-        foreach ($products as $product) {
-            foreach ($product->batches as $batch) {
-                if ($batch->qty > 0) {
-                    // Load relasi untuk mendapatkan data lengkap
-                    $batch->load(['variant.netto', 'product.merek']);
-                    
-                    $variant = $batch->variant;
-                    $netto = $variant ? $variant->netto : null;
-                    
-                    $merekName = ($product && $product->merek) ? trim($product->merek->name) : '';
-                    $productName = trim($product->name ?? '');
-                    $nettoValue = $netto ? trim($netto->netto_value ?? '') : '';
-                    $satuan = $netto ? trim($netto->satuan ?? '') : '';
-                    $batchNo = trim($batch->batch_no ?? '');
-                    $stock = $batch->qty;
-                    $expiredDate = $batch->expiry_date ? $batch->expiry_date->format('d/m/Y') : 'No Exp';
-                    
-                    // Format: Merek + Produk + Netto + Satuan + (batch + stok + Expired date)
-                    $parts = array_filter([$merekName, $productName, $nettoValue, $satuan]);
-                    $labelText = implode(' ', $parts);
-                    $fullText = $labelText . ' (' . $batchNo . ' - Stok: ' . $stock . ' - Exp: ' . $expiredDate . ')';
-
-                    $prices = [
-                        'offline' => \App\Services\PricingService::calculate($batch, 'offline'),
-                    ];
-
-                    foreach ($channels as $channel) {
-                        $prices[$channel->slug] = \App\Services\PricingService::calculate($batch, $channel->slug);
-                    }
-
-                    $batchList[] = (object)[
-                        'id' => $batch->id,
-                        'product_id' => $product->id,
-                        'text' => $fullText,
-                        'stock' => $batch->qty,
-                        'prices' => $prices
-                    ];
-                }
-            }
+        foreach ($batches as $batch) {
+            $product = $batch->product;
+            $batchList[] = [
+                'id' => $batch->id,
+                'product_id' => $product->id,
+                'text' => ($product->merek->name ?? '') . ' ' . $product->name . ' (' . $batch->batch_no . ')',
+                'price' => $batch->variant ? (int)$batch->variant->price : (int)$product->price,
+                'stock' => $batch->qty
+            ];
         }
 
-        return view('admin.online_sale.index', compact('products', 'batchList', 'channels'))->with('sb', 'OnlineSale');
+        $posRoutes = [
+            'products' => route('admin.pos.products'),
+            'store' => route('admin.online_sale.store'), // Direct to OnlineSale store
+            'receipt' => url('admin/pos/receipt'),
+            'verify_voucher' => route('admin.pos.verify-voucher'),
+        ];
+
+        return view('admin.online_sale.pos_mode', compact('customers', 'batchList', 'categories', 'merek', 'posRoutes', 'affiliates', 'warehouses', 'channels'))->with('sb', 'OnlineSale');
     }
 
     public function store(Request $request)
     {
+        if (is_string($request->items)) {
+            $request->merge(['items' => json_decode($request->items, true)]);
+        }
+
         $validator = Validator::make($request->all(), [
             'source' => 'required|exists:channel_settings,slug',
             'transaction_date' => 'nullable|date',
             'notes' => 'nullable|string',
             'items' => 'required|array|min:1',
-            'items.*.product_batch_id' => 'required|exists:product_batches,id',
+            'items.*.product_id' => 'required|exists:products,id',
+            'items.*.batch_id' => 'required|exists:product_batches,id',
             'items.*.qty' => 'required|integer|min:1',
             'payment_receipt' => 'nullable|file|mimes:jpg,jpeg,png,pdf|max:2048',
         ]);
 
         if ($validator->fails()) {
+            if ($request->ajax()) {
+                return response()->json(['success' => false, 'message' => $validator->errors()->first()], 422);
+            }
             return redirect()->back()->withErrors($validator)->withInput();
         }
 
@@ -97,19 +89,20 @@ class OnlineSaleController extends Controller
                 $receiptPath = 'uploads/receipts/' . $filename;
             }
 
-            DB::transaction(function () use ($request, $receiptPath) {
+            $transaction = DB::transaction(function () use ($request, $receiptPath) {
                 $totalAmount = 0;
                 $itemsToCreate = [];
 
                 foreach ($request->items as $item) {
-                    $batch = ProductBatch::with('product')->findOrFail($item['product_batch_id']);
+                    $batch = ProductBatch::with(['product', 'variant'])->findOrFail($item['batch_id']);
                     $product = $batch->product;
 
                     if ($batch->qty < $item['qty']) {
-                        throw new \Exception('Stok batch ' . $batch->batch_no . ' untuk produk ' . $product->name . ' tidak mencukupi (Tersisa: ' . $batch->qty . ')');
+                        throw new \Exception('Stok batch ' . $batch->batch_no . ' untuk produk ' . $product->name . ' tidak mencukupi');
                     }
 
-                    $subtotal = $product->price * $item['qty'];
+                    $price = (int)($batch->variant->price ?? $product->price);
+                    $subtotal = $price * $item['qty'];
                     $totalAmount += $subtotal;
 
                     $itemsToCreate[] = [
@@ -117,7 +110,7 @@ class OnlineSaleController extends Controller
                         'product_batch_id' => $batch->id,
                         'buy_price' => $batch->buy_price,
                         'qty' => $item['qty'],
-                        'price' => $product->price,
+                        'price' => $price,
                         'subtotal' => $subtotal,
                     ];
                 }
@@ -128,35 +121,46 @@ class OnlineSaleController extends Controller
                     'notes' => $request->notes,
                     'total_amount' => $totalAmount,
                     'payment_status' => 'paid',
+                    'payment_method' => 'transfer',
                     'delivery_type' => 'delivery',
                     'delivery_desc' => 'Online Marketplace Sale',
                     'midtrans_order_id' => 'MARKET-' . strtoupper($request->source) . '-' . uniqid(),
                     'payment_receipt' => $receiptPath,
-                    'created_at' => $request->transaction_date ?? now(),
+                    'created_at' => $request->transaction_date ? \Carbon\Carbon::parse($request->transaction_date) : now(),
                 ]);
 
                 // Generate invoice number
                 $transaction->update([
-                    'invoice_number' => InvoiceService::generate(
-                    \Carbon\Carbon::parse($transaction->created_at)
-                ),
+                    'invoice_number' => InvoiceService::generate(\Carbon\Carbon::parse($transaction->created_at)),
                 ]);
 
                 foreach ($itemsToCreate as $itemData) {
                     $itemData['transaction_id'] = $transaction->id;
                     TransactionItem::create($itemData);
 
-                    // Deduct batch stock
+                    // Deduct stock
                     ProductBatch::where('id', $itemData['product_batch_id'])->decrement('qty', $itemData['qty']);
-
-                    // Deduct global stock
                     Product::where('id', $itemData['product_id'])->decrement('stock', $itemData['qty']);
                 }
+
+                return $transaction;
             });
+
+            if ($request->ajax()) {
+                return response()->json([
+                    'success' => true,
+                    'message' => 'Transaksi online berhasil dicatat',
+                    'transaction_id' => $transaction->id,
+                    'invoice_number' => $transaction->invoice_number
+                ]);
+            }
 
             return redirect()->route('admin.online_sale.index')->with('message', 'Transaksi online berhasil dicatat');
         }
         catch (\Exception $e) {
+            if ($request->ajax()) {
+                return response()->json(['success' => false, 'message' => $e->getMessage()], 500);
+            }
             return redirect()->back()->with('error', $e->getMessage())->withInput();
         }
     }
