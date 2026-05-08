@@ -250,6 +250,10 @@ class PosController extends Controller
     }
     public function store(Request $request)
     {
+        if (is_string($request->items)) {
+            $request->merge(['items' => json_decode($request->items, true)]);
+        }
+
         $validator = Validator::make($request->all(), [
             'items' => 'required|array|min:1',
             'items.*.product_id' => 'required|exists:products,id',
@@ -450,6 +454,15 @@ class PosController extends Controller
                     'warehouse_id' => $warehouseId,
                 ]);
 
+                // Handle Payment Receipt Upload
+                if ($request->hasFile('payment_receipt')) {
+                    $file = $request->file('payment_receipt');
+                    $filename = time() . '_' . $file->getClientOriginalName();
+                    $path = 'uploads/receipts/' . $filename;
+                    $file->move(public_path('uploads/receipts'), $filename);
+                    $transaction->update(['payment_receipt' => $path]);
+                }
+
                 if ($request->generate_invoice) {
                     $transaction->update([
                         'invoice_number' => InvoiceService::generate()
@@ -486,6 +499,7 @@ class PosController extends Controller
                         'amount'         => $finalTotal,
                         'payment_date'   => $transaction->created_at,
                         'payment_method' => $request->payment_method,
+                        'payment_receipt' => $transaction->payment_receipt,
                         'notes'          => 'Otomatis dari Kasir (POS)',
                     ]);
                 }

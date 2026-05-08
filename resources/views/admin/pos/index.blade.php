@@ -153,6 +153,36 @@
                                     </button>
                                 </div>
 
+                                <!-- Payment Proof (Camera) -->
+                                <div id="payment-proof-container" class="mb-3" style="display:none;">
+                                    <label class="small text-muted font-weight-bold">Bukti Pembayaran (Optional)</label>
+                                    <div class="d-flex align-items-center">
+                                        <button type="button" class="btn btn-outline-info flex-grow-1 mr-2 tablet-btn" id="btn-camera">
+                                            <i class="fas fa-camera mr-2"></i> Ambil Foto Bukti
+                                        </button>
+                                        <div id="proof-preview-container" style="display:none;">
+                                            <img id="proof-preview" src="" class="img-thumbnail" style="height: 48px; width: 48px; object-fit: cover;">
+                                            <button type="button" class="btn btn-sm btn-danger ml-1" id="btn-remove-proof">&times;</button>
+                                        </div>
+                                    </div>
+                                    <input type="file" id="input-camera" accept="image/*" capture="camera" style="display:none;">
+                                </div>
+
+                                <!-- Payment Proof (Camera) -->
+                                <div id="payment-proof-container" class="mb-3" style="display:none;">
+                                    <label class="small text-muted font-weight-bold">Bukti Pembayaran (Optional)</label>
+                                    <div class="d-flex align-items-center">
+                                        <button type="button" class="btn btn-outline-info flex-grow-1 mr-2 tablet-btn" id="btn-camera">
+                                            <i class="fas fa-camera mr-2"></i> Ambil Foto Bukti
+                                        </button>
+                                        <div id="proof-preview-container" style="display:none;">
+                                            <img id="proof-preview" src="" class="img-thumbnail" style="height: 48px; width: 48px; object-fit: cover;">
+                                            <button type="button" class="btn btn-sm btn-danger ml-1" id="btn-remove-proof">&times;</button>
+                                        </div>
+                                    </div>
+                                    <input type="file" id="input-camera" accept="image/*" capture="camera" style="display:none;">
+                                </div>
+
                                 <!-- Secondary Contexts -->
                                 <div class="row no-gutters mb-2">
                                     <div class="col-6 pr-1">
@@ -799,6 +829,39 @@
             } else if (method === 'transfer') {
                 $('#transfer-payment-info').slideDown();
             }
+
+            // Show/Hide Payment Proof Container
+            if (method === 'qris' || method === 'transfer') {
+                $('#payment-proof-container').slideDown();
+            } else {
+                $('#payment-proof-container').slideUp();
+                $('#btn-remove-proof').click(); // Clear if hidden
+            }
+        });
+
+        // Camera Logic
+        $('#btn-camera').on('click', function() {
+            $('#input-camera').click();
+        });
+
+        $('#input-camera').on('change', function() {
+            let file = this.files[0];
+            if (file) {
+                let reader = new FileReader();
+                reader.onload = function(e) {
+                    $('#proof-preview').attr('src', e.target.result);
+                    $('#proof-preview-container').show();
+                    $('#btn-camera').text('Ganti Foto');
+                }
+                reader.readAsDataURL(file);
+            }
+        });
+
+        $('#btn-remove-proof').on('click', function() {
+            $('#input-camera').val('');
+            $('#proof-preview').attr('src', '');
+            $('#proof-preview-container').hide();
+            $('#btn-camera').html('<i class="fas fa-camera mr-2"></i> Ambil Foto Bukti');
         });
 
         $('#cash-received').on('input', calculateChange);
@@ -843,13 +906,31 @@
                 created_at: $('#transaction-date').val(),
                 warehouse_id: $('#filter-warehouse').val(),
                 cash_received: $('#cash-received').val(),
-                notes: '-' // Default notes or pull from a field if added
+                notes: '-' 
             };
+
+            // Use FormData for file upload
+            let formData = new FormData();
+            for (let key in data) {
+                if (key === 'items') {
+                    formData.append(key, JSON.stringify(data[key]));
+                } else {
+                    formData.append(key, data[key]);
+                }
+            }
+
+            // Add payment proof file
+            let proofFile = $('#input-camera')[0].files[0];
+            if (proofFile) {
+                formData.append('payment_receipt', proofFile);
+            }
 
             $.ajax({
                 url: '{{ $posRoutes["store"] }}',
                 method: 'POST',
-                data: data,
+                data: formData,
+                processData: false,
+                contentType: false,
                 beforeSend: function() { $.LoadingOverlay("show"); },
                 complete: function() { $.LoadingOverlay("hide"); },
                 success: function(res) {
