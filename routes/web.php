@@ -118,6 +118,7 @@ Route::prefix('admin')->middleware(['auth', 'role:super_admin,store_manager,fina
                 );
                 Route::prefix('products')->group(function () {
                     Route::get('/', [ProductAdmin::class , 'index'])->name('admin.products.index');
+                    Route::get('/create', [ProductAdmin::class , 'create_view'])->name('admin.products.create');
                     Route::post('/', [ProductAdmin::class , 'create']);
                     Route::get('/all', [ProductAdmin::class , 'getall'])->name('admin.products.all');
                     Route::get('/search', [ProductAdmin::class , 'search'])->name('admin.products.search');

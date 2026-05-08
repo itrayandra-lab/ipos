@@ -35,6 +35,27 @@ class ProductController extends Controller
         ]);
     }
 
+    public function create_view()
+    {
+        $categories = Category::select('id', 'name', 'code')->orderBy('name', 'ASC')->get();
+        $productTypes = \App\Models\ProductType::select('id', 'name')->orderBy('name', 'ASC')->get();
+        $merek = \App\Models\Merek::orderBy('name', 'ASC')->get();
+        $netto_attributes = \App\Models\Attribute::whereHas('group', function ($q) {
+            $q->where('code', 'NETTO');
+        })->orderBy('name', 'ASC')->get();
+
+        $productTiers = \App\Models\ProductTier::all();
+
+        return view('admin.manage_master.products.create')->with([
+            'sb' => 'Product',
+            'categories' => $categories,
+            'productTypes' => $productTypes,
+            'merek' => $merek,
+            'netto_attributes' => $netto_attributes,
+            'productTiers' => $productTiers
+        ]);
+    }
+
     public function search(Request $request)
     {
         $warehouseId = $request->warehouse_id;

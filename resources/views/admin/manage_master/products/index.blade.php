@@ -196,9 +196,9 @@
                     <div class="card-header">
                         <h4>Daftar Seluruh Produk</h4>
                         <div class="card-header-form">
-                            <button type="button" class="btn btn-primary btn-tambah-custom" data-toggle="modal" data-target="#addModal">
+                            <a href="{{ route('admin.products.create') }}" class="btn btn-primary btn-tambah-custom">
                                 <i class="fas fa-plus mr-2"></i> Tambah Produk Baru
-                            </button>
+                            </a>
                         </div>
                     </div>
                     <div class="card-body">
@@ -222,201 +222,6 @@
                 </div>
             </div>
         </section>
-    </div>
-
-    <!-- Add Modal -->
-    <div class="modal fade" id="addModal" tabindex="-1" aria-labelledby="addModalLabel" aria-hidden="true">
-        <div class="modal-dialog modal-lg">
-            <div class="modal-content">
-                <div class="modal-header">
-                    <h5 class="modal-title" id="addModalLabel">Tambah Produk</h5>
-                    <button type="button" class="close" data-dismiss="modal" aria-label="Close">
-                        <span aria-hidden="true">×</span>
-                    </button>
-                </div>
-                <form action="{{ url('admin/manage-master/products') }}" method="POST" class="needs-validation" novalidate="" enctype="multipart/form-data">
-                    @csrf
-                    <div class="modal-body">
-                        <div class="row">
-                            <div class="col-md-4">
-                                <div class="form-group">
-                                    <label>Nama Produk</label>
-                                    <input type="text" placeholder="Masukkan Nama Produk" class="form-control" name="name" required>
-                                </div>
-                            </div>
-                            <div class="col-md-4">
-                                <div class="form-group">
-                                    <label>Kode Produk</label>
-                                    <input type="text" placeholder="Contoh: CRM" class="form-control" name="code" required>
-                                </div>
-                            </div>
-                            <div class="col-md-4">
-                                <div class="form-group">
-                                    <label>Merk</label>
-                                    <select class="form-control" name="merek_id" required>
-                                        <option value="">Pilih Merk</option>
-                                        @foreach ($merek as $m)
-                                            @php /** @var \App\Models\Merek $m */ @endphp
-                                            <option value="{{ $m->id }}">{{ $m->name }}</option>
-                                        @endforeach
-                                    </select>
-                                </div>
-                            </div>
-                        </div>
-
-                        <div class="row">
-                            <div class="col-md-4">
-                                <div class="form-group">
-                                    <label>Kategori</label>
-                                    <select class="form-control select-category" name="category_id" id="add-category" required>
-                                        <option value="">Pilih Kategori</option>
-                                        @foreach ($categories as $c)
-                                            <option value="{{ $c->id }}">{{ $c->name }}</option>
-                                        @endforeach
-                                    </select>
-                                </div>
-                            </div>
-                            <div class="col-md-4">
-                                <div class="form-group">
-                                    <label>Sub Kategori</label>
-                                    <select class="form-control" name="sub_category_id" id="add-sub-category">
-                                        <option value="">Pilih Sub Kategori</option>
-                                    </select>
-                                </div>
-                            </div>
-                            <div class="col-md-4">
-                                <div class="form-group">
-                                    <label>Tipe Produk</label>
-                                    <select class="form-control" name="product_type_id" id="add-product-type" required>
-                                        <option value="">Pilih Tipe Produk</option>
-                                        @foreach($productTypes as $pt)
-                                            <option value="{{ $pt->id }}">{{ $pt->name }}</option>
-                                        @endforeach
-                                    </select>
-                                </div>
-                            </div>
-                        </div>
-
-                        <div class="row">
-                            <div class="col-md-6">
-                                <div class="form-group">
-                                    <label>Product Tier</label>
-                                    <select class="form-control select-tier" name="product_tier_id" id="add-product-tier">
-                                        <option value="">Tanpa Tier (Manual)</option>
-                                        @foreach($productTiers as $tier)
-                                            <option value="{{ $tier->id }}" data-multiplier="{{ $tier->multiplier }}">{{ $tier->name }} (x{{ $tier->multiplier }})</option>
-                                        @endforeach
-                                    </select>
-                                </div>
-                            </div>
-                            <div class="col-md-3">
-                                <div class="form-group">
-                                    <label>Min. Stock Alert</label>
-                                    <input type="number" placeholder="Batas stok minimum untuk alert" class="form-control" name="min_stock_alert" required min="0" value="0">
-                                </div>
-                            </div>
-                            <div class="col-md-3">
-                                <div class="form-group">
-                                    <label>Produk Bundling?</label>
-                                    <div class="custom-control custom-checkbox mt-2">
-                                        <input type="checkbox" class="custom-control-input" name="is_bundle" id="is_bundle_add" value="1">
-                                        <label class="custom-control-label" for="is_bundle_add">Ya, Bundling</label>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-
-                        <!-- Bundling Items Section -->
-                        <div id="bundle-items-section-add" class="card card-primary d-none">
-                            <div class="card-header">
-                                <h4>Daftar Komponen Bundling</h4>
-                                <div class="card-header-action">
-                                    <button type="button" class="btn btn-success btn-sm" id="btn-add-bundle-item"><i class="fas fa-plus"></i> Tambah Komponen</button>
-                                </div>
-                            </div>
-                            <div class="card-body p-0">
-                                <table class="table table-sm" id="table-bundle-items-add">
-                                    <thead>
-                                        <tr>
-                                            <th>Produk Satuan</th>
-                                            <th width="120px">Jumlah</th>
-                                            <th width="50px"></th>
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        <!-- Dynamic items -->
-                                    </tbody>
-                                </table>
-                            </div>
-                        </div>
-
-                        <div class="form-group">
-                            <label class="d-block">Varian Produk (SKU) <button type="button" class="btn btn-sm btn-success float-right mb-2" id="btn-add-variant"><i class="fas fa-plus"></i> Tambah Varian</button></label>
-                            <div class="table-responsive">
-                                <table class="table table-sm table-bordered" id="table-variants">
-                                    <thead>
-                                        <tr>
-                                            <th>Netto</th>
-                                            <th>Satuan</th>
-                                            <th>SKU Code</th>
-                                            <th class="d-none">Harga Modal (Rp)</th>
-                                            <th class="d-none">Harga Kategori (Rp)</th>
-                                            <th>Harga Jual (Rp)</th>
-                                            <th width="50px"></th>
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        <tr>
-                                            <td><input type="text" name="variants[0][netto]" class="form-control form-control-sm" placeholder="100" required></td>
-                                            <td>
-                                                <select name="variants[0][satuan]" class="form-control form-control-sm satuan-input" style="height: calc(1.5em + 0.5rem + 2px);" required>
-                                                    <option value="">Pilih Satuan</option>
-                                                    @foreach($netto_attributes as $attr)
-                                                        <option value="{{ $attr->name }}">{{ $attr->name }}</option>
-                                                    @endforeach
-                                                </select>
-                                            </td>
-                                            <td><input type="text" name="variants[0][sku]" class="form-control form-control-sm" placeholder="SKU001" required></td>
-                                            <td class="d-none">
-                                                <input type="hidden" name="variants[0][price_real]" value="0">
-                                            </td>
-                                            <td class="d-none">
-                                                <input type="hidden" name="variants[0][price_tier]" value="0">
-                                            </td>
-                                            <td>
-                                                <input type="text" class="form-control form-control-sm rupiah-variant" placeholder="Rp 0" required>
-                                                <input type="hidden" name="variants[0][price]" class="raw-price-variant">
-                                            </td>
-                                            <td></td>
-                                        </tr>
-                                    </tbody>
-                                </table>
-                            </div>
-                        </div>
-
-                        <div class="form-group">
-                            <label>Status</label>
-                            <select class="form-control" name="status" required>
-                                <option value="Y">Aktif</option>
-                                <option value="N">Non Aktif</option>
-                            </select>
-                        </div>
-                        <div class="form-group">
-                            <label>Gambar Produk <small>(optional, multiple)</small></label>
-                            <div class="custom-file">
-                                <input type="file" class="custom-file-input" id="foto" name="foto[]" multiple accept="image/*">
-                                <label class="custom-file-label" for="foto">Pilih gambar...</label>
-                            </div>
-                            <div id="image-preview-add" class="mt-3 d-flex flex-wrap"></div>
-                        </div>
-                    </div>
-                    <div class="modal-footer">
-                        <button type="button" class="btn btn-secondary" data-dismiss="modal">Batal</button>
-                        <button type="button" class="btn btn-primary" id="btn-save-product">Simpan</button>
-                    </div>
-                </form>
-            </div>
-        </div>
     </div>
 
     <!-- Update Modal -->
@@ -750,7 +555,7 @@
                         data: 'name', 
                         name: 'name',
                         render: function(data, type, row) {
-                            return `<span class="hierarchy-main">${data}</span><small class="text-muted">${row.code || ''}</small>`;
+                            return `<span class="hierarchy-main">${data}</span>`;
                         }
                     },
                     { 
