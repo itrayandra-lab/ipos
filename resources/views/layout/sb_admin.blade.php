@@ -60,6 +60,7 @@
                 <ul class="dropdown-menu">
                     <li class="{{ $sb == 'Merek' ? 'active' : '' }}"><a class="nav-link" href="{{ url('admin/manage-master/merek') }}">Merek</a></li>
                     <li class="{{ $sb == 'Product' ? 'active' : '' }}"><a class="nav-link" href="{{ url('admin/manage-master/products') }}">Produk</a></li>
+                    <li class="{{ $sb == 'ProductPricing' ? 'active' : '' }}"><a class="nav-link" href="{{ route('admin.products.pricing') }}">Harga Produk</a></li>
                 </ul>
             </li>
             @endif

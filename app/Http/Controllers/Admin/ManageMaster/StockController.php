@@ -30,12 +30,18 @@ class StockController extends Controller
             ->join('warehouses', 'product_batches.warehouse_id', '=', 'warehouses.id')
             ->leftJoin('product_variants', 'product_batches.product_variant_id', '=', 'product_variants.id')
             ->leftJoin('product_nettos', 'product_variants.product_netto_id', '=', 'product_nettos.id')
-            ->select('product_batches.product_id', 'product_batches.product_variant_id', 'product_batches.warehouse_id', 'product_batches.id')
-            ->selectRaw('products.name as p_name, merek.name as m_name, warehouses.name as w_name')
-            ->selectRaw('product_nettos.netto_value, product_nettos.satuan')
-            ->selectRaw('product_batches.qty as initial_qty')
-            ->selectRaw('(SELECT COALESCE(SUM(qty), 0) FROM transaction_items WHERE product_batch_id = product_batches.id) as sold_qty')
-            ->selectRaw('(SELECT COALESCE(SUM(qty), 0) FROM supplier_return_items WHERE product_batch_id = product_batches.id) as returned_qty')
+            ->select('product_batches.product_id', 'product_batches.product_variant_id', 'product_batches.warehouse_id')
+            ->selectRaw('MAX(products.name) as p_name, MAX(merek.name) as m_name, MAX(warehouses.name) as w_name')
+            ->selectRaw('MAX(product_nettos.netto_value) as netto_value, MAX(product_nettos.satuan) as satuan')
+            ->selectRaw('SUM(product_batches.qty) as initial_qty')
+            ->selectRaw('COUNT(product_batches.id) as aggregated_batch_count')
+            ->selectRaw('SUM((SELECT COALESCE(SUM(qty), 0) FROM transaction_items WHERE product_batch_id = product_batches.id)) as sold_qty')
+            ->selectRaw('SUM((SELECT COALESCE(SUM(qty), 0) FROM supplier_return_items WHERE product_batch_id = product_batches.id)) as returned_qty')
+            ->groupBy(
+                'product_batches.product_id',
+                'product_batches.product_variant_id',
+                'product_batches.warehouse_id'
+            )
             ->when($warehouseId, function ($q) use ($warehouseId) {
                 $q->where('product_batches.warehouse_id', $warehouseId);
             });
@@ -55,20 +61,17 @@ class StockController extends Controller
                 return $row->netto_value ? $row->netto_value . $row->satuan : '-';
             })
             ->addColumn('batch_count', function($row) {
-                return 1;
+                return $row->aggregated_batch_count;
             })
             ->addColumn('total_current_stock', function ($row) {
                 return (int)($row->initial_qty - $row->sold_qty - $row->returned_qty);
             })
             ->addColumn('action', function ($row) {
+                $url = url('admin/manage-master/stock/detail-audit') . '?product_id=' . $row->product_id . '&variant_id=' . $row->product_variant_id . '&warehouse_id=' . $row->warehouse_id;
                 return '
-                    <button type="button" 
-                        data-product_id="' . $row->product_id . '" 
-                        data-variant_id="' . $row->product_variant_id . '" 
-                        data-warehouse_id="' . $row->warehouse_id . '" 
-                        class="btn btn-primary btn-sm btn-detail">
+                    <a href="' . $url . '" class="btn btn-primary btn-sm btn-detail">
                         <i class="fas fa-eye"></i> Detail Audit
-                    </button>
+                    </a>
                 ';
             })
             ->rawColumns(['action'])
@@ -130,12 +133,27 @@ class StockController extends Controller
 
     public function delete(Request $request)
     {
-        $batch = ProductBatch::findOrFail($request->id);
-        if ($batch->transactionItems()->count() > 0) {
-            return response()->json(['success' => false, 'message' => 'Batch tidak dapat dihapus karena sudah digunakan'], 422);
+        try {
+            file_put_contents(storage_path('logs/debug_delete.txt'), "Trying to delete batch ID: " . $request->id . "\n", FILE_APPEND);
+            $batch = ProductBatch::findOrFail($request->id);
+            
+            if ($batch->transactionItems()->count() > 0) {
+                return response()->json(['success' => false, 'message' => 'Batch tidak dapat dihapus karena sudah memiliki riwayat penjualan'], 422);
+            }
+            if (method_exists($batch, 'supplierReturnItems') && $batch->supplierReturnItems()->count() > 0) {
+                return response()->json(['success' => false, 'message' => 'Batch tidak dapat dihapus karena sudah memiliki riwayat return supplier'], 422);
+            }
+            
+            $batch->delete();
+            file_put_contents(storage_path('logs/debug_delete.txt'), "Batch ID " . $request->id . " successfully deleted.\n", FILE_APPEND);
+            return response()->json(['success' => true, 'message' => 'Batch berhasil dihapus']);
+        } catch (\Illuminate\Database\QueryException $e) {
+            file_put_contents(storage_path('logs/debug_delete.txt'), "QueryException ID " . $request->id . ": " . $e->getMessage() . "\n", FILE_APPEND);
+            return response()->json(['success' => false, 'message' => 'Query Error: ' . $e->getMessage()], 422);
+        } catch (\Exception $e) {
+            file_put_contents(storage_path('logs/debug_delete.txt'), "Exception ID " . $request->id . ": " . $e->getMessage() . "\n", FILE_APPEND);
+            return response()->json(['success' => false, 'message' => 'Error: ' . $e->getMessage()], 500);
         }
-        $batch->delete();
-        return response()->json(['success' => true, 'message' => 'Batch berhasil dihapus']);
     }
 
     public function addNetto(Request $request)
@@ -271,7 +289,7 @@ class StockController extends Controller
         $incoming = $fromSupplier->concat($fromMovement)->sortByDesc('date')->values();
 
         // 3. Outgoing History (Transactions + Stock Movements)
-        $transactions = \App\Models\TransactionItem::with(['transaction.customer'])
+        $transactions = \App\Models\TransactionItem::with(['transaction.customer', 'batch'])
             ->whereIn('product_batch_id', $batchIds)
             ->get()
             ->map(function($item) {
@@ -280,11 +298,12 @@ class StockController extends Controller
                     'ref_no' => $item->transaction->invoice_number ?? $item->transaction->transaction_number ?? '-',
                     'destination' => $item->transaction->customer ? $item->transaction->customer->name : 'Customer Umum',
                     'qty' => $item->qty,
-                    'date' => $item->transaction->created_at
+                    'date' => $item->transaction->created_at,
+                    'batch_no' => $item->batch->batch_no ?? '-'
                 ];
             });
 
-        $movements = \App\Models\StockMovementItem::with(['stockMovement.toWarehouse'])
+        $movements = \App\Models\StockMovementItem::with(['stockMovement.toWarehouse', 'batch'])
             ->whereIn('product_batch_id', $batchIds)
             ->whereHas('stockMovement', function($q) {
                 $q->where('status', '!=', 'cancelled');
@@ -296,11 +315,12 @@ class StockController extends Controller
                     'ref_no' => $item->stockMovement->reference_number,
                     'destination' => 'Ke: ' . ($item->stockMovement->toWarehouse->name ?? '-'),
                     'qty' => $item->qty,
-                    'date' => $item->stockMovement->created_at
+                    'date' => $item->stockMovement->created_at,
+                    'batch_no' => $item->batch->batch_no ?? '-'
                 ];
             });
 
-        $returns = \App\Models\SupplierReturnItem::with(['supplierReturn.supplier'])
+        $returns = \App\Models\SupplierReturnItem::with(['supplierReturn.supplier', 'batch'])
             ->whereIn('product_batch_id', $batchIds)
             ->get()
             ->map(function($item) {
@@ -309,7 +329,8 @@ class StockController extends Controller
                     'ref_no' => $item->supplierReturn->return_number ?? '-',
                     'destination' => 'Ke: ' . ($item->supplierReturn->supplier->name ?? '-'),
                     'qty' => $item->qty,
-                    'date' => $item->supplierReturn->return_date
+                    'date' => $item->supplierReturn->return_date,
+                    'batch_no' => $item->batch->batch_no ?? '-'
                 ];
             });
 
@@ -337,5 +358,14 @@ class StockController extends Controller
             'incoming' => $incoming,
             'outgoing' => $outgoing
         ]);
+    }
+
+    public function detailAuditView(Request $request)
+    {
+        $productId = $request->product_id;
+        $variantId = $request->variant_id;
+        $warehouseId = $request->warehouse_id;
+
+        return view('admin.manage_master.stock.detail', compact('productId', 'variantId', 'warehouseId'))->with('sb', 'Stock');
     }
 }

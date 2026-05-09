@@ -12,6 +12,7 @@ use App\Http\Controllers\Admin\ManageMaster\CategoryController as CategoryAdmin;
 use App\Http\Controllers\Admin\ManageMaster\SubCategoryController as SubCategoryAdmin;
 use App\Http\Controllers\Admin\ManageMaster\ProductTypeController as ProductTypeAdmin;
 use App\Http\Controllers\Admin\ManageMaster\ProductController as ProductAdmin;
+use App\Http\Controllers\Admin\ManageMaster\ProductPricingController as ProductPricingAdmin;
 use App\Http\Controllers\Admin\ManageMaster\VoucherController as VoucherAdmin;
 use App\Http\Controllers\Admin\ManageMaster\AttributeGroupController as AttributeGroupAdmin;
 use App\Http\Controllers\Admin\ManageMaster\AttributeController as AttributeAdmin;
@@ -118,14 +119,24 @@ Route::prefix('admin')->middleware(['auth', 'role:super_admin,store_manager,fina
                 );
                 Route::prefix('products')->group(function () {
                     Route::get('/', [ProductAdmin::class , 'index'])->name('admin.products.index');
+                    Route::get('/pricing', [ProductPricingAdmin::class, 'index'])->name('admin.products.pricing');
+                    Route::get('/pricing/all', [ProductPricingAdmin::class, 'getall'])->name('admin.products.pricing.all');
+                    Route::get('/pricing/stats', [ProductPricingAdmin::class, 'stats'])->name('admin.products.pricing.stats');
+                    Route::post('/pricing/approve', [ProductPricingAdmin::class, 'approve'])->name('admin.products.pricing.approve');
+                    Route::post('/pricing/update-hpp', [ProductPricingAdmin::class, 'updateHpp'])->name('admin.products.pricing.update_hpp');
+                    Route::post('/pricing/update-tier', [ProductPricingAdmin::class, 'updateTier'])->name('admin.products.pricing.update_tier');
+                    Route::post('/pricing/update-tax-status', [ProductPricingAdmin::class, 'updateTaxStatus'])->name('admin.products.pricing.update_tax_status');
+                    Route::post('/pricing/update-ray-store', [ProductPricingAdmin::class, 'updateRayStore'])->name('admin.products.pricing.update_ray_store');
+                    Route::post('/pricing/recalculate', [ProductPricingAdmin::class, 'recalculate'])->name('admin.products.pricing.recalculate');
+                    Route::post('/pricing/recalculate-all', [ProductPricingAdmin::class, 'recalculateAll'])->name('admin.products.pricing.recalculate_all');
                     Route::get('/create', [ProductAdmin::class , 'create_view'])->name('admin.products.create');
                     Route::post('/', [ProductAdmin::class , 'create']);
                     Route::get('/all', [ProductAdmin::class , 'getall'])->name('admin.products.all');
                     Route::get('/search', [ProductAdmin::class , 'search'])->name('admin.products.search');
                     Route::get('/get-pricing/{id}', [ProductAdmin::class , 'getPricing']);
                     Route::post('/sync-price', [ProductAdmin::class , 'syncPrice'])->name('admin.products.sync-price');
-                    Route::post('/get', [ProductAdmin::class , 'get']);
-                    Route::post('update', [ProductAdmin::class , 'update']);
+                    Route::get('/edit/{id}', [ProductAdmin::class , 'edit'])->name('admin.products.edit');
+                    Route::post('update', [ProductAdmin::class , 'update'])->name('admin.products.update');
                     Route::delete('/', [ProductAdmin::class , 'delete']);
                     Route::get('/show/{id}', [ProductAdmin::class , 'show'])->name('admin.products.show');
                 }
@@ -143,8 +154,9 @@ Route::prefix('admin')->middleware(['auth', 'role:super_admin,store_manager,fina
                     Route::post('/', [\App\Http\Controllers\Admin\ManageMaster\StockController::class , 'create']);
                     Route::post('/get', [\App\Http\Controllers\Admin\ManageMaster\StockController::class , 'get']);
                     Route::post('/update', [\App\Http\Controllers\Admin\ManageMaster\StockController::class , 'update']);
-                    Route::delete('/', [\App\Http\Controllers\Admin\ManageMaster\StockController::class , 'delete']);
+                    Route::post('/delete', [\App\Http\Controllers\Admin\ManageMaster\StockController::class , 'delete']);
                     Route::get('/variants/{product_id}', [\App\Http\Controllers\Admin\ManageMaster\StockController::class , 'getVariants']);
+                    Route::get('/detail-audit', [\App\Http\Controllers\Admin\ManageMaster\StockController::class , 'detailAuditView']);
                     Route::post('/detail', [\App\Http\Controllers\Admin\ManageMaster\StockController::class , 'getDetail']);
                     Route::post('/get-netto', [\App\Http\Controllers\Admin\ManageMaster\StockController::class , 'getNetto']);
                     Route::post('/update-netto', [\App\Http\Controllers\Admin\ManageMaster\StockController::class , 'updateNetto']);

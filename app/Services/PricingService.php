@@ -9,41 +9,57 @@ class PricingService
 {
     /**
      * Calculate suggested selling price for a specific batch and channel.
-     * 
-     * Formula:
-     * 1. Cost = Buy Price + Fixed Operational Cost
-     * 2. Price after Margin = Cost + Margin (Nominal or % of Cost)
-     * 3. Final Price = (Price after Margin + Shipping Subsidy) / (1 - Fee %) (if fee is %)
-     * OR Final Price = Price after Margin + Shipping Subsidy + Fee (if fee is Fixed)
      */
     public static function calculate(ProductBatch $batch, $channelSlug)
     {
         $setting = ChannelSetting::where('slug', $channelSlug)->first();
         if (!$setting) return 0;
 
+        // Current requirement: Use price from variant for POS/Invoice
+        if ($batch->variant && $batch->variant->price > 0) {
+            return $batch->variant->price;
+        }
+
         return self::calculateFinalPrice($batch->buy_price, $setting);
     }
 
     /**
-     * Calculate suggested price for a product based on its newest batch HPP.
+     * Calculate all Rayandra pricing components for a product variant.
+     * 
+     * Formula:
+     * - HPP RAYANDRA = hpp beli * Product Tier Multiplier
+     * - Margin HPP = HPP RAYANDRA - hpp beli
+     * - RAY STORE = HPP RAYANDRA (if not adjusted)
+     * - HET Online = RAY STORE / (1 - Fee Online%) * (1 + PPN%)
      */
-    public static function calculateForProduct(\App\Models\Product $product, $channelSlug)
+    public static function calculateRayandraPricing($hppBeli, $tierId, $adjustedRayStore = null)
     {
-        $latestBatch = $product->batches()->orderBy('id', 'desc')->first();
-        if (!$latestBatch) return 0;
+        $tier = \App\Models\ProductTier::find($tierId);
+        $multiplier = $tier ? $tier->multiplier : 1;
+        
+        $hppRayandra = $hppBeli * $multiplier;
+        $marginHpp = $hppRayandra - $hppBeli;
+        
+        $rayStore = ($adjustedRayStore !== null) ? $adjustedRayStore : $hppRayandra;
+        
+        $storeSetting = \App\Models\StoreSetting::getActiveSetting();
+        $feeOnline = ($storeSetting->fee_online_percent ?? 4) / 100;
+        $tax = ($storeSetting->tax_percent ?? 11) / 100;
+        
+        $hetOnline = 0;
+        if ((1 - $feeOnline) > 0) {
+            $hetOnline = ($rayStore / (1 - $feeOnline)) * (1 + $tax);
+        }
 
-        $setting = ChannelSetting::where('slug', $channelSlug)->first();
-        if (!$setting) return 0;
-
-        return self::calculateFinalPrice($latestBatch->buy_price, $setting);
+        return [
+            'hpp_beli' => $hppBeli,
+            'hpp_rayandra' => round($hppRayandra),
+            'margin_hpp' => round($marginHpp),
+            'ray_store' => round($rayStore),
+            'het_online' => round($hetOnline),
+        ];
     }
 
-    /**
-     * Shared calculation logic
-     */
-    /**
-     * Shared calculation logic
-     */
     private static function calculateFinalPrice($hpp, $setting)
     {
         return $setting->calculatePrice($hpp);

@@ -192,7 +192,6 @@ class PosController extends Controller
                     'batches'       => [],
                     'total_stock'   => 0,
                 ];
-                ];
             }
 
             $variantGroups[$groupKey]['batches'][] = [

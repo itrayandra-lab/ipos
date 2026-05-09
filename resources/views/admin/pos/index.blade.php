@@ -1087,7 +1087,6 @@
 
                 // Update batchList with fresh data from server
                 variants.forEach(v => {
-                variants.forEach(v => {
                     if (v.is_bundle) {
                         let pseudoId = 'bundle-' + v.product_id;
                         let existingBatch = batchList.find(bl => bl.id === pseudoId);
@@ -1105,27 +1104,6 @@
                         } else {
                             existingBatch.stock = v.total_stock;
                             existingBatch.price = v.offline_price;
-                        }
-                    } else {
-                        v.batches.forEach(b => {
-                            let existingBatch = batchList.find(bl => bl.id === b.id);
-                            if (!existingBatch) {
-                                batchList.push({
-                                    id: b.id,
-                                    text: v.name,
-                                    price: b.selling_price,
-                                    stock: b.qty,
-                                    product_id: v.product_id,
-                                    variant_id: v.variant_id,
-                                    batch_no: b.batch_no
-                                });
-                            } else {
-                                existingBatch.stock = b.qty;
-                                existingBatch.price = b.selling_price;
-                            }
-                        });
-                    }
-                });
                         }
                     } else {
                         v.batches.forEach(b => {

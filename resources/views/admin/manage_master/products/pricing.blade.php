@@ -1,0 +1,538 @@
+@extends('master')
+@section('title', 'Harga Produk — Pricing Engine')
+@section('content')
+
+<style>
+:root {
+    --clr-primary: #0f766e;
+    --clr-primary-light: #ccfbf1;
+    --clr-success: #10b981;
+    --clr-warning: #f59e0b;
+    --clr-danger:  #ef4444;
+    --clr-info:    #3b82f6;
+    --radius-card: 16px;
+}
+
+/* ── Page wrapper ── */
+.pricing-page { background: #f8fafc; min-height: 100vh; padding-bottom: 40px; }
+
+/* ── Section header ── */
+.section-header {
+    background: linear-gradient(135deg, #0f766e 0%, #0d9488 100%) !important;
+    border-radius: var(--radius-card) !important;
+    padding: 24px 28px !important;
+    margin-bottom: 24px !important;
+    box-shadow: 0 8px 24px rgba(15,118,110,.25) !important;
+    border: none !important;
+}
+.section-header h1 { color: #fff !important; font-weight: 800 !important; font-size: 1.5rem; letter-spacing: -.5px; }
+.breadcrumb-item a { color: rgba(255,255,255,.75) !important; }
+.breadcrumb-item.active, .breadcrumb-item:before { color: rgba(255,255,255,.6) !important; }
+
+/* ── Stat cards ── */
+.stat-card {
+    border-radius: var(--radius-card);
+    border: none;
+    padding: 22px 24px;
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    box-shadow: 0 4px 16px rgba(0,0,0,.06);
+    transition: transform .2s, box-shadow .2s;
+    background: #fff;
+    margin-bottom: 20px;
+}
+.stat-card:hover { transform: translateY(-3px); box-shadow: 0 8px 24px rgba(0,0,0,.1); }
+.stat-icon {
+    width: 52px; height: 52px; border-radius: 14px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 1.4rem; flex-shrink: 0;
+}
+.stat-card .stat-value { font-size: 1.75rem; font-weight: 800; line-height: 1; color: #1e293b; }
+.stat-card .stat-label { font-size: .78rem; color: #64748b; font-weight: 500; margin-top: 3px; text-transform: uppercase; letter-spacing: .5px; }
+
+/* ── Main card ── */
+.main-card {
+    border-radius: var(--radius-card);
+    border: none;
+    box-shadow: 0 4px 24px rgba(0,0,0,.06);
+    overflow: hidden;
+}
+.main-card .card-header {
+    background: #fff;
+    padding: 20px 24px;
+    border-bottom: 1px solid #f1f5f9;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 12px;
+}
+.main-card .card-header h4 { font-weight: 700; color: #1e293b; font-size: 1rem; margin: 0; }
+
+/* ── Toolbar ── */
+.toolbar-btn { border-radius: 10px !important; font-weight: 600 !important; font-size: .82rem !important; padding: 8px 16px !important; }
+.btn-recalc-all { background: linear-gradient(135deg, #0f766e, #0d9488) !important; color: #fff !important; border: none !important; }
+.btn-recalc-all:hover { opacity: .9; transform: translateY(-1px); }
+
+/* ── Filter pills ── */
+.filter-pill {
+    display: inline-flex; align-items: center; gap: 6px;
+    padding: 6px 14px; border-radius: 999px; font-size: .8rem; font-weight: 600;
+    cursor: pointer; border: 2px solid transparent; transition: all .2s;
+}
+.filter-pill.active { border-color: var(--clr-primary); background: var(--clr-primary-light); color: var(--clr-primary); }
+.filter-pill:not(.active) { background: #f1f5f9; color: #64748b; }
+.filter-pill:not(.active):hover { background: #e2e8f0; }
+
+/* ── Table tweaks ── */
+#pricing-table { font-size: .84rem; }
+#pricing-table thead th {
+    background: #f8fafc !important;
+    color: #64748b;
+    font-weight: 700;
+    font-size: .75rem;
+    text-transform: uppercase;
+    letter-spacing: .5px;
+    border-top: none;
+    padding: 14px 12px;
+    white-space: nowrap;
+}
+#pricing-table tbody td { vertical-align: middle; padding: 12px; border-color: #f1f5f9; }
+#pricing-table tbody tr { transition: background .15s; }
+#pricing-table tbody tr:hover { background: #fafffe; }
+
+/* ── Input fields ── */
+.edit-hpp, .edit-ray-store {
+    font-size: .85rem !important;
+    font-weight: 700 !important;
+    border-radius: 0 8px 8px 0 !important;
+    border-color: #e2e8f0 !important;
+    transition: border-color .2s, box-shadow .2s;
+}
+.edit-hpp:focus, .edit-ray-store:focus {
+    border-color: var(--clr-primary) !important;
+    box-shadow: 0 0 0 3px rgba(15,118,110,.12) !important;
+}
+.input-group-text { border-radius: 8px 0 0 8px !important; background: #f8fafc !important; border-color: #e2e8f0 !important; font-size: .8rem; }
+.hpp-input-group .input-group-text { background: #fffbeb !important; color: #92400e; }
+
+/* ── Badges ── */
+.badge-approved { background: #dcfce7; color: #166534; border-radius: 999px; padding: 4px 10px; font-size: .75rem; }
+.badge-pending  { background: #fef9c3; color: #854d0e; border-radius: 999px; padding: 4px 10px; font-size: .75rem; }
+.badge-unset    { background: #f1f5f9; color: #64748b; border-radius: 999px; padding: 4px 10px; font-size: .75rem; }
+
+/* ── Action buttons ── */
+.btn-recalculate { border-radius: 8px !important; font-size: .78rem !important; font-weight: 600 !important; padding: 5px 10px !important; }
+.btn-approve-row  { border-radius: 8px !important; font-size: .78rem !important; font-weight: 600 !important; padding: 5px 10px !important; }
+
+/* ── Toast notification ── */
+.toast-msg {
+    position: fixed; bottom: 24px; right: 24px; z-index: 9999;
+    padding: 12px 20px; border-radius: 12px; color: #fff;
+    font-weight: 600; font-size: .88rem; box-shadow: 0 8px 24px rgba(0,0,0,.15);
+    display: flex; align-items: center; gap: 10px;
+    transform: translateY(80px); opacity: 0; transition: all .3s;
+    max-width: 360px;
+}
+.toast-msg.show { transform: translateY(0); opacity: 1; }
+.toast-msg.success { background: linear-gradient(135deg, #10b981, #059669); }
+.toast-msg.error   { background: linear-gradient(135deg, #ef4444, #dc2626); }
+.toast-msg.info    { background: linear-gradient(135deg, #3b82f6, #2563eb); }
+
+/* ── Loading spinner overlay on row ── */
+.row-loading td { opacity: .5; pointer-events: none; }
+
+/* ── Empty state ── */
+.dataTables_empty { color: #94a3b8; font-size: .9rem; padding: 40px 0 !important; }
+
+/* ── Responsive ── */
+@media (max-width: 768px) {
+    .stat-card { padding: 16px; }
+    .stat-icon { width: 42px; height: 42px; font-size: 1.1rem; }
+    .stat-card .stat-value { font-size: 1.4rem; }
+}
+</style>
+
+<div class="pricing-page">
+    <div class="main-content">
+        <section class="section">
+
+            {{-- ── Header ── --}}
+            <div class="section-header">
+                <h1><i class="fas fa-tags mr-2"></i>Pricing Engine — Harga Produk</h1>
+                <div class="section-header-breadcrumb">
+                    <div class="breadcrumb-item"><a href="{{ url('admin') }}">Dashboard</a></div>
+                    <div class="breadcrumb-item">Produk</div>
+                    <div class="breadcrumb-item active">Harga</div>
+                </div>
+            </div>
+
+            <div class="section-body">
+
+                {{-- ── Stat Cards ── --}}
+                <div class="row">
+                    <div class="col-6 col-md-3">
+                        <div class="stat-card">
+                            <div class="stat-icon" style="background:#e0f2fe;color:#0369a1;">
+                                <i class="fas fa-box-open"></i>
+                            </div>
+                            <div>
+                                <div class="stat-value" id="stat-total">{{ $stats['total'] }}</div>
+                                <div class="stat-label">Total Varian</div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-6 col-md-3">
+                        <div class="stat-card">
+                            <div class="stat-icon" style="background:#dcfce7;color:#166534;">
+                                <i class="fas fa-check-circle"></i>
+                            </div>
+                            <div>
+                                <div class="stat-value" id="stat-approved">{{ $stats['approved'] }}</div>
+                                <div class="stat-label">Approved</div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-6 col-md-3">
+                        <div class="stat-card">
+                            <div class="stat-icon" style="background:#fef9c3;color:#854d0e;">
+                                <i class="fas fa-clock"></i>
+                            </div>
+                            <div>
+                                <div class="stat-value" id="stat-pending">{{ $stats['pending'] }}</div>
+                                <div class="stat-label">Pending</div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-6 col-md-3">
+                        <div class="stat-card">
+                            <div class="stat-icon" style="background:#fee2e2;color:#991b1b;">
+                                <i class="fas fa-exclamation-triangle"></i>
+                            </div>
+                            <div>
+                                <div class="stat-value" id="stat-belum">{{ $stats['belumHitung'] }}</div>
+                                <div class="stat-label">Belum Dihitung</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                {{-- ── Main Table Card ── --}}
+                <div class="card main-card">
+                    <div class="card-header">
+                        <div>
+                            <h4><i class="fas fa-calculator mr-2 text-primary"></i>Kalkulasi & Persetujuan Harga</h4>
+                            <small class="text-muted">Edit HPP Modal → Klik Hitung → Sesuaikan Ray Store → Approve</small>
+                        </div>
+                        <div class="d-flex align-items-center gap-2 flex-wrap" style="gap:8px;">
+                            {{-- Filter pills --}}
+                            <div id="filter-container" class="d-flex" style="gap:6px;flex-wrap:wrap;">
+                                <span class="filter-pill active" data-filter="all">
+                                    <i class="fas fa-list fa-xs"></i> Semua
+                                </span>
+                                <span class="filter-pill" data-filter="belum">
+                                    <i class="fas fa-exclamation-circle fa-xs text-danger"></i> Belum Hitung
+                                </span>
+                                <span class="filter-pill" data-filter="pending">
+                                    <i class="fas fa-clock fa-xs text-warning"></i> Pending
+                                </span>
+                                <span class="filter-pill" data-filter="approved">
+                                    <i class="fas fa-check-circle fa-xs text-success"></i> Approved
+                                </span>
+                            </div>
+                            <button id="btn-recalc-all" class="btn toolbar-btn btn-recalc-all ml-2">
+                                <i class="fas fa-sync-alt mr-1"></i> Hitung Semua
+                            </button>
+                        </div>
+                    </div>
+                    <div class="card-body p-0">
+                        <div class="table-responsive">
+                            <table class="table table-hover mb-0" id="pricing-table" width="100%">
+                                <thead>
+                                    <tr>
+                                        <th width="40">#</th>
+                                        <th>Produk</th>
+                                        <th width="140">Tier Produk</th>
+                                        <th width="100">Pajak</th>
+                                        <th width="130">HPP Modal</th>
+                                        <th width="200">Margin HPP</th>
+                                        <th width="140">Ray Store</th>
+                                        <th width="130">HET Product</th>
+                                        <th width="110">Aksi</th>
+                                    </tr>
+                                </thead>
+                                <tbody></tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+            </div>{{-- end section-body --}}
+        </section>
+    </div>
+</div>
+
+{{-- Toast notification --}}
+<div id="toast-msg" class="toast-msg">
+    <i class="fas fa-check-circle" id="toast-icon"></i>
+    <span id="toast-text"></span>
+</div>
+
+@push('scripts')
+<script>
+$(document).ready(function () {
+
+    /* ── Helpers ── */
+    function fmt(val) {
+        if (!val) return '0';
+        return parseInt(val).toString().replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+    }
+    function raw(val) {
+        return parseInt(val.toString().replace(/[^0-9]/g, '')) || 0;
+    }
+    function showToast(msg, type = 'success') {
+        const icons = { success: 'fa-check-circle', error: 'fa-times-circle', info: 'fa-info-circle' };
+        $('#toast-msg').removeClass('success error info').addClass(type);
+        $('#toast-icon').attr('class', 'fas ' + (icons[type] || icons.success));
+        $('#toast-text').text(msg);
+        $('#toast-msg').addClass('show');
+        setTimeout(() => $('#toast-msg').removeClass('show'), 3500);
+    }
+    function refreshStats() {
+        $.get("{{ route('admin.products.pricing.stats') }}", function(d) {
+            $('#stat-total').text(d.total);
+            $('#stat-approved').text(d.approved);
+            $('#stat-pending').text(d.pending);
+            $('#stat-belum').text(d.belumHitung);
+        });
+    }
+
+    /* ── DataTable ── */
+    let activeFilter = 'all';
+
+    const table = $('#pricing-table').DataTable({
+        processing: true,
+        serverSide: true,
+        ajax: {
+            url: "{{ route('admin.products.pricing.all') }}",
+            data: function(d) { d.filter = activeFilter; }
+        },
+        columns: [
+            { data: 'DT_RowIndex', name: 'DT_RowIndex', orderable: false, searchable: false },
+            { data: 'product_info', name: 'product_info', orderable: false },
+            { data: 'tier_col', name: 'tier_col', orderable: false, searchable: false },
+            { data: 'tax_status_col', name: 'tax_status_col', orderable: false, searchable: false },
+            { data: 'hpp_beli_col', name: 'hpp_beli_col', orderable: false, searchable: false },
+            { data: 'margin_hpp_col', name: 'margin_hpp_col', orderable: false, searchable: false },
+            { data: 'ray_store_col', name: 'ray_store_col', orderable: false, searchable: false },
+            { data: 'het_product_col', name: 'het_product_col', orderable: false, searchable: false },
+            { data: 'action', name: 'action', orderable: false, searchable: false },
+        ],
+        order: [[1, 'asc']],
+        pageLength: 25,
+        language: {
+            search: '<i class="fas fa-search mr-1"></i>',
+            searchPlaceholder: 'Cari produk atau SKU...',
+            processing: '<div class="text-center py-4"><i class="fas fa-spinner fa-spin fa-2x text-primary"></i></div>',
+            emptyTable: '<div class="text-center py-4 text-muted"><i class="fas fa-box-open fa-2x mb-2 d-block"></i>Tidak ada data</div>',
+            zeroRecords: '<div class="text-center py-4 text-muted"><i class="fas fa-search fa-2x mb-2 d-block"></i>Data tidak ditemukan</div>',
+        },
+        drawCallback: function() {
+            /* Re-apply rupiah format on drawn inputs */
+            $('.edit-hpp, .edit-ray-store').each(function() {
+                const v = raw($(this).val());
+                $(this).val(fmt(v));
+            });
+        }
+    });
+
+    /* ── Filter pills ── */
+    $(document).on('click', '.filter-pill', function() {
+        $('.filter-pill').removeClass('active');
+        $(this).addClass('active');
+        activeFilter = $(this).data('filter');
+        table.ajax.reload(null, false);
+    });
+
+    /* ── Rupiah formatting on input ── */
+    $(document).on('input', '.edit-hpp, .edit-ray-store', function() {
+        const v = raw($(this).val());
+        $(this).val(fmt(v));
+    });
+
+    /* ── Update HPP on blur/enter ── */
+    $(document).on('blur keydown', '.edit-hpp', function(e) {
+        if (e.type === 'keydown' && e.key !== 'Enter') return;
+        const id    = $(this).data('id');
+        const value = raw($(this).val());
+        const $inp  = $(this);
+        $inp.prop('disabled', true);
+
+        $.post("{{ route('admin.products.pricing.update_hpp') }}", {
+            _token: '{{ csrf_token() }}',
+            id:     id,
+            value:  value,
+        }, function(res) {
+            $inp.prop('disabled', false);
+            showToast(res.message, 'success');
+            table.ajax.reload(null, false);
+        }).fail(function(xhr) {
+            $inp.prop('disabled', false);
+            showToast(xhr.responseJSON?.message || 'Gagal memperbarui HPP', 'error');
+        });
+    });
+
+    /* ── Update Tier on change ── */
+    $(document).on('change', '.edit-tier', function() {
+        const id    = $(this).data('id');
+        const value = $(this).val();
+        const $inp  = $(this);
+        $inp.prop('disabled', true);
+
+        $.post("{{ route('admin.products.pricing.update_tier') }}", {
+            _token: '{{ csrf_token() }}',
+            id:     id,
+            value:  value,
+        }, function(res) {
+            $inp.prop('disabled', false);
+            showToast(res.message, 'success');
+            table.ajax.reload(null, false);
+            refreshStats();
+        }).fail(function(xhr) {
+            $inp.prop('disabled', false);
+            showToast(xhr.responseJSON?.message || 'Gagal memperbarui Tier', 'error');
+        });
+    });
+
+    /* ── Update Tax Status on change ── */
+    $(document).on('change', '.edit-tax', function() {
+        const id    = $(this).data('id');
+        const value = $(this).val();
+        const $inp  = $(this);
+        $inp.prop('disabled', true);
+
+        $.post("{{ route('admin.products.pricing.update_tax_status') }}", {
+            _token: '{{ csrf_token() }}',
+            id:     id,
+            value:  value,
+        }, function(res) {
+            $inp.prop('disabled', false);
+            showToast(res.message, 'success');
+            table.ajax.reload(null, false);
+        }).fail(function(xhr) {
+            $inp.prop('disabled', false);
+            showToast(xhr.responseJSON?.message || 'Gagal memperbarui Status Pajak', 'error');
+        });
+    });
+
+    /* ── Update Ray Store on blur/enter ── */
+    $(document).on('blur keydown', '.edit-ray-store', function(e) {
+        if (e.type === 'keydown' && e.key !== 'Enter') return;
+        const id    = $(this).data('id');
+        const value = raw($(this).val());
+        const $inp  = $(this);
+        $inp.prop('disabled', true);
+
+        $.post("{{ route('admin.products.pricing.update_ray_store') }}", {
+            _token: '{{ csrf_token() }}',
+            id:     id,
+            value:  value,
+        }, function(res) {
+            $inp.prop('disabled', false);
+            showToast(res.message, 'success');
+            table.ajax.reload(null, false);
+        }).fail(function(xhr) {
+            $inp.prop('disabled', false);
+            showToast(xhr.responseJSON?.message || 'Gagal memperbarui Ray Store', 'error');
+        });
+    });
+
+    /* ── Recalculate single ── */
+    $(document).on('click', '.btn-recalculate', function() {
+        const id  = $(this).data('id');
+        const $tr = $(this).closest('tr');
+        const $btn = $(this);
+
+        $btn.prop('disabled', true).html('<i class="fas fa-spinner fa-spin mr-1"></i>Hitung...');
+
+        $.post("{{ route('admin.products.pricing.recalculate') }}", {
+            _token: '{{ csrf_token() }}',
+            id:     id,
+        }, function(res) {
+            showToast(res.message, 'success');
+            table.ajax.reload(null, false);
+            refreshStats();
+        }).fail(function(xhr) {
+            showToast(xhr.responseJSON?.message || 'Gagal menghitung', 'error');
+            $btn.prop('disabled', false).html('<i class="fas fa-calculator mr-1"></i>Hitung');
+        });
+    });
+
+    /* ── Recalculate ALL ── */
+    $('#btn-recalc-all').on('click', function() {
+        Swal.fire({
+            title: 'Hitung Ulang Semua Harga?',
+            html: 'Sistem akan menghitung ulang <b>HPP Ray, Margin, dan HET Online</b> untuk semua varian yang sudah memiliki HPP Modal.<br><br><span class="text-muted">Ray Store yang sudah disesuaikan manual akan tetap dipertahankan.</span>',
+            icon: 'question',
+            showCancelButton: true,
+            confirmButtonText: '<i class="fas fa-calculator mr-1"></i>Ya, Hitung Semua',
+            cancelButtonText: 'Batal',
+            confirmButtonColor: '#0f766e',
+        }).then((result) => {
+            if (!result.isConfirmed) return;
+
+            const $btn = $(this);
+            $btn.prop('disabled', true).html('<i class="fas fa-spinner fa-spin mr-1"></i>Menghitung...');
+
+            $.post("{{ route('admin.products.pricing.recalculate_all') }}", {
+                _token: '{{ csrf_token() }}'
+            }, function(res) {
+                showToast(res.message, 'success');
+                table.ajax.reload(null, false);
+                refreshStats();
+                $btn.prop('disabled', false).html('<i class="fas fa-sync-alt mr-1"></i>Hitung Semua');
+            }).fail(function(xhr) {
+                showToast('Gagal menghitung ulang semua harga', 'error');
+                $btn.prop('disabled', false).html('<i class="fas fa-sync-alt mr-1"></i>Hitung Semua');
+            });
+        });
+    });
+
+    /* ── Approve / Unapprove ── */
+    $(document).on('click', '.btn-approve', function() {
+        const id     = $(this).data('id');
+        const status = $(this).data('status');
+        const isApproving = status == 1;
+
+        Swal.fire({
+            title: isApproving ? 'Approve Harga?' : 'Batalkan Approval?',
+            html: isApproving
+                ? 'Harga HET Online akan dikunci untuk varian ini.'
+                : 'Status akan kembali ke <b>Pending</b>.',
+            icon: isApproving ? 'success' : 'warning',
+            showCancelButton: true,
+            confirmButtonText: isApproving ? '<i class="fas fa-check mr-1"></i>Approve' : '<i class="fas fa-times mr-1"></i>Batalkan',
+            cancelButtonText: 'Batal',
+            confirmButtonColor: isApproving ? '#10b981' : '#ef4444',
+        }).then((result) => {
+            if (!result.isConfirmed) return;
+
+            $.post("{{ route('admin.products.pricing.approve') }}", {
+                _token: '{{ csrf_token() }}',
+                id:     id,
+                status: status,
+            }, function(res) {
+                showToast(res.message, 'success');
+                table.ajax.reload(null, false);
+                refreshStats();
+            }).fail(function() {
+                showToast('Gagal memproses approval', 'error');
+            });
+        });
+    });
+
+});
+</script>
+@endpush
+@endsection

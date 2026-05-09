@@ -181,24 +181,13 @@
                                     </div>
 
                                     <div class="row">
-                                        <div class="col-md-6">
+                                        <div class="col-md-12">
                                             <div class="form-group">
                                                 <label>Tipe Produk</label>
                                                 <select class="form-control select2" name="product_type_id" id="add-product-type" required>
                                                     <option value="">Pilih Tipe Produk</option>
                                                     @foreach($productTypes as $pt)
                                                         <option value="{{ $pt->id }}">{{ $pt->name }}</option>
-                                                    @endforeach
-                                                </select>
-                                            </div>
-                                        </div>
-                                        <div class="col-md-6">
-                                            <div class="form-group">
-                                                <label>Product Tier</label>
-                                                <select class="form-control select2 select-tier" name="product_tier_id" id="add-product-tier">
-                                                    <option value="">Tanpa Tier (Manual)</option>
-                                                    @foreach($productTiers as $tier)
-                                                        <option value="{{ $tier->id }}" data-multiplier="{{ $tier->multiplier }}">{{ $tier->name }} (x{{ $tier->multiplier }})</option>
                                                     @endforeach
                                                 </select>
                                             </div>
@@ -270,10 +259,9 @@
                                                 <tr>
                                                     <th class="px-2" style="width: 10%;">Netto</th>
                                                     <th class="px-2" style="width: 15%;">Satuan</th>
-                                                    <th class="px-2" style="width: 25%;">SKU Code (Auto)</th>
-                                                    <th class="px-2" style="width: 20%;">Harga HPP (Modal)</th>
-                                                    <th class="px-2" style="width: 20%;">Harga Jual</th>
-                                                    <th class="px-2" style="width: 10%;" class="text-center">Aksi</th>
+                                                    <th class="px-2" style="width: 35%;">SKU Code</th>
+                                                    <th class="px-2" style="width: 35%;">Harga Jual (Price)</th>
+                                                    <th class="px-2" style="width: 5%;" class="text-center">Aksi</th>
                                                 </tr>
                                             </thead>
                                             <tbody>
@@ -290,21 +278,13 @@
                                                         </select>
                                                     </td>
                                                     <td class="px-2 align-middle">
-                                                        <input type="text" name="variants[0][sku]" class="form-control bg-light font-weight-bold text-primary px-2" placeholder="SKU001" required readonly style="letter-spacing: 0.5px; font-size: 11px;">
+                                                        <input type="text" name="variants[0][sku]" class="form-control bg-light font-weight-bold text-primary px-2" placeholder="SKU" required style="letter-spacing: 0.5px; font-size: 11px;">
                                                     </td>
                                                     <td class="px-2 align-middle">
-                                                        <div class="d-flex align-items-center">
-                                                            <span class="mr-1 text-muted small font-weight-bold">Rp</span>
-                                                            <input type="text" class="form-control rupiah-variant text-right px-2" placeholder="0" required>
-                                                            <input type="hidden" name="variants[0][price_real]" class="raw-price-variant">
-                                                        </div>
-                                                    </td>
-                                                    <td class="px-2 align-middle">
-                                                        <div class="d-flex align-items-center">
-                                                            <span class="mr-1 text-muted small font-weight-bold">Rp</span>
+                                                        <div class="input-group input-group-sm">
+                                                            <div class="input-group-prepend"><span class="input-group-text px-2">Rp</span></div>
                                                             <input type="text" class="form-control rupiah-variant text-right font-weight-bold px-2" placeholder="0" required>
                                                             <input type="hidden" name="variants[0][price]" class="raw-price-variant">
-                                                            <input type="hidden" name="variants[0][price_tier]" value="0">
                                                         </div>
                                                     </td>
                                                     <td class="px-2 align-middle text-center">
@@ -360,6 +340,7 @@
         const MEREK_DATA = @json($merek);
         const CATEGORY_DATA = @json($categories);
         const TIER_DATA = @json($productTiers);
+        const STORE_SETTING = @json(\App\Models\StoreSetting::getActiveSetting());
 
         function getMerekCode(id) {
             if (!id) return 'UNK';
@@ -387,9 +368,12 @@
             const productCode = $('input[name="code"]').val();
 
             $('#table-variants tbody tr').each(function() {
-                const netto = $(this).find('input[name*="[netto]"]').val();
-                const sku = generateSku(merekId, categoryId, productCode, netto);
-                $(this).find('input[name*="[sku]"]').val(sku);
+                const skuInput = $(this).find('input[name*="[sku]"]');
+                if(skuInput.attr('data-manual') !== 'true') {
+                    const netto = $(this).find('input[name*="[netto]"]').val();
+                    const sku = generateSku(merekId, categoryId, productCode, netto);
+                    skuInput.val(sku);
+                }
             });
         }
 
@@ -442,6 +426,11 @@
 
             $(document).on('input', 'input[name*="[netto]"]', function() {
                 updateAllSkus();
+            });
+
+            // Mark SKU as manual if user edits it directly
+            $(document).on('input', 'input[name*="[sku]"]', function() {
+                $(this).attr('data-manual', 'true');
             });
 
             // Category -> Sub Category
@@ -520,20 +509,12 @@
                                 @endforeach
                             </select>
                         </td>
-                        <td class="px-2 align-middle"><input type="text" name="variants[${variantIndex}][sku]" class="form-control bg-light font-weight-bold text-primary px-2" placeholder="SKU001" required readonly style="letter-spacing: 0.5px; font-size: 11px;"></td>
+                        <td class="px-2 align-middle"><input type="text" name="variants[${variantIndex}][sku]" class="form-control bg-light font-weight-bold text-primary px-2" placeholder="SKU" required style="letter-spacing: 0.5px; font-size: 11px;"></td>
                         <td class="px-2 align-middle">
-                            <div class="d-flex align-items-center">
-                                <span class="mr-1 text-muted small font-weight-bold">Rp</span>
-                                <input type="text" class="form-control rupiah-variant text-right px-2" placeholder="0" required>
-                                <input type="hidden" name="variants[${variantIndex}][price_real]" class="raw-price-variant">
-                            </div>
-                        </td>
-                        <td class="px-2 align-middle">
-                            <div class="d-flex align-items-center">
-                                <span class="mr-1 text-muted small font-weight-bold">Rp</span>
+                            <div class="input-group input-group-sm">
+                                <div class="input-group-prepend"><span class="input-group-text px-2">Rp</span></div>
                                 <input type="text" class="form-control rupiah-variant text-right font-weight-bold px-2" placeholder="0" required>
                                 <input type="hidden" name="variants[${variantIndex}][price]" class="raw-price-variant">
-                                <input type="hidden" name="variants[${variantIndex}][price_tier]" value="0">
                             </div>
                         </td>
                         <td class="px-2 align-middle text-center">

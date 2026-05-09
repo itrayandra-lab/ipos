@@ -56,6 +56,29 @@ class ProductController extends Controller
         ]);
     }
 
+    public function edit($id)
+    {
+        $product = Product::with(['variants.netto', 'photos', 'subCategory'])->findOrFail($id);
+        $categories = Category::select('id', 'name', 'code')->orderBy('name', 'ASC')->get();
+        $productTypes = \App\Models\ProductType::select('id', 'name')->orderBy('name', 'ASC')->get();
+        $merek = \App\Models\Merek::orderBy('name', 'ASC')->get();
+        $netto_attributes = \App\Models\Attribute::whereHas('group', function ($q) {
+            $q->where('code', 'NETTO');
+        })->orderBy('name', 'ASC')->get();
+
+        $productTiers = \App\Models\ProductTier::all();
+
+        return view('admin.manage_master.products.edit')->with([
+            'sb' => 'Product',
+            'product' => $product,
+            'categories' => $categories,
+            'productTypes' => $productTypes,
+            'merek' => $merek,
+            'netto_attributes' => $netto_attributes,
+            'productTiers' => $productTiers
+        ]);
+    }
+
     public function search(Request $request)
     {
         $warehouseId = $request->warehouse_id;
@@ -127,7 +150,7 @@ class ProductController extends Controller
                     </button>
                     <ul class="dropdown-menu">
                         <li><a href="' . route('admin.products.show', $product->id) . '" class="dropdown-item">Detail</a></li>
-                        <li><a data-id="' . $product->id . '" class="dropdown-item edit">Edit</a></li>
+                        <li><a href="' . route('admin.products.edit', $product->id) . '" class="dropdown-item">Edit</a></li>
                         <li><a data-id="' . $product->id . '" class="dropdown-item hapus" href="#">Hapus</a></li>
                     </ul>
                 </div>
@@ -146,7 +169,6 @@ class ProductController extends Controller
             'category_id' => 'required|exists:categories,id',
             'sub_category_id' => 'nullable|exists:sub_categories,id',
             'product_type_id' => 'required|exists:product_types,id',
-            'product_tier_id' => 'nullable|exists:product_tiers,id',
             'min_stock_alert' => 'required|integer|min:0',
             'variants' => 'required|array|min:1',
         ]);
@@ -182,7 +204,6 @@ class ProductController extends Controller
                 'category_id' => $request->category_id,
                 'sub_category_id' => $request->sub_category_id,
                 'product_type_id' => $request->product_type_id,
-                'product_tier_id' => $request->product_tier_id,
                 'stock' => 0,
                 'min_stock_alert' => $request->min_stock_alert,
                 'status' => $request->status,
@@ -235,7 +256,7 @@ class ProductController extends Controller
                     'variant_name'     => $variantName,
                     'price'            => $v['price'] ?? 0,
                     'price_real'       => (!empty($v['price_real']) && $v['price_real'] > 0) ? $v['price_real'] : 0,
-                    'price_tier'       => (!empty($v['price_tier']) && $v['price_tier'] > 0) ? $v['price_tier'] : 0,
+                    'ray_store'        => $v['price'] ?? 0, // Sync ray_store with initial price
                     'stock'            => 0,
                 ]);
             }
@@ -295,7 +316,6 @@ class ProductController extends Controller
             'category_id' => 'required|exists:categories,id',
             'sub_category_id' => 'nullable|exists:sub_categories,id',
             'product_type_id' => 'required|exists:product_types,id',
-            'product_tier_id' => 'nullable|exists:product_tiers,id',
             'min_stock_alert' => 'required|integer|min:0',
             'variants' => 'required|array|min:1',
             'deleted_photos' => 'nullable|string',
@@ -326,7 +346,6 @@ class ProductController extends Controller
                 'category_id' => $request->category_id,
                 'sub_category_id' => $request->sub_category_id,
                 'product_type_id' => $request->product_type_id,
-                'product_tier_id' => $request->product_tier_id,
                 'min_stock_alert' => $request->min_stock_alert,
                 'status' => $request->status,
                 'is_bundle' => $request->boolean('is_bundle'),
@@ -389,7 +408,7 @@ class ProductController extends Controller
                         'variant_name' => $variantName,
                         'price'        => $v['price'] ?? 0,
                         'price_real'   => (!empty($v['price_real']) && $v['price_real'] > 0) ? $v['price_real'] : 0,
-                        'price_tier'   => (!empty($v['price_tier']) && $v['price_tier'] > 0) ? $v['price_tier'] : 0,
+                        'ray_store'    => (!$existingVariant->is_approved) ? ($v['price'] ?? 0) : $existingVariant->ray_store,
                     ]);
                     $variant = $existingVariant;
                 } else {
@@ -405,7 +424,7 @@ class ProductController extends Controller
                         'variant_name'     => $variantName,
                         'price'            => $v['price'] ?? 0,
                         'price_real'       => (!empty($v['price_real']) && $v['price_real'] > 0) ? $v['price_real'] : 0,
-                        'price_tier'       => (!empty($v['price_tier']) && $v['price_tier'] > 0) ? $v['price_tier'] : 0,
+                        'ray_store'        => $v['price'] ?? 0,
                         'stock'            => 0,
                     ]);
                 }

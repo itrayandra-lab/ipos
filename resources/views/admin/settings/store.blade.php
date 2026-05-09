@@ -165,6 +165,35 @@
                             </div>
 
                             <hr>
+                            <h6 class="text-muted mb-4">Pricing & Tax Configuration</h6>
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <div class="form-group">
+                                        <label>Fee Online (%)</label>
+                                        <div class="input-group">
+                                            <input type="number" step="0.01" name="fee_online_percent" class="form-control" value="{{ $setting->fee_online_percent ?? 4 }}">
+                                            <div class="input-group-append">
+                                                <span class="input-group-text">%</span>
+                                            </div>
+                                        </div>
+                                        <small class="form-text text-muted">Digunakan untuk perhitungan HET Online.</small>
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="form-group">
+                                        <label>PPN (Tax) (%)</label>
+                                        <div class="input-group">
+                                            <input type="number" step="0.01" name="tax_percent" class="form-control" value="{{ $setting->tax_percent ?? 11 }}">
+                                            <div class="input-group-append">
+                                                <span class="input-group-text">%</span>
+                                            </div>
+                                        </div>
+                                        <small class="form-text text-muted">Pajak yang ditambahkan pada harga jual.</small>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <hr>
                             <div class="form-group">
                                 <label>Teks Footer Struk</label>
                                 <textarea name="footer_text" class="form-control" style="height: 60px">{{ $setting->footer_text }}</textarea>
