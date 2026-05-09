@@ -22,7 +22,9 @@ class StoreSetting extends Model
         'shopee_url',
         'tokopedia_url',
         'website',
-        'footer_text'
+        'footer_text',
+        'fee_online_percent',
+        'tax_percent'
     ];
 
     /**

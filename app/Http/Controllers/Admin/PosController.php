@@ -60,8 +60,10 @@ class PosController extends Controller
             $batchList[] = [
                 'id'        => $batch->id,
                 'text'      => $labelText . ' (' . $batch->batch_no . ' - ' . $batch->qty . ')',
-                'price'     => $batch->variant ? (int)$batch->variant->price : 0,
-                'stock'     => $batch->current_stock,
+                'price'     => $batch->variant && $batch->variant->price > 0
+                                ? $batch->variant->price
+                                : ($product->price_real > 0 ? $product->price_real : $product->price),
+                'stock'     => $batch->qty,
                 'buy_price' => $batch->buy_price ?? 0,
                 'product_id' => $product->id,
                 'batch_no'  => $batch->batch_no,
@@ -96,6 +98,7 @@ class PosController extends Controller
     }
     public function fetchProducts(Request $request)
     {
+        $channelSlug = $this->getPosChannel();
         $mainWarehouse = \App\Models\Warehouse::where('type', 'main')->first();
         $defaultWarehouseId = $mainWarehouse ? $mainWarehouse->id : 1;
         $warehouseId = $request->warehouse_id ? (int)$request->warehouse_id : $defaultWarehouseId;
@@ -135,12 +138,14 @@ class PosController extends Controller
             $groupKey = $variant ? 'v_' . $variant->id : 'p_' . $product->id;
 
             if (!isset($variantGroups[$groupKey])) {
-                // Build display name: MerekName + ProductName only (no netto)
+                // Build display name: MerekName + ProductName + netto_value
                 $merekName   = $product->merek ? trim($product->merek->name) : '';
                 $productName = trim($product->name);
+                $nettoValue  = $variant && $variant->netto ? trim($variant->netto->netto_value) : '';
+                $satuan      = $variant && $variant->netto ? trim($variant->netto->satuan ?? '') : '';
 
-                // Deduplicate overlapping parts
-                $parts = array_filter([$merekName, $productName]);
+                // Build label, deduplicate overlapping parts
+                $parts = array_filter([$merekName, $productName, $nettoValue . ($satuan ? ' ' . $satuan : '')]);
                 $finalParts = [];
                 foreach ($parts as $p1) {
                     $isSubPart = false;
@@ -162,8 +167,15 @@ class PosController extends Controller
                     $nettoDisplay = trim($variant->netto->netto_value . ($variant->netto->satuan ? ' ' . $variant->netto->satuan : ''));
                 }
 
-                // Selling price: ONLY from variant->price, no fallback
-                $sellingPrice = ($variant && $variant->price > 0) ? (int)$variant->price : 0;
+                // Selling price: variant->price first, then product fallback
+                $sellingPrice = $variant && $variant->price > 0
+                    ? $variant->price
+                    : ($product->price_real > 0 ? $product->price_real : $product->price);
+
+                // Fallback to PricingService if still 0
+                if ($sellingPrice <= 0) {
+                    $sellingPrice = \App\Services\PricingService::calculate($batch, $channelSlug);
+                }
 
                 // Get first photo
                 $photo = $product->photos->first();
@@ -240,7 +252,6 @@ class PosController extends Controller
             ];
         }
         // --- END BUNDLING LOGIC ---
-
         // Filter out entries with no stock or no price, then re-index
         $result = array_values(array_filter($variantGroups, function($v) {
             return $v['total_stock'] > 0 && $v['offline_price'] > 0;
@@ -319,10 +330,21 @@ class PosController extends Controller
                     if ($batch->qty < $qty) {
                         throw new \Exception("Stok batch {$batch->batch_no} untuk produk {$product->name} tidak mencukupi.");
                     }
-                    if (!$batch->variant || $batch->variant->price <= 0) {
-                        throw new \Exception("Produk {$product->name} tidak memiliki harga jual pada variannya.");
+
+                    // Pricing logic
+                    $variantPrice = $batch->variant && $batch->variant->price > 0
+                        ? $batch->variant->price
+                        : null;
+
+                    if ($variantPrice) {
+                        $basePrice = $variantPrice;
+                    } elseif ($product->price_real > 0) {
+                        $basePrice = $product->price_real;
+                    } elseif ($product->price > 0) {
+                        $basePrice = $product->price;
+                    } else {
+                        $basePrice = \App\Services\PricingService::calculate($batch, $channelSlug);
                     }
-                    $basePrice = (int)$batch->variant->price;
                     $batchId = $batch->id;
                 }
                 

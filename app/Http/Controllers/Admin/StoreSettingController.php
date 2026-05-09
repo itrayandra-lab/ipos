@@ -34,6 +34,8 @@ class StoreSettingController extends Controller
             'tokopedia_url' => 'nullable|url|max:255',
             'website' => 'nullable|url|max:255',
             'footer_text' => 'nullable|string',
+            'fee_online_percent' => 'nullable|numeric|min:0|max:100',
+            'tax_percent' => 'nullable|numeric|min:0|max:100',
         ]);
 
         $data = $request->except(['logo', '_token']);
