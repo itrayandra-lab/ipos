@@ -187,6 +187,7 @@ class SalesDocumentController extends Controller
 
                     $itemsToCreate[] = [
                         'product_id'       => $product->id,
+                        'product_variant_id' => isset($batch) ? $batch->product_variant_id : null,
                         'product_batch_id' => $batchId,
                         'buy_price'        => $buyPrice,
                         'qty'              => $qty,
@@ -215,6 +216,7 @@ class SalesDocumentController extends Controller
                 $grandTotal   = ($totalAmount + $taxAmount) - $discountVal;
                 $txDate = $request->transaction_date ? Carbon::parse($request->transaction_date) : Carbon::now();
                 $transaction = Transaction::create([
+                    'transaction_code' => \App\Services\TransactionCodeService::generate($txDate),
                     'user_id'          => auth()->id(),
                     'customer_id'      => $request->customer_id,
                     'customer_name'    => $request->customer_name,

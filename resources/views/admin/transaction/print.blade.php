@@ -139,8 +139,9 @@
             <thead>
                 <tr>
                     <th>No</th>
+                    <th>ID</th>
                     <th>Customer</th>
-                    <th>Produk (Merek + Produk)</th>
+                    <th>Produk</th>
                     <th>Subtotal</th>
                     <th>Diskon</th>
                     <th>Total Bayar</th>
@@ -152,6 +153,7 @@
                 @foreach ($transactions as $index => $transaction)
                     <tr>
                         <td>{{ $index + 1 }}</td>
+                        <td>{{ $transaction->transaction_code ?: '#'.$transaction->id }}</td>
                         <td>{{ $transaction->customer->name ?? ($transaction->customer_name ?? '-') }}</td>
                         <td>
                             @php
@@ -161,8 +163,8 @@
                                 {{ $item->product->merek->name ?? '' }} {{ $item->product->name }} ({{ $item->qty }})@if(!$loop->last), <br> @endif
                             @endforeach
                         </td>
-                        <td>Rp. {{ number_format($transaction->items->sum('subtotal'), 0, ',', '.') }}</td>
-                        <td>Rp. {{ number_format($transaction->discount, 0, ',', '.') }}</td>
+                        <td>Rp. {{ number_format($transaction->items->sum('subtotal') + $transaction->items->sum('discount'), 0, ',', '.') }}</td>
+                        <td>Rp. {{ number_format($transaction->discount + $transaction->items->sum('discount'), 0, ',', '.') }}</td>
                         <td class="total-amount">Rp. {{ number_format($transaction->total_amount, 0, ',', '.') }}</td>
                         <td>
                             @if($transaction->payment_status == 'paid')

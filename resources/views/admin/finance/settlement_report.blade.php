@@ -109,9 +109,14 @@
                     <div class="card-header">
                         <h4>Filter Laporan</h4>
                         <div class="card-header-form">
-                            {{-- <button type="button" class="btn btn-premium btn-sm" onclick="printReport()">
-                                <i class="fas fa-print mr-1"></i> Cetak Laporan
-                            </button> --}}
+                            <div class="btn-group">
+                                <a href="#" id="btn-export-excel" class="btn btn-success btn-sm">
+                                    <i class="fas fa-file-excel mr-1"></i> Excel
+                                </a>
+                                <a href="#" id="btn-export-pdf" class="btn btn-danger btn-sm">
+                                    <i class="fas fa-file-pdf mr-1"></i> PDF
+                                </a>
+                            </div>
                         </div>
                     </div>
                     <div class="card-body pb-0">
@@ -142,9 +147,10 @@
                                      <tr>
                                          <th width="10px">#</th>
                                          <th>Nama Produk</th>
-                                         <th>Variant</th>
+                                         <th class="text-right">HPP Satuan</th>
                                          <th class="text-center">Total Terjual</th>
-                                         <th class="text-right">Total HPP (Hutang Pabrik)</th>
+                                         <th class="text-right">Total</th>
+                                         <th width="80px" class="text-center">Aksi</th>
                                      </tr>
                                  </thead>
                                  <tbody>
@@ -175,17 +181,12 @@
                     { data: 'DT_RowIndex', name: 'DT_RowIndex', orderable: false, searchable: false },
                     { 
                         data: 'product_name', 
-                        name: 'product_name',
-                        render: function(data, type, row) {
-                            return `<div class="font-weight-600">${row.merek_name || ''} ${data}</div>`;
-                        }
+                        name: 'product_name'
                     },
                     { 
-                        data: 'variant_name', 
-                        name: 'variant_name',
-                        render: function(data, type, row) {
-                            return `<div class="text-muted small">${data || '-'}</div>`;
-                        }
+                        data: 'buy_price', 
+                        name: 'buy_price',
+                        className: 'text-right'
                     },
                     { 
                         data: 'total_qty', 
@@ -202,7 +203,8 @@
                         render: function(data) {
                             return `<span class="amount-text">${data}</span>`;
                         }
-                    }
+                    },
+                    { data: 'action', name: 'action', orderable: false, searchable: false, className: 'text-center' }
                 ],
                 order: [[3, 'desc']] // Order by Qty Terjual
             });
@@ -210,7 +212,112 @@
             $('#filter-form').on('submit', function(e) {
                 e.preventDefault();
                 table.draw();
+                updateExportUrls();
+            });
+
+            function updateExportUrls() {
+                const startDate = $('#start_date').val();
+                const endDate = $('#end_date').val();
+                const params = `?start_date=${startDate}&end_date=${endDate}`;
+                
+                $('#btn-export-excel').attr('href', "{{ route('admin.finance.settlement.export.excel') }}" + params);
+                $('#btn-export-pdf').attr('href', "{{ route('admin.finance.settlement.export.pdf') }}" + params);
+            }
+
+            // Initial URL update
+            updateExportUrls();
+
+            $(document).on('click', '.btn-detail', function() {
+                const productId = $(this).data('product-id');
+                const variantId = $(this).data('variant-id');
+                const productName = $(this).data('product-name');
+                const variantName = $(this).data('variant-name');
+                const startDate = $('#start_date').val();
+                const endDate = $('#end_date').val();
+
+                $('#detailModalLabel').text(`Detail Transaksi: ${productName} ${variantName ? '(' + variantName + ')' : ''}`);
+                $('#detail-tbody').html('<tr><td colspan="6" class="text-center">Loading...</td></tr>');
+                $('#detailModal').modal('show');
+
+                $.ajax({
+                    url: "{{ route('admin.finance.settlement.detail') }}",
+                    method: "GET",
+                    data: {
+                        product_id: productId,
+                        variant_id: variantId,
+                        start_date: startDate,
+                        end_date: endDate
+                    },
+                    success: function(response) {
+                        let html = '';
+                        if (response.length === 0) {
+                            html = '<tr><td colspan="6" class="text-center">Tidak ada transaksi ditemukan.</td></tr>';
+                        } else {
+                            response.forEach((item, index) => {
+                                const date = new Date(item.created_at).toLocaleString('id-ID', {
+                                    day: '2-digit',
+                                    month: '2-digit',
+                                    year: 'numeric',
+                                    hour: '2-digit',
+                                    minute: '2-digit'
+                                });
+                                html += `
+                                    <tr>
+                                        <td>${index + 1}</td>
+                                        <td>
+                                            <div class="font-weight-600 text-primary">${item.transaction_code || '#' + item.id}</div>
+                                            <div class="small text-muted">${item.invoice_number || ''}</div>
+                                        </td>
+                                        <td>${date}</td>
+                                        <td class="text-center">${item.qty}</td>
+                                        <td class="text-right">Rp ${new Intl.NumberFormat('id-ID').format(item.buy_price)}</td>
+                                        <td class="text-right">Rp ${new Intl.NumberFormat('id-ID').format(item.subtotal)}</td>
+                                    </tr>
+                                `;
+                            });
+                        }
+                        $('#detail-tbody').html(html);
+                    },
+                    error: function() {
+                        $('#detail-tbody').html('<tr><td colspan="6" class="text-center text-danger">Gagal mengambil data.</td></tr>');
+                    }
+                });
             });
         });
     </script>
+
+    <!-- Modal Detail -->
+    <div class="modal fade" id="detailModal" tabindex="-1" role="dialog" aria-labelledby="detailModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-lg" role="document">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="detailModalLabel">Detail Transaksi</h5>
+                    <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                        <span aria-hidden="true">&times;</span>
+                    </button>
+                </div>
+                <div class="modal-body">
+                    <div class="table-responsive">
+                        <table class="table table-sm table-bordered">
+                            <thead class="bg-light">
+                                <tr>
+                                    <th>#</th>
+                                    <th>Kode Transaksi</th>
+                                    <th>Tanggal</th>
+                                    <th class="text-center">Qty</th>
+                                    <th class="text-right">HPP Satuan</th>
+                                    <th class="text-right">Total HPP</th>
+                                </tr>
+                            </thead>
+                            <tbody id="detail-tbody">
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-dismiss="modal">Tutup</button>
+                </div>
+            </div>
+        </div>
+    </div>
 @endsection

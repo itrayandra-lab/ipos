@@ -19,8 +19,58 @@ class SettlementController extends Controller
 
     public function data(Request $request)
     {
+        $query = $this->getFilteredQuery($request);
+
+        return DataTables::of($query)
+            ->addIndexColumn()
+            ->editColumn('product_name', function($row) {
+                $merekName = trim($row->merek_name ?? '');
+                $productName = trim($row->product_name ?? '');
+                $variantName = trim($row->variant_name ?? '');
+
+                $originalParts = array_filter([$merekName, $productName, $variantName]);
+                $finalParts = [];
+                foreach ($originalParts as $p1) {
+                    $isSubPart = false;
+                    foreach ($originalParts as $p2) {
+                        if ($p1 !== $p2 && stripos($p2, $p1) !== false && strlen($p2) > strlen($p1)) {
+                            $isSubPart = true;
+                            break;
+                        }
+                    }
+                    if (!$isSubPart) {
+                        $finalParts[] = $p1;
+                    }
+                }
+                $labelText = implode(' ', array_unique($finalParts));
+                return '<div class="font-weight-600">' . $labelText . '</div>';
+            })
+            ->editColumn('buy_price', function ($row) {
+                return 'Rp ' . number_format($row->buy_price, 0, ',', '.');
+            })
+            ->editColumn('total_cost', function ($row) {
+                return 'Rp ' . number_format($row->total_cost, 0, ',', '.');
+            })
+            ->addColumn('action', function($row) {
+                return '<button type="button" class="btn btn-info btn-sm btn-detail" 
+                            data-product-id="'.$row->product_id.'" 
+                            data-variant-id="'.$row->product_variant_id.'"
+                            data-product-name="'.e($row->product_name).'"
+                            data-variant-name="'.e($row->variant_name).'">
+                            <i class="fas fa-eye"></i> Detail
+                        </button>';
+            })
+            ->rawColumns(['product_name', 'action'])
+            ->make(true);
+    }
+
+    private function getFilteredQuery(Request $request)
+    {
         $query = DB::table('transaction_items')
             ->select(
+                'transaction_items.product_id',
+                'transaction_items.product_variant_id',
+                'transaction_items.buy_price',
                 'merek.name as merek_name',
                 'products.name as product_name',
                 'product_variants.variant_name',
@@ -47,21 +97,70 @@ class SettlementController extends Controller
               ->orWhereNotNull('transaction_items.parent_item_id');
         });
 
-        $query->groupBy(
+        return $query->groupBy(
             'transaction_items.product_id', 
             'transaction_items.product_variant_id', 
+            'transaction_items.buy_price',
             'merek.name', 
             'products.name', 
             'product_variants.variant_name', 
             'product_variants.sku_code'
         )
         ->orderBy('total_qty', 'desc');
+    }
 
-        return DataTables::of($query)
-            ->addIndexColumn()
-            ->editColumn('total_cost', function ($row) {
-                return 'Rp ' . number_format($row->total_cost, 0, ',', '.');
-            })
-            ->make(true);
+    public function exportExcel(Request $request)
+    {
+        $items = $this->getFilteredQuery($request)->get();
+        return \Maatwebsite\Excel\Facades\Excel::download(new \App\Exports\SettlementExport($items), 'Laporan-Pelunasan-Pabrik-' . date('d-m-Y') . '.xlsx');
+    }
+
+    public function exportPdf(Request $request)
+    {
+        $items = $this->getFilteredQuery($request)->get();
+        $pdf = \Barryvdh\DomPDF\Facade\Pdf::loadView('admin.finance.settlement_pdf', compact('items'));
+        return $pdf->download('Laporan-Pelunasan-Pabrik-' . date('d-m-Y') . '.pdf');
+    }
+
+    public function detail(Request $request)
+    {
+        $productId = $request->product_id;
+        $variantId = $request->variant_id;
+        $startDate = $request->start_date;
+        $endDate = $request->end_date;
+
+        $query = DB::table('transaction_items')
+            ->select(
+                'transactions.id',
+                'transactions.transaction_code',
+                'transactions.invoice_number',
+                'transactions.created_at',
+                'transaction_items.qty',
+                'transaction_items.buy_price',
+                'transaction_items.price',
+                'transaction_items.subtotal',
+                'transactions.source',
+                'users.name as cashier_name'
+            )
+            ->join('transactions', 'transaction_items.transaction_id', '=', 'transactions.id')
+            ->leftJoin('users', 'transactions.user_id', '=', 'users.id')
+            ->where('transaction_items.product_id', $productId);
+
+        if ($variantId && $variantId != 'null') {
+            $query->where('transaction_items.product_variant_id', $variantId);
+        } else {
+            $query->whereNull('transaction_items.product_variant_id');
+        }
+
+        if ($startDate) {
+            $query->where('transactions.created_at', '>=', Carbon::parse($startDate)->startOfDay());
+        }
+        if ($endDate) {
+            $query->where('transactions.created_at', '<=', Carbon::parse($endDate)->endOfDay());
+        }
+
+        $details = $query->orderBy('transactions.created_at', 'desc')->get();
+
+        return response()->json($details);
     }
 }

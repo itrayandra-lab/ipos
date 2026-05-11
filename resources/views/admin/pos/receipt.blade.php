@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Struk Pembelian - {{ $transaction->midtrans_order_id }}</title>
+    <title>Struk Pembelian - {{ $transaction->transaction_code ?: $transaction->midtrans_order_id }}</title>
     <style>
         @page { size: 58mm 210mm; margin: 0; }
         body {
@@ -55,7 +55,7 @@
             <td>Tgl: {{ $transaction->created_at->format('d/m/y H:i') }}</td>
         </tr>
         <tr>
-            <td>Ref: {{ $transaction->midtrans_order_id }}</td>
+            <td>Ref: {{ $transaction->transaction_code ?: $transaction->midtrans_order_id }}</td>
         </tr>
         <tr>
             <td>Kasir: {{ $transaction->user->name }}</td>

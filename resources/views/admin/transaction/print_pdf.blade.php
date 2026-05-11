@@ -85,7 +85,7 @@
                 <tr>
                     <th width="30">No</th>
                     <th>Customer</th>
-                    <th>Produk (Merek + Produk)</th>
+                    <th>Produk</th>
                     <th width="70">Subtotal</th>
                     <th width="60">Diskon</th>
                     <th width="70">Total Bayar</th>

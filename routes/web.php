@@ -312,6 +312,9 @@ Route::prefix('admin')->middleware(['auth', 'role:super_admin,store_manager,fina
             // Factory Settlement Report (Laporan Pelunasan Pabrik)
             Route::get('settlement-report', [\App\Http\Controllers\Admin\Finance\SettlementController::class, 'index'])->name('admin.finance.settlement.index');
             Route::get('settlement-report/data', [\App\Http\Controllers\Admin\Finance\SettlementController::class, 'data'])->name('admin.finance.settlement.data');
+            Route::get('settlement-report/detail', [\App\Http\Controllers\Admin\Finance\SettlementController::class, 'detail'])->name('admin.finance.settlement.detail');
+            Route::get('settlement-report/export/excel', [\App\Http\Controllers\Admin\Finance\SettlementController::class, 'exportExcel'])->name('admin.finance.settlement.export.excel');
+            Route::get('settlement-report/export/pdf', [\App\Http\Controllers\Admin\Finance\SettlementController::class, 'exportPdf'])->name('admin.finance.settlement.export.pdf');
         });
 
         // Sales Documents (Penjualan)

@@ -26,6 +26,7 @@ class TransactionExport implements FromCollection, WithHeadings, WithMapping, Sh
     {
         return [
             'No',
+            'ID Transaksi',
             'Customer',
             'Produk (Merek + Produk)',
             'Subtotal',
@@ -51,10 +52,11 @@ class TransactionExport implements FromCollection, WithHeadings, WithMapping, Sh
 
         return [
             $this->rowNumber,
+            $transaction->transaction_code ?: '#'.$transaction->id,
             $transaction->customer->name ?? ($transaction->customer_name ?? '-'),
             implode(", ", $products),
-            $transaction->items->sum('subtotal'),
-            $transaction->discount,
+            $transaction->items->sum('subtotal') + $transaction->items->sum('discount'),
+            $transaction->discount + $transaction->items->sum('discount'),
             $transaction->total_amount,
             ucfirst($transaction->payment_status),
             $transaction->created_at->format('d-m-Y'),

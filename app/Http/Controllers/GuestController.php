@@ -171,30 +171,35 @@ class GuestController extends Controller
             ];
         }
 
-        $transaction = Transaction::create([
-            'user_id' => auth()->id(),
-            'total_amount' => $finalAmount,
-            'payment_status' => 'pending',
-            'delivery_type' => $request->delivery_type ?? 'pickup',
-            'delivery_desc' => $request->delivery_desc,
-            'voucher_code' => $voucherCode,
-            'discount' => $discountAmount,
-            'midtrans_order_id' => uniqid('ORDER-'),
-        ]);
-
-        foreach ($items as $item) {
-            $product = Product::where('status', 'Y')->findOrFail($item['id']);
-            $quantity = (int)$item['quantity'];
-            $subtotal = $product->price * $quantity;
-
-            TransactionItem::create([
-                'transaction_id' => $transaction->id,
-                'product_id' => $product->id,
-                'qty' => $quantity,
-                'price' => $product->price,
-                'subtotal' => $subtotal,
+        $transaction = \Illuminate\Support\Facades\DB::transaction(function () use ($request, $finalAmount, $voucherCode, $discountAmount, $items) {
+            $transaction = Transaction::create([
+                'transaction_code' => \App\Services\TransactionCodeService::generate(),
+                'user_id' => auth()->id(),
+                'total_amount' => $finalAmount,
+                'payment_status' => 'pending',
+                'delivery_type' => $request->delivery_type ?? 'pickup',
+                'delivery_desc' => $request->delivery_desc,
+                'voucher_code' => $voucherCode,
+                'discount' => $discountAmount,
+                'midtrans_order_id' => uniqid('ORDER-'),
             ]);
-        }
+
+            foreach ($items as $item) {
+                $product = Product::where('status', 'Y')->findOrFail($item['id']);
+                $quantity = (int)$item['quantity'];
+                $subtotal = $product->price * $quantity;
+
+                TransactionItem::create([
+                    'transaction_id' => $transaction->id,
+                    'product_id' => $product->id,
+                    'qty' => $quantity,
+                    'price' => $product->price,
+                    'subtotal' => $subtotal,
+                ]);
+            }
+            
+            return $transaction;
+        });
 
         Config::$serverKey = config('midtrans.server_key');
         Config::$isProduction = config('midtrans.is_production');

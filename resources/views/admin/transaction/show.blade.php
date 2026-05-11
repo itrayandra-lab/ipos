@@ -14,7 +14,7 @@
             </div>
 
             <div class="section-body">
-                <h2 class="section-title">Detail Transaksi #{{ $transaction->id }}</h2>
+                <h2 class="section-title">Detail Transaksi {{ $transaction->transaction_code ?: '#'.$transaction->id }}</h2>
                 <p class="section-lead">Informasi lengkap tentang transaksi.</p>
 
                 @if (session()->has('message'))
@@ -52,7 +52,7 @@
                                         <table class="table table-sm table-striped mb-0">
                                             <tr>
                                                 <th width="40%">ID Transaksi</th>
-                                                <td><span class="badge badge-light">#{{ $transaction->id }}</span></td>
+                                                <td><span class="badge badge-light">{{ $transaction->transaction_code ?: '#'.$transaction->id }}</span></td>
                                             </tr>
                                             @if($transaction->invoice_number)
                                             <tr>
@@ -126,7 +126,7 @@
                                             </tr>
                                             <tr>
                                                 <th>Subtotal</th>
-                                                <td>Rp {{ number_format($transaction->items->sum('subtotal'), 0, ',', '.') }}</td>
+                                                <td>Rp {{ number_format($transaction->items->sum('subtotal') + $transaction->items->sum('discount'), 0, ',', '.') }}</td>
                                             </tr>
                                             <tr>
                                                 <th>Kode Voucher</th>
@@ -134,7 +134,7 @@
                                             </tr>
                                             <tr>
                                                 <th>Potongan Diskon</th>
-                                                <td class="text-danger">- Rp {{ number_format($transaction->discount ?? 0, 0, ',', '.') }}</td>
+                                                <td class="text-danger">- Rp {{ number_format(($transaction->discount ?? 0) + $transaction->items->sum('discount'), 0, ',', '.') }}</td>
                                             </tr>
                                             <tr class="bg-light">
                                                 <th>Total Tagihan</th>
@@ -300,16 +300,16 @@
                                     @endforeach
                                 </tbody>
                                 <tfoot>
-                                    <tr>
-                                        <th colspan="5" class="text-right">Subtotal</th>
-                                        <th class="text-right">Rp {{ number_format($transaction->items->sum('subtotal'), 0, ',', '.') }}</th>
-                                    </tr>
-                                    @if ($transaction->discount > 0)
-                                        <tr>
-                                            <th colspan="5" class="text-right text-danger">Diskon</th>
-                                            <th class="text-right text-danger">- Rp {{ number_format($transaction->discount, 0, ',', '.') }}</th>
-                                        </tr>
-                                    @endif
+                                     <tr>
+                                         <th colspan="5" class="text-right">Subtotal</th>
+                                         <th class="text-right">Rp {{ number_format($transaction->items->sum('subtotal') + $transaction->items->sum('discount'), 0, ',', '.') }}</th>
+                                     </tr>
+                                     @if (($transaction->discount ?? 0) + $transaction->items->sum('discount') > 0)
+                                         <tr>
+                                             <th colspan="5" class="text-right text-danger">Diskon</th>
+                                             <th class="text-right text-danger">- Rp {{ number_format(($transaction->discount ?? 0) + $transaction->items->sum('discount'), 0, ',', '.') }}</th>
+                                         </tr>
+                                     @endif
                                     <tr>
                                         <th colspan="5" class="text-right h5">Grand Total</th>
                                         <th class="text-right h5 text-primary">Rp {{ number_format($transaction->total_amount, 0, ',', '.') }}</th>
@@ -376,7 +376,7 @@
                         </button>
                     </div>
                     <div class="modal-body">
-                        <p>Apakah Anda yakin ingin memproses pelunasan untuk transaksi <strong>#{{ $transaction->id }}</strong>?</p>
+                        <p>Apakah Anda yakin ingin memproses pelunasan untuk transaksi <strong>{{ $transaction->transaction_code ?: '#'.$transaction->id }}</strong>?</p>
                         <div class="alert alert-warning py-2 mb-3 shadow-sm border-0">
                             <div class="d-flex justify-content-between">
                                 <span>Sisa yang harus dibayar:</span>

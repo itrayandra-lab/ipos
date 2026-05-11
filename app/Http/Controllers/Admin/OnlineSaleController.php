@@ -107,6 +107,7 @@ class OnlineSaleController extends Controller
 
                     $itemsToCreate[] = [
                         'product_id' => $product->id,
+                        'product_variant_id' => $batch->product_variant_id,
                         'product_batch_id' => $batch->id,
                         'buy_price' => $batch->buy_price,
                         'qty' => $item['qty'],
@@ -116,6 +117,7 @@ class OnlineSaleController extends Controller
                 }
 
                 $transaction = Transaction::create([
+                    'transaction_code' => \App\Services\TransactionCodeService::generate($request->transaction_date ? \Carbon\Carbon::parse($request->transaction_date) : now()),
                     'user_id' => auth()->id(),
                     'source' => $request->source,
                     'notes' => $request->notes,
