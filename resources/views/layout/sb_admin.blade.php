@@ -60,7 +60,9 @@
                 <ul class="dropdown-menu">
                     <li class="{{ $sb == 'Merek' ? 'active' : '' }}"><a class="nav-link" href="{{ url('admin/manage-master/merek') }}">Merek</a></li>
                     <li class="{{ $sb == 'Product' ? 'active' : '' }}"><a class="nav-link" href="{{ url('admin/manage-master/products') }}">Produk</a></li>
+                    @if(!in_array($role, ['sales']))
                     <li class="{{ $sb == 'ProductPricing' ? 'active' : '' }}"><a class="nav-link" href="{{ route('admin.products.pricing') }}">Harga Produk</a></li>
+                    @endif
                 </ul>
             </li>
             @endif
@@ -124,11 +126,12 @@
             
             {{-- Finance Group --}}
             @if(in_array($role, ['super_admin', 'store_manager', 'finance', 'admin']))
-            <li class="nav-item dropdown {{ ($sb == 'PettyCash' || $sb == 'Expense' || $sb == 'FinanceReport') ? 'active' : '' }}">
+            <li class="nav-item dropdown {{ ($sb == 'PettyCash' || $sb == 'Expense' || $sb == 'FinanceReport' || $sb == 'FinanceSettlement') ? 'active' : '' }}">
                 <a href="#" class="nav-link has-dropdown"><i class="fas fa-wallet"></i> <span>Finance</span></a>
                 <ul class="dropdown-menu">
                     <li class="{{ $sb == 'PettyCash' ? 'active' : '' }}"><a class="nav-link" href="{{ route('admin.finance.petty_cash.index') }}">Petty Cash</a></li>
                     <li class="{{ $sb == 'Expense' ? 'active' : '' }}"><a class="nav-link" href="{{ route('admin.finance.expenses.index') }}">Pengeluaran (Expenses)</a></li>
+                    <li class="{{ $sb == 'FinanceSettlement' ? 'active' : '' }}"><a class="nav-link" href="{{ route('admin.finance.settlement.index') }}">Pelunasan Pabrik</a></li>
                     @if(in_array($role, ['super_admin', 'store_manager', 'finance']))
                     <li class="{{ $sb == 'FinanceReport' ? 'active' : '' }}"><a class="nav-link" href="{{ route('admin.finance.reports.index') }}">Laporan Keuangan</a></li>
                     @endif

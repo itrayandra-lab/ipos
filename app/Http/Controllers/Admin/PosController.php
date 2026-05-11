@@ -60,8 +60,8 @@ class PosController extends Controller
             $batchList[] = [
                 'id'        => $batch->id,
                 'text'      => $labelText . ' (' . $batch->batch_no . ' - ' . $batch->qty . ')',
-                'price'     => $batch->variant && $batch->variant->price > 0
-                                ? $batch->variant->price
+                'price'     => $batch->variant 
+                                ? $batch->variant->getSellingPrice()
                                 : ($product->price_real > 0 ? $product->price_real : $product->price),
                 'stock'     => $batch->qty,
                 'buy_price' => $batch->buy_price ?? 0,
@@ -168,8 +168,8 @@ class PosController extends Controller
                 }
 
                 // Selling price: variant->price first, then product fallback
-                $sellingPrice = $variant && $variant->price > 0
-                    ? $variant->price
+                $sellingPrice = $variant 
+                    ? $variant->getSellingPrice()
                     : ($product->price_real > 0 ? $product->price_real : $product->price);
 
                 // Fallback to PricingService if still 0
@@ -332,9 +332,7 @@ class PosController extends Controller
                     }
 
                     // Pricing logic
-                    $variantPrice = $batch->variant && $batch->variant->price > 0
-                        ? $batch->variant->price
-                        : null;
+                    $variantPrice = $batch->variant ? $batch->variant->getSellingPrice() : null;
 
                     if ($variantPrice) {
                         $basePrice = $variantPrice;

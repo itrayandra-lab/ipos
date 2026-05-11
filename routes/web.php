@@ -119,16 +119,18 @@ Route::prefix('admin')->middleware(['auth', 'role:super_admin,store_manager,fina
                 );
                 Route::prefix('products')->group(function () {
                     Route::get('/', [ProductAdmin::class , 'index'])->name('admin.products.index');
-                    Route::get('/pricing', [ProductPricingAdmin::class, 'index'])->name('admin.products.pricing');
-                    Route::get('/pricing/all', [ProductPricingAdmin::class, 'getall'])->name('admin.products.pricing.all');
-                    Route::get('/pricing/stats', [ProductPricingAdmin::class, 'stats'])->name('admin.products.pricing.stats');
-                    Route::post('/pricing/approve', [ProductPricingAdmin::class, 'approve'])->name('admin.products.pricing.approve');
-                    Route::post('/pricing/update-hpp', [ProductPricingAdmin::class, 'updateHpp'])->name('admin.products.pricing.update_hpp');
-                    Route::post('/pricing/update-tier', [ProductPricingAdmin::class, 'updateTier'])->name('admin.products.pricing.update_tier');
-                    Route::post('/pricing/update-tax-status', [ProductPricingAdmin::class, 'updateTaxStatus'])->name('admin.products.pricing.update_tax_status');
-                    Route::post('/pricing/update-ray-store', [ProductPricingAdmin::class, 'updateRayStore'])->name('admin.products.pricing.update_ray_store');
-                    Route::post('/pricing/recalculate', [ProductPricingAdmin::class, 'recalculate'])->name('admin.products.pricing.recalculate');
-                    Route::post('/pricing/recalculate-all', [ProductPricingAdmin::class, 'recalculateAll'])->name('admin.products.pricing.recalculate_all');
+                    // Pricing routes — blocked for sales (enforced in controller)
+                    Route::get('/pricing', [\App\Http\Controllers\Admin\ManageMaster\ProductPricingController::class, 'index'])->name('admin.products.pricing');
+                    Route::get('/pricing/all', [\App\Http\Controllers\Admin\ManageMaster\ProductPricingController::class, 'getall'])->name('admin.products.pricing.all');
+                    Route::get('/pricing/stats', [\App\Http\Controllers\Admin\ManageMaster\ProductPricingController::class, 'stats'])->name('admin.products.pricing.stats');
+                    Route::post('/pricing/approve', [\App\Http\Controllers\Admin\ManageMaster\ProductPricingController::class, 'approve'])->name('admin.products.pricing.approve');
+                    Route::post('/pricing/update-hpp', [\App\Http\Controllers\Admin\ManageMaster\ProductPricingController::class, 'updateHpp'])->name('admin.products.pricing.update_hpp');
+                    Route::post('/pricing/update-tier', [\App\Http\Controllers\Admin\ManageMaster\ProductPricingController::class, 'updateTier'])->name('admin.products.pricing.update_tier');
+                    Route::post('/pricing/update-tax-status', [\App\Http\Controllers\Admin\ManageMaster\ProductPricingController::class, 'updateTaxStatus'])->name('admin.products.pricing.update_tax_status');
+                    Route::post('/pricing/update-ray-store', [\App\Http\Controllers\Admin\ManageMaster\ProductPricingController::class, 'updateRayStore'])->name('admin.products.pricing.update_ray_store');
+                    Route::post('/pricing/save', [\App\Http\Controllers\Admin\ManageMaster\ProductPricingController::class, 'savePricing'])->name('admin.products.pricing.save');
+                    Route::post('/pricing/recalculate', [\App\Http\Controllers\Admin\ManageMaster\ProductPricingController::class, 'recalculate'])->name('admin.products.pricing.recalculate');
+                    Route::post('/pricing/recalculate-all', [\App\Http\Controllers\Admin\ManageMaster\ProductPricingController::class, 'recalculateAll'])->name('admin.products.pricing.recalculate_all');
                     Route::get('/create', [ProductAdmin::class , 'create_view'])->name('admin.products.create');
                     Route::post('/', [ProductAdmin::class , 'create']);
                     Route::get('/all', [ProductAdmin::class , 'getall'])->name('admin.products.all');
@@ -306,6 +308,10 @@ Route::prefix('admin')->middleware(['auth', 'role:super_admin,store_manager,fina
 
             // Reports
             Route::get('reports', function() { return view('admin.finance.reports.index')->with('sb', 'FinanceReport'); })->name('admin.finance.reports.index');
+
+            // Factory Settlement Report (Laporan Pelunasan Pabrik)
+            Route::get('settlement-report', [\App\Http\Controllers\Admin\Finance\SettlementController::class, 'index'])->name('admin.finance.settlement.index');
+            Route::get('settlement-report/data', [\App\Http\Controllers\Admin\Finance\SettlementController::class, 'data'])->name('admin.finance.settlement.data');
         });
 
         // Sales Documents (Penjualan)

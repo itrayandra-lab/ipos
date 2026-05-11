@@ -114,7 +114,7 @@ class SalesDocumentController extends Controller
             $batchList[] = [
                 'id'        => $batch->id,
                 'text'      => $fullText,
-                'price'     => $batch->variant->price ?? ($product->price_real > 0 ? $product->price_real : $product->price),
+                'price'     => $batch->variant ? $batch->variant->getSellingPrice() : ($product->price_real > 0 ? $product->price_real : $product->price),
                 'stock'     => $batch->qty,
                 'buy_price' => $batch->buy_price ?? 0,
             ];
@@ -302,7 +302,7 @@ class SalesDocumentController extends Controller
             $batchList[] = [
                 'id'        => $batch->id,
                 'text'      => $fullText,
-                'price'     => $batch->variant->price ?? ($product->price_real > 0 ? $product->price_real : $product->price),
+                'price'     => $batch->variant ? $batch->variant->getSellingPrice() : ($product->price_real > 0 ? $product->price_real : $product->price),
                 'stock'     => $batch->qty,
                 'buy_price' => $batch->buy_price ?? 0,
             ];
