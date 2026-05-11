@@ -117,6 +117,9 @@ class PurchaseOrderController extends Controller
                     $pName = $product->name;
                     $vName = ($variant->variant_name && $variant->variant_name !== 'Default') ? $variant->variant_name : '';
 
+                    $parts = [];
+                    if ($brand) $parts[] = $brand;
+
                     // Logic to avoid redundancy between product and variant
                     if ($vName) {
                         // If variant name already contains product name, just use variant name
@@ -130,7 +133,6 @@ class PurchaseOrderController extends Controller
                         $parts[] = $pName;
                     }
 
-                    // Combined text so far
                     $currentText = implode(' ', $parts);
                     
                     // Logic to avoid redundancy with netto
@@ -144,7 +146,7 @@ class PurchaseOrderController extends Controller
                         }
                     }
 
-                    $name = implode(' ', array_filter($parts));
+                    $name = implode(' - ', array_filter($parts));
                     $name = preg_replace('/\s+/', ' ', $name);
 
                     $results[] = [

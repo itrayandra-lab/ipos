@@ -15,6 +15,23 @@ use Yajra\DataTables\Facades\DataTables;
 
 class ProductController extends Controller
 {
+    public function __construct()
+    {
+        $this->middleware(function ($request, $next) {
+            $user = auth()->user();
+            $restrictedMethods = ['create', 'create_view', 'edit', 'update', 'delete', 'syncPrice'];
+            
+            if ($user && $user->role === 'sales' && in_array($request->route()->getActionMethod(), $restrictedMethods)) {
+                if ($request->ajax()) {
+                    return response()->json(['status' => 'error', 'message' => 'Anda tidak memiliki akses untuk tindakan ini.'], 403);
+                }
+                return redirect()->route('admin.products.index')->with('error', 'Anda tidak memiliki akses untuk tindakan ini.');
+            }
+            
+            return $next($request);
+        });
+    }
+
     public function index()
     {
         $categories = Category::select('id', 'name', 'code')->orderBy('name', 'ASC')->get();
@@ -86,51 +103,89 @@ class ProductController extends Controller
 
     public function search(Request $request)
     {
-        $warehouseId = $request->warehouse_id;
         $search = $request->search;
-
-        $query = Product::with(['merek', 'variants', 'batches' => function($q) {
-                $q->orderBy('id', 'desc');
-            }])
-            ->where('status', 'Y')
-            ->where('is_bundle', false); // Can't nest bundles for now
-
-        if ($warehouseId) {
-            $query->whereHas('batches', function($q) use ($warehouseId) {
-                $q->where('warehouse_id', $warehouseId);
+        
+        $query = \App\Models\ProductVariant::with(['netto.product.merek', 'netto.product.batches'])
+            ->whereHas('netto.product', function($q) use ($search) {
+                $q->where('status', 'Y')
+                  ->where('is_bundle', 0); // Prevent nesting bundles
+                
+                if ($search) {
+                    $q->where(function($sq) use ($search) {
+                        $sq->where('name', 'like', '%' . $search . '%')
+                          ->orWhereHas('merek', fn($mq) => $mq->where('name', 'like', '%' . $search . '%'));
+                    });
+                }
             });
-        }
 
         if ($search) {
-            $query->where(function($q) use ($search) {
-                $q->where('name', 'like', "%{$search}%")
-                  ->orWhereHas('merek', function($mq) use ($search) {
-                      $mq->where('name', 'like', "%{$search}%");
-                  });
+            $query->orWhere(function($q) use ($search) {
+                $q->where('variant_name', 'like', '%' . $search . '%')
+                  ->orWhere('sku_code', 'like', '%' . $search . '%');
             });
         }
 
-        $products = $query->limit(50)->get()->map(function($p) {
-            $latestBatch = $p->batches->first();
-            $variant = $p->variants->first();
+        $variants = $query->limit(50)->get()->map(function($v) {
+            $p = $v->netto?->product;
+            if (!$p) return null;
+
+            $latestBatch = $p->batches->sortByDesc('id')->first();
             
-            $het = $variant ? $variant->het_online : $p->price_real;
-            $legacy = $variant ? $variant->price : $p->price;
-            $isApproved = $variant ? $variant->is_approved : false;
+            $merekName   = ($p && $p->merek) ? trim($p->merek->name) : '';
+            $productName = trim($p->name ?? '');
+            $variantName = trim($v->variant_name ?? '');
+            
+            $netto = $v->netto;
+            $nettoValue = $netto ? trim($netto->netto_value ?? '') : '';
+            $satuan = $netto ? trim($netto->satuan ?? '') : '';
+            $nettoFull = trim($nettoValue . ' ' . $satuan);
+
+            $parts = [];
+            if ($merekName) $parts[] = $merekName;
+
+            // Logic to avoid redundancy
+            if ($variantName && $variantName !== 'Default') {
+                // If variant name starts with or contains product name, we prioritize variant name
+                if (stripos($variantName, $productName) !== false) {
+                    $parts[] = $variantName;
+                } else {
+                    $parts[] = $productName;
+                    $parts[] = $variantName;
+                }
+            } else {
+                $parts[] = $productName;
+            }
+
+            $currentText = implode(' ', $parts);
+            
+            // Check for netto redundancy
+            if ($nettoFull) {
+                $cleanCurrent = strtolower(str_replace(' ', '', $currentText));
+                $cleanNetto = strtolower(str_replace(' ', '', $nettoFull));
+                
+                if (strpos($cleanCurrent, $cleanNetto) === false) {
+                    $parts[] = $nettoFull;
+                }
+            }
+
+            $fullName = implode(' - ', array_filter($parts));
+            // Remove double spaces just in case
+            $fullName = preg_replace('/\s+/', ' ', $fullName);
 
             return [
-                'id' => $p->id,
-                'name' => $p->name,
-                'merek_name' => $p->merek?->name,
+                'id' => $v->id, 
+                'product_id' => $p->id,
+                'variant_id' => $v->id,
+                'text' => $fullName,
                 'buy_price' => $latestBatch?->buy_price ?? 0,
-                'selling_price' => $variant ? $variant->getSellingPrice() : ($p->price_real > 0 ? $p->price_real : $p->price),
-                'het_online' => $het,
-                'legacy_price' => $legacy,
-                'is_approved' => $isApproved
+                'selling_price' => $v->getSellingPrice(),
+                'het_online' => $v->het_online ?: $v->price,
+                'legacy_price' => $v->price,
+                'is_approved' => $v->is_approved,
             ];
-        });
+        })->filter()->values();
 
-        return response()->json($products);
+        return response()->json($variants);
     }
 
     public function getall(Request $request)
@@ -171,19 +226,27 @@ class ProductController extends Controller
             return '<img src="' . asset('assets/img/Asset 3.png') . '" width="50" class="img-thumbnail">';
         })
             ->addColumn('action', function (Product $product) {
-            return '
-                <div class="dropdown d-inline dropleft">
-                    <button type="button" class="btn btn-action-custom btn-sm dropdown-toggle" aria-haspopup="true" data-toggle="dropdown">
-                        Action
-                    </button>
-                    <ul class="dropdown-menu">
-                        <li><a href="' . route('admin.products.show', $product->id) . '" class="dropdown-item">Detail</a></li>
-                        <li><a href="' . route('admin.products.edit', $product->id) . '" class="dropdown-item">Edit</a></li>
-                        <li><a data-id="' . $product->id . '" class="dropdown-item hapus" href="#">Hapus</a></li>
-                    </ul>
-                </div>
-                ';
-        })
+                $role = auth()->user()->role;
+                $html = '
+                    <div class="dropdown d-inline dropleft">
+                        <button type="button" class="btn btn-action-custom btn-sm dropdown-toggle" aria-haspopup="true" data-toggle="dropdown">
+                            Action
+                        </button>
+                        <ul class="dropdown-menu">
+                            <li><a href="' . route('admin.products.show', $product->id) . '" class="dropdown-item">Detail</a></li>';
+                
+                if ($role !== 'sales') {
+                    $html .= '
+                            <li><a href="' . route('admin.products.edit', $product->id) . '" class="dropdown-item">Edit</a></li>
+                            <li><a data-id="' . $product->id . '" class="dropdown-item hapus" href="#">Hapus</a></li>';
+                }
+
+                $html .= '
+                        </ul>
+                    </div>';
+                
+                return $html;
+            })
             ->rawColumns(['hierarchy', 'merek_name', 'photos_preview', 'action'])
             ->make(true);
     }
@@ -247,6 +310,7 @@ class ProductController extends Controller
                     \App\Models\BundleItem::create([
                         'bundle_id' => $product->id,
                         'product_id' => $bi['product_id'],
+                        'variant_id' => $bi['variant_id'] ?? null,
                         'quantity' => $bi['quantity'],
                     ]);
                 }
@@ -396,6 +460,7 @@ class ProductController extends Controller
                         \App\Models\BundleItem::create([
                             'bundle_id' => $product->id,
                             'product_id' => $bi['product_id'],
+                            'variant_id' => $bi['variant_id'] ?? null,
                             'quantity' => $bi['quantity'],
                         ]);
                     }

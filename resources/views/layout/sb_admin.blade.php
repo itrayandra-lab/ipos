@@ -171,7 +171,7 @@
                     @endif
                     @endif
                     
-                    @if(in_array($role, ['super_admin', 'finance']))
+                    @if(in_array($role, ['super_admin', 'finance', 'admin']))
                     <li class="{{ Request::is('admin/settings/bank-accounts*') ? 'active' : '' }}"><a class="nav-link" href="{{ route('admin.settings.bank_accounts') }}">Rekening Bank</a></li>
                     @endif
                 </ul>

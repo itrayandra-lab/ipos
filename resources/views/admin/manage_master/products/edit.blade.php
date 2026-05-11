@@ -292,7 +292,57 @@
         .animate-fade-up {
             animation: fadeInUp 0.4s ease forwards;
         }
-    </style>
+    /* Prevent Select2 text wrapping for cleaner UI */
+    .select2-container--default .select2-selection--single {
+        height: auto !important;
+        min-height: 42px !important;
+    }
+    .select2-container--default .select2-selection--single .select2-selection__rendered {
+        white-space: normal !important;
+        word-break: break-word !important;
+        line-height: 1.4 !important;
+        padding: 8px 15px !important;
+    }
+    
+    .product-col {
+        width: 400px;
+        max-width: 400px;
+    }
+    
+    .summary-card {
+        background: #f8fafc;
+        border-radius: 12px;
+        padding: 12px 15px;
+        border: 1px solid #e2e8f0;
+    }
+    
+    .summary-label {
+        font-size: 10px;
+        letter-spacing: 0.3px;
+        color: #64748b;
+        margin-bottom: 4px;
+    }
+    
+    .summary-amount {
+        font-size: 16px;
+        font-weight: 800;
+        margin-bottom: 8px;
+    }
+    
+    .btn-apply-price {
+        transition: all 0.3s;
+        border: none;
+        font-weight: 700;
+        text-transform: uppercase;
+        font-size: 10px;
+        letter-spacing: 0.3px;
+        padding: 5px 10px;
+    }
+    .btn-apply-price:hover {
+        transform: translateY(-1px);
+        box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+    }
+</style>
 
     <div class="main-content">
         <section class="section">
@@ -431,12 +481,12 @@
                                     <table class="table table-hover mb-0 variant-table" id="table-bundle-items">
                                         <thead>
                                             <tr>
-                                                <th class="pl-4">Produk Satuan</th>
-                                                <th width="150px">HPP (Modal)</th>
-                                                <th width="150px">Harga Jual Satuan</th>
-                                                <th width="120px">Jumlah</th>
-                                                <th width="150px">Subtotal HPP</th>
-                                                <th width="80px" class="text-center">Aksi</th>
+                                                <th class="pl-4 product-col">Produk</th>
+                                                <th width="140px">HPP (Modal)</th>
+                                                <th width="160px">Harga Jual Satuan</th>
+                                                <th width="90px">Jumlah</th>
+                                                <th width="160px">Subtotal HPP</th>
+                                                <th width="60px" class="text-center">Aksi</th>
                                             </tr>
                                         </thead>
                                         <tbody>
@@ -444,21 +494,70 @@
                                                 @foreach($product->bundleItems as $bi)
                                                     @php
                                                         $comp = $bi->product;
+                                                        $selectedVariant = $bi->variant;
                                                         $latestBatch = $comp ? \App\Models\ProductBatch::where('product_id', $comp->id)->orderBy('id', 'desc')->first() : null;
                                                         $buyPrice = $latestBatch?->buy_price ?? 0;
-                                                        $sellPrice = $comp ? ($comp->price_real > 0 ? $comp->price_real : ($comp->variants->first()?->price ?? $comp->price)) : 0;
+                                                        
+                                                        // Use selected variant price or fallback
+                                                        $sellPrice = 0;
+                                                        if ($selectedVariant) {
+                                                            $sellPrice = $selectedVariant->price;
+                                                            $isApproved = $selectedVariant->is_approved;
+                                                            $hetPrice = $selectedVariant->het_online ?: $sellPrice;
+                                                        } else {
+                                                            $sellPrice = $comp ? ($comp->price_real > 0 ? $comp->price_real : ($comp->variants->first()?->price ?? $comp->price)) : 0;
+                                                            $isApproved = $comp?->variants->first()?->is_approved ?? false;
+                                                            $hetPrice = $sellPrice;
+                                                        }
+                                                        
                                                         $subHpp = $buyPrice * $bi->quantity;
                                                     @endphp
                                                     <tr class="bundle-row" 
-                                                        data-approved="{{ $comp->variants->first()?->is_approved ? '1' : '0' }}"
-                                                        data-het="{{ $buyPrice > 0 ? $buyPrice : $sellPrice }}"
+                                                        data-approved="{{ $isApproved ? '1' : '0' }}"
+                                                        data-het="{{ $hetPrice }}"
                                                         data-legacy="{{ $sellPrice }}">
                                                         <td class="pl-4">
-                                                            <select name="bundle_items[{{ $loop->index }}][product_id]" class="form-control select-product-bundle" required>
-                                                                @if($comp)
-                                                                    <option value="{{ $comp->id }}" selected>{{ $comp->name }} ({{ $comp->merek->name ?? '' }})</option>
+                                                            <select name="bundle_items[{{ $loop->index }}][variant_id]" class="form-control select-product-bundle" required>
+                                                                @if($selectedVariant)
+                                                                    @php
+                                                                        $mName = $comp->merek->name ?? '';
+                                                                        $pName = $comp->name ?? '';
+                                                                        $vName = ($selectedVariant->variant_name && $selectedVariant->variant_name !== 'Default') ? $selectedVariant->variant_name : '';
+                                                                        $nVal = $selectedVariant->netto->netto_value ?? '';
+                                                                        $nSat = $selectedVariant->netto->satuan ?? '';
+                                                                        $nFull = trim($nVal . ' ' . $nSat);
+
+                                                                        $lblParts = [];
+                                                                        if ($mName) $lblParts[] = $mName;
+                                                                        
+                                                                        if ($vName) {
+                                                                            if (stripos($vName, $pName) !== false) {
+                                                                                $lblParts[] = $vName;
+                                                                            } else {
+                                                                                $lblParts[] = $pName;
+                                                                                $lblParts[] = $vName;
+                                                                            }
+                                                                        } else {
+                                                                            $lblParts[] = $pName;
+                                                                        }
+
+                                                                        if ($nFull) {
+                                                                            $cleanCurr = strtolower(str_replace(' ', '', implode('', $lblParts)));
+                                                                            $cleanN = strtolower(str_replace(' ', '', $nFull));
+                                                                            if (strpos($cleanCurr, $cleanN) === false) {
+                                                                                $lblParts[] = $nFull;
+                                                                            }
+                                                                        }
+
+                                                                        $displayLabel = implode(' - ', array_filter($lblParts));
+                                                                        $displayLabel = preg_replace('/\s+/', ' ', $displayLabel);
+                                                                    @endphp
+                                                                    <option value="{{ $selectedVariant->id }}" selected>
+                                                                        {{ $displayLabel }}
+                                                                    </option>
                                                                 @endif
                                                             </select>
+                                                            <input type="hidden" name="bundle_items[{{ $loop->index }}][product_id]" value="{{ $bi->product_id }}" class="product-id-input">
                                                         </td>
                                                         <td>
                                                             <div class="hpp-display" data-value="{{ $buyPrice }}">Rp {{ number_format($buyPrice, 0, ',', '.') }}</div>
@@ -480,33 +579,38 @@
                                             @endif
                                         </tbody>
                                     </table>
-                                    <div class="p-4 bg-light border-top" id="bundle-summary" style="display: {{ $product->is_bundle ? 'block' : 'none' }};">
-                                        <div class="row align-items-center">
-                                            <div class="col-md-3">
-                                                <div class="small text-muted mb-1">Total Modal (HPP)</div>
-                                                <div class="h5 mb-0 font-weight-bold text-danger" id="total-bundle-hpp">Rp 0</div>
-                                            </div>
-                                            <div class="col-md-3">
-                                                <div class="small text-muted mb-1">Total Harga Normal</div>
-                                                <div class="h5 mb-2 font-weight-bold text-dark" id="total-bundle-normal">Rp 0</div>
-                                                <button type="button" class="btn btn-sm btn-outline-primary rounded-pill" id="btn-apply-normal-price">
-                                                    <i class="fas fa-check-circle mr-1"></i> Terapkan sebagai Harga Paket
-                                                </button>
-                                            </div>
-                                            <div class="col-md-3">
-                                                <div class="small text-muted mb-1">Harga Transisi (Rekomendasi)</div>
-                                                <div class="h5 mb-2 font-weight-bold text-info" id="bundle-transition-price">Rp 0</div>
-                                                <button type="button" class="btn btn-sm btn-info rounded-pill" id="btn-apply-transition-price">
-                                                    <i class="fas fa-magic mr-1"></i> Terapkan Harga Transisi
-                                                </button>
-                                                <div class="small mt-1 text-muted" id="transition-note" style="font-size: 10px;">
-                                                    Semua komponen approved? <span id="status-all-approved">-</span>
+                                    <div class="p-3" id="bundle-summary" style="{{ $product->is_bundle ? '' : 'display: none;' }} background: #f1f5f9;">
+                                        <div class="row no-gutters mx-n2">
+                                            <div class="col-md-3 px-2">
+                                                <div class="summary-card h-100">
+                                                    <div class="summary-label text-uppercase font-weight-bold">Total Modal (HPP)</div>
+                                                    <div class="summary-amount text-danger" id="total-bundle-hpp">Rp 0</div>
                                                 </div>
                                             </div>
-                                            <div class="col-md-3 text-right">
-                                                <div class="d-inline-block p-3 bg-white rounded-lg shadow-sm border">
-                                                    <div class="small text-muted mb-1">Margin Keuntungan (Berdasarkan Harga Jual Paket)</div>
-                                                    <div class="h4 mb-0 font-weight-bold text-success" id="bundle-profit-margin">Rp 0</div>
+                                            <div class="col-md-3 px-2">
+                                                <div class="summary-card h-100">
+                                                    <div class="summary-label text-uppercase font-weight-bold">Total Harga Normal</div>
+                                                    <div class="summary-amount text-dark" id="total-bundle-normal">Rp 0</div>
+                                                    <button type="button" class="btn btn-info btn-block btn-sm rounded-pill btn-apply-price" id="btn-apply-normal-price">
+                                                        <i class="fas fa-check-circle mr-1"></i> Gunakan Normal
+                                                    </button>
+                                                </div>
+                                            </div>
+                                            <div class="col-md-3 px-2">
+                                                <div class="summary-card h-100 border-primary" style="border-width: 1.5px;">
+                                                    <div class="summary-label text-uppercase font-weight-bold">Harga Transisi</div>
+                                                    <div class="summary-amount text-primary" id="bundle-transition-price">Rp 0</div>
+                                                    <button type="button" class="btn btn-primary btn-block btn-sm rounded-pill btn-apply-price" id="btn-apply-transition-price">
+                                                        <i class="fas fa-magic mr-1"></i> Gunakan Transisi
+                                                    </button>
+                                                    <div class="mt-1 text-center" style="font-size: 9px;">Approved? <span id="status-all-approved" class="badge badge-secondary py-0 px-1" style="font-size: 8px;">Tidak</span></div>
+                                                </div>
+                                            </div>
+                                            <div class="col-md-3 px-2">
+                                                <div class="summary-card h-100 bg-white shadow-sm">
+                                                    <div class="summary-label text-uppercase font-weight-bold">Margin Keuntungan</div>
+                                                    <div class="summary-amount mb-0" id="bundle-profit-margin">Rp 0</div>
+                                                    <div class="text-muted mt-1" style="font-size: 9px;">(Berdasarkan Harga Jual Paket)</div>
                                                 </div>
                                             </div>
                                         </div>
@@ -747,12 +851,25 @@
             function calculateBundleTotals() {
                 let totalHpp = 0;
                 let totalNormal = 0;
+                let totalHetSum = 0;
+                let totalLegacySum = 0;
+                let allApproved = true;
 
                 $('.bundle-row').each(function() {
                     const qty = parseInt($(this).find('.bundle-qty').val()) || 0;
                     const hpp = parseInt($(this).find('.hpp-display').attr('data-value')) || 0;
                     const price = parseInt($(this).find('.price-display').attr('data-value')) || 0;
                     
+                    const approved = $(this).attr('data-approved') == 1;
+                    const het = parseInt($(this).attr('data-het')) || price;
+                    const legacy = parseInt($(this).attr('data-legacy')) || price;
+
+                    if ($(this).find('.select-product-bundle').val()) {
+                        if (!approved) allApproved = false;
+                        totalHetSum += het * qty;
+                        totalLegacySum += legacy * qty;
+                    }
+
                     const subHpp = hpp * qty;
                     const subNormal = price * qty;
                     
@@ -764,31 +881,6 @@
 
                 $('#total-bundle-hpp').text('Rp ' + formatRupiah(totalHpp));
                 $('#total-bundle-normal').text('Rp ' + formatRupiah(totalNormal));
-                
-                // Calculate Transition Price
-                let allApproved = true;
-                let totalHetSum = 0;
-                let totalLegacySum = 0;
-
-                $('.bundle-row').each(function() {
-                    const selectData = $(this).find('.select-product-bundle').select2('data')[0];
-                    const qty = parseInt($(this).find('.bundle-qty').val()) || 0;
-                    
-                    if (selectData) {
-                        if (!selectData.is_approved) allApproved = false;
-                        totalHetSum += (selectData.het_online || selectData.selling_price) * qty;
-                        totalLegacySum += (selectData.legacy_price || selectData.selling_price) * qty;
-                    } else {
-                        // For existing items in edit mode, we use data attributes
-                        const isApproved = $(this).attr('data-approved') === '1';
-                        const het = parseInt($(this).find('.price-display').attr('data-value')) || 0; // use selling price displayed
-                        const legacy = parseInt($(this).attr('data-legacy')) || 0;
-                        
-                        if (!isApproved) allApproved = false;
-                        totalHetSum += het * qty;
-                        totalLegacySum += legacy * qty;
-                    }
-                });
 
                 const transitionPrice = allApproved ? totalHetSum : totalLegacySum;
                 $('#bundle-transition-price').text('Rp ' + formatRupiah(transitionPrice));
@@ -827,7 +919,8 @@
                 const row = `
                     <tr class="bundle-row">
                         <td class="pl-4">
-                            <select name="bundle_items[${bundleItemIndex}][product_id]" class="form-control select-product-bundle" required></select>
+                            <select name="bundle_items[${bundleItemIndex}][variant_id]" class="form-control select-product-bundle" required></select>
+                            <input type="hidden" name="bundle_items[${bundleItemIndex}][product_id]" class="product-id-input">
                         </td>
                         <td>
                             <div class="hpp-display" data-value="0">Rp 0</div>
@@ -858,7 +951,7 @@
 
             function initBundleSelect(selector) {
                 selector.select2({
-                    placeholder: 'Cari Produk...',
+                    placeholder: 'Cari Merek + Produk + Varian...',
                     ajax: {
                         url: "{{ route('admin.products.search') }}",
                         dataType: 'json',
@@ -868,11 +961,15 @@
                         },
                         processResults: function (data) {
                             return {
-                                results: data.map(p => ({ 
-                                    id: p.id, 
-                                    text: p.name + ' (' + p.merek_name + ')',
-                                    buy_price: p.buy_price,
-                                    selling_price: p.selling_price
+                                results: data.map(v => ({ 
+                                    id: v.variant_id, 
+                                    text: v.text,
+                                    product_id: v.product_id,
+                                    buy_price: v.buy_price,
+                                    selling_price: v.selling_price,
+                                    het_online: v.het_online,
+                                    legacy_price: v.legacy_price,
+                                    is_approved: v.is_approved
                                 }))
                             };
                         }
@@ -882,8 +979,15 @@
                 selector.on('select2:select', function(e) {
                     const data = e.params.data;
                     const row = $(this).closest('tr');
+                    
+                    row.find('.product-id-input').val(data.product_id);
                     row.find('.hpp-display').text('Rp ' + formatRupiah(data.buy_price)).attr('data-value', data.buy_price);
                     row.find('.price-display').text('Rp ' + formatRupiah(data.selling_price)).attr('data-value', data.selling_price);
+                    
+                    row.attr('data-het', data.het_online);
+                    row.attr('data-legacy', data.legacy_price);
+                    row.attr('data-approved', data.is_approved ? 1 : 0);
+                    
                     calculateBundleTotals();
                 });
             }
@@ -891,6 +995,14 @@
             // Initialize existing bundle selects
             $('.select-product-bundle').each(function() {
                 initBundleSelect($(this));
+            });
+
+            $(document).on('change', '.select-variant-bundle', function() {
+                const option = $(this).find('option:selected');
+                const row = $(this).closest('tr');
+                const price = option.data('price') || 0;
+                row.find('.price-display').text('Rp ' + formatRupiah(price)).attr('data-value', price);
+                calculateBundleTotals();
             });
 
             $(document).on('input', '.bundle-qty', function() {

@@ -195,11 +195,13 @@
                 <div class="card">
                     <div class="card-header">
                         <h4>Daftar Seluruh Produk</h4>
+                        @if(auth()->user()->role !== 'sales')
                         <div class="card-header-form">
                             <a href="{{ route('admin.products.create') }}" class="btn btn-primary btn-tambah-custom">
                                 <i class="fas fa-plus mr-2"></i> Tambah Produk Baru
                             </a>
                         </div>
+                        @endif
                     </div>
                     <div class="card-body">
                         <table class="table table-striped mt-5" id="products-table">

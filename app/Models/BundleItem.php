@@ -12,6 +12,7 @@ class BundleItem extends Model
     protected $fillable = [
         'bundle_id',
         'product_id',
+        'variant_id',
         'quantity',
     ];
 
@@ -37,5 +38,13 @@ class BundleItem extends Model
     public function product()
     {
         return $this->componentProduct();
+    }
+
+    /**
+     * Get the product variant.
+     */
+    public function variant()
+    {
+        return $this->belongsTo(ProductVariant::class, 'variant_id');
     }
 }
