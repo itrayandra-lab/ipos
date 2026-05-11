@@ -241,7 +241,7 @@ class TransactionController extends Controller
             $batchList[] = [
                 'id'        => $batch->id,
                 'text'      => $labelText . ' (' . $batch->batch_no . ' - ' . $batch->qty . ')',
-                'price'     => $batch->variant->price ?? ($product->price_real > 0 ? $product->price_real : $product->price),
+                'price'     => $batch->variant ? $batch->variant->getSellingPrice() : ($product->price_real > 0 ? $product->price_real : $product->price),
                 'stock'     => $batch->qty,
                 'buy_price' => $batch->buy_price ?? 0,
             ];

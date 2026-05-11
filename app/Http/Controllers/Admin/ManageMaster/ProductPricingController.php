@@ -12,12 +12,25 @@ use DataTables;
 
 class ProductPricingController extends Controller
 {
+    public function __construct()
+    {
+        $this->middleware(function ($request, $next) {
+            $user = auth()->user();
+            if ($user && $user->role === 'sales') {
+                abort(403, 'Akses ditolak. Role Sales tidak diizinkan mengakses halaman Harga Produk.');
+            }
+            return $next($request);
+        });
+    }
+
     public function index()
     {
         $stats = $this->getStats();
+        $tiers = \App\Models\ProductTier::all();
         return view('admin.manage_master.products.pricing')->with([
             'sb'    => 'ProductPricing',
             'stats' => $stats,
+            'tiers' => $tiers,
         ]);
     }
 
@@ -37,8 +50,34 @@ class ProductPricingController extends Controller
         $variants = ProductVariant::with(['netto.product.merek', 'netto.product.productTier'])
             ->select('product_variants.*');
 
+        // Apply filter from pills
+        $filter = $request->input('filter', 'all');
+        if ($filter === 'belum') {
+            // Belum Hitung: hpp_rayandra = 0 (belum pernah dihitung)
+            $variants->where('hpp_rayandra', 0)->orWhere('hpp_rayandra', null);
+        } elseif ($filter === 'pending') {
+            // Pending: sudah dihitung tapi belum di-approve
+            $variants->where('hpp_rayandra', '>', 0)->where('is_approved', false);
+        } elseif ($filter === 'approved') {
+            $variants->where('is_approved', true);
+        }
+        // 'all' = no filter
+
         return DataTables::of($variants)
             ->addIndexColumn()
+            ->filterColumn('product_info', function($query, $keyword) {
+                $query->whereHas('netto.product', function($q) use ($keyword) {
+                    $q->where('name', 'like', "%{$keyword}%")
+                      ->orWhereHas('merek', function($qm) use ($keyword) {
+                          $qm->where('name', 'like', "%{$keyword}%");
+                      });
+                });
+            })
+            ->orderColumn('product_info', function($query, $order) {
+                $query->join('product_nettos', 'product_variants.product_netto_id', '=', 'product_nettos.id')
+                      ->join('products', 'product_nettos.product_id', '=', 'products.id')
+                      ->orderBy('products.name', $order);
+            })
             ->addColumn('product_info', function ($v) {
                 $merek  = $v->netto->product->merek->name ?? '';
                 $name   = $v->netto->product->name ?? '';
@@ -49,26 +88,14 @@ class ProductPricingController extends Controller
                     </div>
                 ";
             })
-            ->addColumn('tier_col', function ($v) use ($tiers) {
-                $currentTierId = $v->product_tier_id ?? ($v->netto->product->product_tier_id ?? null);
-                $options = "<option value=''>Tanpa Tier</option>";
-                foreach ($tiers as $tier) {
-                    $selected = ($currentTierId == $tier->id) ? 'selected' : '';
-                    $options .= "<option value='{$tier->id}' {$selected}>{$tier->name}</option>";
-                }
-                return "<select class='form-control form-control-sm edit-tier' data-id='{$v->id}' style='min-width:120px; border-radius:8px;'>{$options}</select>";
+            ->addColumn('tier_col', function ($v) {
+                return $v->productTier->name ?? ($v->netto->product->productTier->name ?? '<span class="text-muted">-</span>');
             })
             ->addColumn('tax_status_col', function ($v) {
-                $options = "
-                    <option value='1' ".($v->tax_status ? 'selected' : '').">PPN</option>
-                    <option value='0' ".(!$v->tax_status ? 'selected' : '').">Non PPN</option>
-                ";
-                return "<select class='form-control form-control-sm edit-tax' data-id='{$v->id}' style='min-width:100px; border-radius:8px;'>{$options}</select>";
+                return $v->tax_status ? '<span class="badge badge-info">PPN</span>' : '<span class="badge badge-secondary">Non PPN</span>';
             })
             ->addColumn('hpp_beli_col', function ($v) {
-                $val = number_format($v->product_hpp, 0, ',', '.');
-                $id  = $v->id;
-                return "<input type='text' class='form-control form-control-sm text-right edit-hpp font-weight-bold' data-id='{$id}' value='{$val}' style='min-width:110px;border-radius:8px;'>";
+                return 'Rp ' . number_format($v->product_hpp, 0, ',', '.');
             })
             ->addColumn('margin_hpp_col', function ($v) {
                 if ($v->hpp_rayandra <= 0) {
@@ -98,10 +125,7 @@ class ProductPricingController extends Controller
                 ";
             })
             ->addColumn('ray_store_col', function ($v) {
-                $val    = number_format($v->ray_store, 0, ',', '.');
-                $id     = $v->id;
-                $extra  = $v->is_approved ? "style='background:#f0fdf4;border-color:#86efac;border-radius:8px;'" : "style='border-radius:8px;'";
-                return "<input type='text' class='form-control form-control-sm text-right edit-ray-store font-weight-bold' data-id='{$id}' value='{$val}' {$extra} style='min-width:110px;border-radius:8px;'>";
+                return 'Rp ' . number_format($v->ray_store, 0, ',', '.');
             })
             ->addColumn('het_product_col', function ($v) {
                 if ($v->het_online <= 0 && !$v->is_approved) {
@@ -131,25 +155,60 @@ class ProductPricingController extends Controller
                 ";
             })
             ->addColumn('action', function ($v) {
-                $recalcBtn = "
-                    <button class='btn btn-sm btn-outline-primary btn-recalculate mb-1 w-100' 
-                            data-id='{$v->id}' title='Hitung ulang pricing'>
-                        <i class='fas fa-calculator mr-1'></i>Hitung
+                $merek  = $v->netto->product->merek->name ?? '';
+                $name   = $v->netto->product->name ?? '';
+                $netto  = $v->netto->netto_value . ' ' . $v->netto->satuan;
+                $fullName = "{$merek} {$name} {$netto}";
+                
+                $currentTierId = $v->product_tier_id ?? ($v->netto->product->product_tier_id ?? '');
+
+                $processBtn = "
+                    <button class='btn btn-sm btn-primary btn-process mb-1 w-100' 
+                            data-id='{$v->id}' 
+                            data-name='{$fullName}'
+                            data-tier='{$currentTierId}'
+                            data-tax='{$v->tax_status}'
+                            data-hpp='{$v->product_hpp}'
+                            data-ray='{$v->ray_store}'
+                            data-approved='{$v->is_approved}'>
+                        <i class='fas fa-edit mr-1'></i>Proses
                     </button>
                 ";
-                $approveClass = $v->is_approved ? 'btn-danger' : 'btn-success';
-                $approveText  = $v->is_approved ? 'Unapprove' : 'Approve';
-                $approveIcon  = $v->is_approved ? 'fa-times' : 'fa-check';
-                $approveBtn   = "
-                    <button class='btn btn-sm {$approveClass} btn-approve w-100' 
-                            data-id='{$v->id}' data-status='" . ($v->is_approved ? 0 : 1) . "'>
-                        <i class='fas {$approveIcon} mr-1'></i>{$approveText}
-                    </button>
-                ";
-                return "<div style='min-width:100px'>{$recalcBtn}{$approveBtn}</div>";
+                
+                $approveBtn = "";
+                if ($v->hpp_rayandra > 0) {
+                    $approveClass = $v->is_approved ? 'btn-danger' : 'btn-success';
+                    $approveText  = $v->is_approved ? 'Unapprove' : 'Approve';
+                    $approveIcon  = $v->is_approved ? 'fa-times' : 'fa-check';
+                    $approveBtn   = "
+                        <button class='btn btn-sm {$approveClass} btn-approve w-100' 
+                                data-id='{$v->id}' data-status='" . ($v->is_approved ? 0 : 1) . "'>
+                            <i class='fas {$approveIcon} mr-1'></i>{$approveText}
+                        </button>
+                    ";
+                }
+                
+                return "<div style='min-width:100px'>{$processBtn}{$approveBtn}</div>";
             })
-            ->rawColumns(['product_info', 'tier_col', 'tax_status_col', 'hpp_beli_col', 'margin_hpp_col', 'ray_store_col', 'het_product_col', 'action'])
+            ->rawColumns(['product_info', 'tier_col', 'tax_status_col', 'margin_hpp_col', 'het_product_col', 'action'])
             ->make(true);
+    }
+
+    /** Save all pricing data from modal and recalculate */
+    public function savePricing(Request $request)
+    {
+        $v = ProductVariant::findOrFail($request->id);
+        
+        $v->product_tier_id = $request->tier_id;
+        $v->tax_status      = $request->tax_status;
+        $v->product_hpp     = $request->product_hpp;
+        $v->ray_store       = $request->ray_store;
+        $v->save();
+        
+        // Recalculate
+        $v->recalculatePricing();
+        
+        return response()->json(['message' => 'Data pricing berhasil disimpan']);
     }
 
     /** Update HPP Modal (product_hpp) dan langsung recalculate */

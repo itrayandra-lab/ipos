@@ -102,29 +102,18 @@
 #pricing-table tbody tr { transition: background .15s; }
 #pricing-table tbody tr:hover { background: #fafffe; }
 
-/* ── Input fields ── */
-.edit-hpp, .edit-ray-store {
-    font-size: .85rem !important;
-    font-weight: 700 !important;
-    border-radius: 0 8px 8px 0 !important;
-    border-color: #e2e8f0 !important;
-    transition: border-color .2s, box-shadow .2s;
+/* ── Input fields in Modal ── */
+.form-control-premium {
+    border-radius: 10px !important;
+    border: 1px solid #e2e8f0 !important;
+    font-weight: 600 !important;
+    padding: 10px 15px !important;
+    height: auto !important;
 }
-.edit-hpp:focus, .edit-ray-store:focus {
+.form-control-premium:focus {
     border-color: var(--clr-primary) !important;
-    box-shadow: 0 0 0 3px rgba(15,118,110,.12) !important;
+    box-shadow: 0 0 0 4px rgba(15,118,110,.1) !important;
 }
-.input-group-text { border-radius: 8px 0 0 8px !important; background: #f8fafc !important; border-color: #e2e8f0 !important; font-size: .8rem; }
-.hpp-input-group .input-group-text { background: #fffbeb !important; color: #92400e; }
-
-/* ── Badges ── */
-.badge-approved { background: #dcfce7; color: #166534; border-radius: 999px; padding: 4px 10px; font-size: .75rem; }
-.badge-pending  { background: #fef9c3; color: #854d0e; border-radius: 999px; padding: 4px 10px; font-size: .75rem; }
-.badge-unset    { background: #f1f5f9; color: #64748b; border-radius: 999px; padding: 4px 10px; font-size: .75rem; }
-
-/* ── Action buttons ── */
-.btn-recalculate { border-radius: 8px !important; font-size: .78rem !important; font-weight: 600 !important; padding: 5px 10px !important; }
-.btn-approve-row  { border-radius: 8px !important; font-size: .78rem !important; font-weight: 600 !important; padding: 5px 10px !important; }
 
 /* ── Toast notification ── */
 .toast-msg {
@@ -140,8 +129,10 @@
 .toast-msg.error   { background: linear-gradient(135deg, #ef4444, #dc2626); }
 .toast-msg.info    { background: linear-gradient(135deg, #3b82f6, #2563eb); }
 
-/* ── Loading spinner overlay on row ── */
-.row-loading td { opacity: .5; pointer-events: none; }
+/* ── DataTables Padding Fix ── */
+.dataTables_wrapper { padding: 20px 0; }
+.dataTables_length, .dataTables_filter { padding: 0 24px 15px 24px; }
+.dataTables_info, .dataTables_paginate { padding: 15px 24px 0 24px; }
 
 /* ── Empty state ── */
 .dataTables_empty { color: #94a3b8; font-size: .9rem; padding: 40px 0 !important; }
@@ -154,8 +145,8 @@
 }
 </style>
 
-<div class="pricing-page">
-    <div class="main-content">
+<div class="main-content">
+    <div class="pricing-page">
         <section class="section">
 
             {{-- ── Header ── --}}
@@ -223,7 +214,7 @@
                     <div class="card-header">
                         <div>
                             <h4><i class="fas fa-calculator mr-2 text-primary"></i>Kalkulasi & Persetujuan Harga</h4>
-                            <small class="text-muted">Edit HPP Modal → Klik Hitung → Sesuaikan Ray Store → Approve</small>
+                            <small class="text-muted">Klik Proses → Atur Parameter → Simpan → Approve</small>
                         </div>
                         <div class="d-flex align-items-center gap-2 flex-wrap" style="gap:8px;">
                             {{-- Filter pills --}}
@@ -273,6 +264,93 @@
     </div>
 </div>
 
+{{-- ── Modal Proses Pricing ── --}}
+<div class="modal fade" id="modal-process" tabindex="-1" role="dialog" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered" role="document">
+        <div class="modal-content" style="border-radius:20px; overflow:hidden; border:none; box-shadow:0 20px 50px rgba(0,0,0,0.2);">
+            <div class="modal-header bg-primary text-white py-4 px-4">
+                <h5 class="modal-title font-weight-bold" id="modal-title">Proses Pricing</h5>
+                <button type="button" class="close text-white" data-dismiss="modal" aria-label="Close">
+                    <span aria-hidden="true">&times;</span>
+                </button>
+            </div>
+            <form id="form-pricing">
+                @csrf
+                <input type="hidden" name="id" id="inp-id">
+                <div class="modal-body p-4">
+                    <div class="mb-4">
+                        <label class="small font-weight-bold text-muted text-uppercase mb-2 d-block">Nama Produk</label>
+                        <div id="display-name" class="h6 font-weight-bold text-dark mb-0" style="line-height:1.5;">-</div>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label class="small font-weight-bold text-muted text-uppercase">Tier Produk</label>
+                                <select name="tier_id" id="inp-tier" class="form-control form-control-premium">
+                                    <option value="">Tanpa Tier</option>
+                                    @foreach($tiers as $tier)
+                                        <option value="{{ $tier->id }}">{{ $tier->name }}</option>
+                                    @endforeach
+                                </select>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label class="small font-weight-bold text-muted text-uppercase">Status Pajak</label>
+                                <select name="tax_status" id="inp-tax" class="form-control form-control-premium">
+                                    <option value="1">PPN</option>
+                                    <option value="0">Non PPN</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label class="small font-weight-bold text-muted text-uppercase">HPP Modal</label>
+                                <div class="input-group">
+                                    <div class="input-group-prepend">
+                                        <span class="input-group-text" style="border-radius:10px 0 0 10px; border-right:none;">Rp</span>
+                                    </div>
+                                    <input type="text" id="inp-hpp" class="form-control form-control-premium rupiah-mask" style="border-radius:0 10px 10px 0 !important;" placeholder="0">
+                                    <input type="hidden" name="product_hpp" id="inp-hpp-raw">
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label class="small font-weight-bold text-muted text-uppercase">Ray Store (Offline)</label>
+                                <div class="input-group">
+                                    <div class="input-group-prepend">
+                                        <span class="input-group-text" style="border-radius:10px 0 0 10px; border-right:none;">Rp</span>
+                                    </div>
+                                    <input type="text" id="inp-ray" class="form-control form-control-premium rupiah-mask" style="border-radius:0 10px 10px 0 !important;" placeholder="0">
+                                    <input type="hidden" name="ray_store" id="inp-ray-raw">
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="bg-light p-3 rounded" style="border-radius:12px !important;">
+                        <div class="text-center small text-muted font-weight-bold mb-2">PREVIEW KALKULASI</div>
+                        <div class="d-flex justify-content-between mb-1">
+                            <span>Estimasi HET Online:</span>
+                            <span class="font-weight-bold text-primary" id="preview-het">-</span>
+                        </div>
+                        <div class="small text-muted text-center mt-2 italic">HPP Ray, Margin, dan HET Online akan diperbarui otomatis setelah disimpan.</div>
+                    </div>
+                </div>
+                <div class="modal-footer bg-whitesmoke p-4">
+                    <button type="button" class="btn btn-secondary px-4 font-weight-bold" data-dismiss="modal" style="border-radius:10px;">Batal</button>
+                    <button type="submit" class="btn btn-primary px-5 font-weight-bold" id="btn-save" style="border-radius:10px;">Simpan Data</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
 {{-- Toast notification --}}
 <div id="toast-msg" class="toast-msg">
     <i class="fas fa-check-circle" id="toast-icon"></i>
@@ -289,6 +367,7 @@ $(document).ready(function () {
         return parseInt(val).toString().replace(/\B(?=(\d{3})+(?!\d))/g, '.');
     }
     function raw(val) {
+        if (!val) return 0;
         return parseInt(val.toString().replace(/[^0-9]/g, '')) || 0;
     }
     function showToast(msg, type = 'success') {
@@ -320,7 +399,7 @@ $(document).ready(function () {
         },
         columns: [
             { data: 'DT_RowIndex', name: 'DT_RowIndex', orderable: false, searchable: false },
-            { data: 'product_info', name: 'product_info', orderable: false },
+            { data: 'product_info', name: 'product_info', orderable: true, searchable: true },
             { data: 'tier_col', name: 'tier_col', orderable: false, searchable: false },
             { data: 'tax_status_col', name: 'tax_status_col', orderable: false, searchable: false },
             { data: 'hpp_beli_col', name: 'hpp_beli_col', orderable: false, searchable: false },
@@ -337,13 +416,6 @@ $(document).ready(function () {
             processing: '<div class="text-center py-4"><i class="fas fa-spinner fa-spin fa-2x text-primary"></i></div>',
             emptyTable: '<div class="text-center py-4 text-muted"><i class="fas fa-box-open fa-2x mb-2 d-block"></i>Tidak ada data</div>',
             zeroRecords: '<div class="text-center py-4 text-muted"><i class="fas fa-search fa-2x mb-2 d-block"></i>Data tidak ditemukan</div>',
-        },
-        drawCallback: function() {
-            /* Re-apply rupiah format on drawn inputs */
-            $('.edit-hpp, .edit-ray-store').each(function() {
-                const v = raw($(this).val());
-                $(this).val(fmt(v));
-            });
         }
     });
 
@@ -356,116 +428,56 @@ $(document).ready(function () {
     });
 
     /* ── Rupiah formatting on input ── */
-    $(document).on('input', '.edit-hpp, .edit-ray-store', function() {
+    $(document).on('input', '.rupiah-mask', function() {
         const v = raw($(this).val());
         $(this).val(fmt(v));
+        
+        // Update hidden inputs
+        if ($(this).attr('id') === 'inp-hpp') $('#inp-hpp-raw').val(v);
+        if ($(this).attr('id') === 'inp-ray') $('#inp-ray-raw').val(v);
     });
 
-    /* ── Update HPP on blur/enter ── */
-    $(document).on('blur keydown', '.edit-hpp', function(e) {
-        if (e.type === 'keydown' && e.key !== 'Enter') return;
-        const id    = $(this).data('id');
-        const value = raw($(this).val());
-        const $inp  = $(this);
-        $inp.prop('disabled', true);
-
-        $.post("{{ route('admin.products.pricing.update_hpp') }}", {
-            _token: '{{ csrf_token() }}',
-            id:     id,
-            value:  value,
-        }, function(res) {
-            $inp.prop('disabled', false);
-            showToast(res.message, 'success');
-            table.ajax.reload(null, false);
-        }).fail(function(xhr) {
-            $inp.prop('disabled', false);
-            showToast(xhr.responseJSON?.message || 'Gagal memperbarui HPP', 'error');
-        });
+    /* ── Open Process Modal ── */
+    $(document).on('click', '.btn-process', function() {
+        const d = $(this).data();
+        
+        $('#inp-id').val(d.id);
+        $('#display-name').text(d.name);
+        $('#inp-tier').val(d.tier);
+        $('#inp-tax').val(d.tax);
+        
+        $('#inp-hpp').val(fmt(d.hpp));
+        $('#inp-hpp-raw').val(d.hpp);
+        
+        $('#inp-ray').val(fmt(d.ray));
+        $('#inp-ray-raw').val(d.ray);
+        
+        $('#preview-het').text('Rp ' + fmt(d.ray)); // Placeholder, actual HET calculated by server
+        
+        $('#modal-process').modal('show');
     });
 
-    /* ── Update Tier on change ── */
-    $(document).on('change', '.edit-tier', function() {
-        const id    = $(this).data('id');
-        const value = $(this).val();
-        const $inp  = $(this);
-        $inp.prop('disabled', true);
+    /* ── Save Process Modal ── */
+    $('#form-pricing').on('submit', function(e) {
+        e.preventDefault();
+        const $btn = $('#btn-save');
+        $btn.prop('disabled', true).html('<i class="fas fa-spinner fa-spin mr-1"></i>Menyimpan...');
 
-        $.post("{{ route('admin.products.pricing.update_tier') }}", {
-            _token: '{{ csrf_token() }}',
-            id:     id,
-            value:  value,
-        }, function(res) {
-            $inp.prop('disabled', false);
-            showToast(res.message, 'success');
-            table.ajax.reload(null, false);
-            refreshStats();
-        }).fail(function(xhr) {
-            $inp.prop('disabled', false);
-            showToast(xhr.responseJSON?.message || 'Gagal memperbarui Tier', 'error');
-        });
-    });
-
-    /* ── Update Tax Status on change ── */
-    $(document).on('change', '.edit-tax', function() {
-        const id    = $(this).data('id');
-        const value = $(this).val();
-        const $inp  = $(this);
-        $inp.prop('disabled', true);
-
-        $.post("{{ route('admin.products.pricing.update_tax_status') }}", {
-            _token: '{{ csrf_token() }}',
-            id:     id,
-            value:  value,
-        }, function(res) {
-            $inp.prop('disabled', false);
-            showToast(res.message, 'success');
-            table.ajax.reload(null, false);
-        }).fail(function(xhr) {
-            $inp.prop('disabled', false);
-            showToast(xhr.responseJSON?.message || 'Gagal memperbarui Status Pajak', 'error');
-        });
-    });
-
-    /* ── Update Ray Store on blur/enter ── */
-    $(document).on('blur keydown', '.edit-ray-store', function(e) {
-        if (e.type === 'keydown' && e.key !== 'Enter') return;
-        const id    = $(this).data('id');
-        const value = raw($(this).val());
-        const $inp  = $(this);
-        $inp.prop('disabled', true);
-
-        $.post("{{ route('admin.products.pricing.update_ray_store') }}", {
-            _token: '{{ csrf_token() }}',
-            id:     id,
-            value:  value,
-        }, function(res) {
-            $inp.prop('disabled', false);
-            showToast(res.message, 'success');
-            table.ajax.reload(null, false);
-        }).fail(function(xhr) {
-            $inp.prop('disabled', false);
-            showToast(xhr.responseJSON?.message || 'Gagal memperbarui Ray Store', 'error');
-        });
-    });
-
-    /* ── Recalculate single ── */
-    $(document).on('click', '.btn-recalculate', function() {
-        const id  = $(this).data('id');
-        const $tr = $(this).closest('tr');
-        const $btn = $(this);
-
-        $btn.prop('disabled', true).html('<i class="fas fa-spinner fa-spin mr-1"></i>Hitung...');
-
-        $.post("{{ route('admin.products.pricing.recalculate') }}", {
-            _token: '{{ csrf_token() }}',
-            id:     id,
-        }, function(res) {
-            showToast(res.message, 'success');
-            table.ajax.reload(null, false);
-            refreshStats();
-        }).fail(function(xhr) {
-            showToast(xhr.responseJSON?.message || 'Gagal menghitung', 'error');
-            $btn.prop('disabled', false).html('<i class="fas fa-calculator mr-1"></i>Hitung');
+        $.ajax({
+            url: "{{ route('admin.products.pricing.save') }}",
+            type: 'POST',
+            data: $(this).serialize(),
+            success: function(res) {
+                $('#modal-process').modal('hide');
+                showToast(res.message, 'success');
+                table.ajax.reload(null, false);
+                refreshStats();
+                $btn.prop('disabled', false).text('Simpan Data');
+            },
+            error: function(xhr) {
+                showToast(xhr.responseJSON?.message || 'Gagal menyimpan data', 'error');
+                $btn.prop('disabled', false).text('Simpan Data');
+            }
         });
     });
 
