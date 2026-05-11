@@ -159,20 +159,23 @@ class TransactionController extends Controller
     public function print(Request $request)
     {
         $transactions = $this->getFilteredTransactions($request);
-        return view('admin.transaction.print', compact('transactions'));
+        $totalSum = $transactions->sum('total_amount');
+        return view('admin.transaction.print', compact('transactions', 'totalSum'));
     }
 
     public function exportExcel(Request $request)
     {
         $transactions = $this->getFilteredTransactions($request);
-        return \Maatwebsite\Excel\Facades\Excel::download(new \App\Exports\TransactionExport($transactions), 'Laporan-Transaksi-' . date('d-m-Y') . '.xlsx');
+        $totalSum = $transactions->sum('total_amount');
+        return \Maatwebsite\Excel\Facades\Excel::download(new \App\Exports\TransactionExport($transactions, $totalSum), 'Laporan-Transaksi-' . date('d-m-Y') . '.xlsx');
     }
 
     public function exportPdf(Request $request)
     {
         $transactions = $this->getFilteredTransactions($request);
+        $totalSum = $transactions->sum('total_amount');
         // Use the print view but without the onload print
-        $pdf = \Barryvdh\DomPDF\Facade\Pdf::loadView('admin.transaction.print_pdf', compact('transactions'));
+        $pdf = \Barryvdh\DomPDF\Facade\Pdf::loadView('admin.transaction.print_pdf', compact('transactions', 'totalSum'));
         return $pdf->download('Laporan-Transaksi-' . date('d-m-Y') . '.pdf');
     }
 

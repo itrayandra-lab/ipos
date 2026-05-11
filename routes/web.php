@@ -318,6 +318,23 @@ Route::prefix('admin')->middleware(['auth', 'role:super_admin,store_manager,fina
             // Reports
             Route::get('reports', function() { return view('admin.finance.reports.index')->with('sb', 'FinanceReport'); })->name('admin.finance.reports.index');
 
+            // Fund Requests
+            Route::prefix('fund-requests')->controller(\App\Http\Controllers\Admin\Finance\FundRequestController::class)->group(function () {
+                Route::get('/', 'index')->name('admin.finance.fund_requests.index');
+                Route::get('/all', 'getall')->name('admin.finance.fund_requests.all');
+                Route::get('/create', 'create')->name('admin.finance.fund_requests.create');
+                Route::post('/store', 'store')->name('admin.finance.fund_requests.store');
+                Route::get('/{id}', 'show')->name('admin.finance.fund_requests.show');
+                Route::get('/{id}/edit', 'edit')->name('admin.finance.fund_requests.edit');
+                Route::put('/{id}/update', 'update')->name('admin.finance.fund_requests.update');
+                Route::delete('/{id}/delete', 'destroy')->name('admin.finance.fund_requests.delete');
+                Route::post('/{id}/approve-manager', 'approveManager')->name('admin.finance.fund_requests.approve_manager');
+                Route::post('/{id}/reject-manager', 'rejectManager')->name('admin.finance.fund_requests.reject_manager');
+                Route::post('/{id}/approve-finance', 'approveFinance')->name('admin.finance.fund_requests.approve_finance');
+                Route::post('/{id}/reject-finance', 'rejectFinance')->name('admin.finance.fund_requests.reject_finance');
+                Route::post('/{id}/disburse', 'markAsDisbursed')->name('admin.finance.fund_requests.disburse');
+            });
+
             // Factory Settlement Report (Laporan Pelunasan Pabrik)
             Route::get('settlement-report', [\App\Http\Controllers\Admin\Finance\SettlementController::class, 'index'])->name('admin.finance.settlement.index');
             Route::get('settlement-report/data', [\App\Http\Controllers\Admin\Finance\SettlementController::class, 'data'])->name('admin.finance.settlement.data');

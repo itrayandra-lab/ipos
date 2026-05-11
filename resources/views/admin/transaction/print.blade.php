@@ -135,6 +135,11 @@
             <h1>Data Transaksi</h1>
             <p>Laporan Transaksi - Dicetak pada {{ date('d-m-Y H:i') }}</p>
         </div>
+
+        <div style="background: #f8fafc; border: 1px solid #e2e8f0; padding: 15px; border-radius: 8px; margin-bottom: 20px; display: inline-block; min-width: 300px;">
+            <div style="font-size: 12px; color: #64748b; text-transform: uppercase; font-weight: bold; margin-bottom: 5px;">Total Bayar Keseluruhan</div>
+            <div style="font-size: 24px; font-weight: 800; color: #0d9488;">Rp {{ number_format($totalSum, 0, ',', '.') }}</div>
+        </div>
         <table>
             <thead>
                 <tr>

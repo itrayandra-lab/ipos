@@ -131,6 +131,7 @@
                     <li class="{{ $sb == 'PettyCash' ? 'active' : '' }}"><a class="nav-link" href="{{ route('admin.finance.petty_cash.index') }}">Petty Cash</a></li>
                     <li class="{{ $sb == 'Expense' ? 'active' : '' }}"><a class="nav-link" href="{{ route('admin.finance.expenses.index') }}">Pengeluaran (Expenses)</a></li>
                     <li class="{{ $sb == 'FinanceSettlement' ? 'active' : '' }}"><a class="nav-link" href="{{ route('admin.finance.settlement.index') }}">Pelunasan Supplier</a></li>
+                    <li class="{{ $sb == 'FinanceFundRequest' ? 'active' : '' }}"><a class="nav-link" href="{{ route('admin.finance.fund_requests.index') }}">Pengajuan Dana</a></li>
                     @if(in_array($role, ['super_admin', 'store_manager', 'finance']))
                     <li class="{{ $sb == 'FinanceReport' ? 'active' : '' }}"><a class="nav-link" href="{{ route('admin.finance.reports.index') }}">Laporan Keuangan</a></li>
                     @endif
