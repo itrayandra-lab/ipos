@@ -116,8 +116,10 @@
                     @if(in_array($role, ['super_admin', 'store_manager', 'admin', 'sales']))
                     <li class="{{ $sb == 'SalesReceipts' ? 'active' : '' }}"><a class="nav-link" href="{{ route('admin.sales.receipts.index') }}">Kuitansi</a></li>
                     @endif
-                    @if(in_array($role, ['super_admin', 'store_manager', 'admin']))
+                    @if(in_array($role, ['super_admin', 'store_manager', 'admin', 'sales']))
                     <li class="{{ $sb == 'OnlineSale' ? 'active' : '' }}"><a class="nav-link" href="{{ route('admin.online_sale.index') }}">Marketplace</a></li>
+                    @endif
+                    @if(in_array($role, ['super_admin', 'store_manager', 'admin']))
                     <li class="{{ $sb == 'Voucher' ? 'active' : '' }}"><a class="nav-link" href="{{ url('admin/manage-master/voucher') }}">Voucher / Diskon</a></li>
                     @endif
                 </ul>

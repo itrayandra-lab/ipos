@@ -67,6 +67,7 @@ class TransactionController extends Controller
     {
         $query = Transaction::select(
             'transactions.id',
+            'transactions.transaction_code',
             'transactions.user_id',
             'transactions.total_amount',
             'transactions.payment_status',

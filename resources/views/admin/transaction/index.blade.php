@@ -322,6 +322,7 @@
                             <thead>
                                 <tr>
                                     <th width="10px">#</th>
+                                    <th>ID</th>
                                     <th>User / Admin</th>
                                     <th>Total Transaksi</th>
                                     <th>Status Pembayaran</th>
@@ -358,6 +359,13 @@
                 },
                 columns: [
                     { data: 'DT_RowIndex', name: 'DT_RowIndex', orderable: false, searchable: false },
+                    { 
+                        data: 'transaction_code', 
+                        name: 'transaction_code',
+                        render: function(data, type, row) {
+                            return `<span class="badge badge-light">${data || '#'+row.id}</span>`;
+                        }
+                    },
                     { data: 'user.name', name: 'user.name' },
                     { 
                         data: 'total_amount', 

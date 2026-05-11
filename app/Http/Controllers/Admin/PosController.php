@@ -384,6 +384,7 @@ class PosController extends Controller
 
                 $itemsToCreate[] = [
                     'product_id' => $product->id,
+                    'product_variant_id' => $product->is_bundle ? null : ($batch->product_variant_id ?? null),
                     'product_batch_id' => $batchId,
                     'buy_price' => $product->is_bundle ? 0 : ($batch->buy_price ?? 0),
                     'qty' => $qty,
@@ -453,6 +454,7 @@ class PosController extends Controller
                 }
 
                 $transaction = Transaction::create([
+                    'transaction_code' => \App\Services\TransactionCodeService::generate($request->created_at ? \Carbon\Carbon::parse($request->created_at) : now()),
                     'user_id' => auth()->id(),
                     'customer_id' => $request->customer_id,
                     'customer_name' => $request->customer_name,

@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Struk - {{ $transaction->id }}</title>
+    <title>Struk - {{ $transaction->transaction_code ?: $transaction->id }}</title>
     <style>
         * {
             margin: 0;
@@ -173,7 +173,7 @@
         <div class="info-section">
             <div class="info-row">
                 <span class="info-label">No. Struk</span>
-                <span class="info-value">#{{ str_pad($transaction->id, 6, '0', STR_PAD_LEFT) }}</span>
+                <span class="info-value">{{ $transaction->transaction_code ?: '#'.str_pad($transaction->id, 6, '0', STR_PAD_LEFT) }}</span>
             </div>
             <div class="info-row">
                 <span class="info-label">Tanggal</span>
@@ -206,17 +206,17 @@
         <div class="summary-section">
             <div class="summary-row">
                 <span>Subtotal</span>
-                <span>Rp {{ number_format($transaction->total_amount, 0, ',', '.') }}</span>
+                <span>Rp {{ number_format($transaction->items->sum('subtotal') + $transaction->items->sum('discount'), 0, ',', '.') }}</span>
             </div>
-            @if($transaction->discount > 0)
+            @if(($transaction->discount ?? 0) + $transaction->items->sum('discount') > 0)
             <div class="summary-row">
                 <span>Diskon</span>
-                <span>- Rp {{ number_format($transaction->discount, 0, ',', '.') }}</span>
+                <span>- Rp {{ number_format(($transaction->discount ?? 0) + $transaction->items->sum('discount'), 0, ',', '.') }}</span>
             </div>
             @endif
             <div class="summary-row total">
                 <span>TOTAL</span>
-                <span>Rp {{ number_format($transaction->total_amount - ($transaction->discount ?? 0), 0, ',', '.') }}</span>
+                <span>Rp {{ number_format($transaction->total_amount, 0, ',', '.') }}</span>
             </div>
             <div class="summary-row">
                 <span>Metode Bayar</span>
