@@ -1,5 +1,5 @@
 @extends('master')
-@section('title', 'Laporan Pelunasan Pabrik')
+@section('title', 'Laporan Pelunasan Supplier')
 @section('content')
     <div class="main-content">
         <style>
@@ -96,11 +96,11 @@
         </style>
         <section class="section">
             <div class="section-header">
-                <h1>Laporan Pelunasan Pabrik (HPP)</h1>
+                <h1>Laporan Pelunasan Supplier (HPP)</h1>
                 <div class="section-header-breadcrumb">
                     <div class="breadcrumb-item active"><a href="{{ url('admin') }}">Dashboard</a></div>
                     <div class="breadcrumb-item"><a href="#">Finance</a></div>
-                    <div class="breadcrumb-item">Pelunasan Pabrik</div>
+                    <div class="breadcrumb-item">Pelunasan Supplier</div>
                 </div>
             </div>
 
@@ -123,21 +123,61 @@
                         <div class="filter-card">
                             <form id="filter-form">
                                 <div class="row align-items-end">
-                                    <div class="col-md-4 mb-3">
+                                    <div class="col-md-3 mb-3">
                                         <label class="font-weight-600 small text-muted">TANGGAL MULAI</label>
                                         <input type="date" class="form-control form-control-custom" id="start_date" name="start_date" value="{{ date('Y-m-01') }}">
                                     </div>
-                                    <div class="col-md-4 mb-3">
+                                    <div class="col-md-3 mb-3">
                                         <label class="font-weight-600 small text-muted">TANGGAL SELESAI</label>
                                         <input type="date" class="form-control form-control-custom" id="end_date" name="end_date" value="{{ date('Y-m-d') }}">
                                     </div>
-                                    <div class="col-md-4 mb-3">
+                                    <div class="col-md-3 mb-3">
+                                        <label class="font-weight-600 small text-muted">SUPPLIER / PABRIK</label>
+                                        <select class="form-control select2" id="supplier_id" name="supplier_id">
+                                            <option value="">Semua Supplier</option>
+                                            @foreach($suppliers as $s)
+                                                <option value="{{ $s->id }}">{{ $s->name }}</option>
+                                            @endforeach
+                                        </select>
+                                    </div>
+                                    <div class="col-md-3 mb-3">
                                         <button type="submit" class="btn btn-primary btn-block" style="height: 40px; border-radius: 8px; font-weight: 700;">
                                             <i class="fas fa-sync-alt mr-1"></i> Update Laporan
                                         </button>
                                     </div>
                                 </div>
                             </form>
+                        </div>
+                    </div>
+                    <div class="card-body pt-0">
+                        <!-- Summary Cards -->
+                        <div class="row">
+                            <div class="col-md-4">
+                                <div class="card bg-primary text-white shadow-none mb-3" style="border-radius: 12px;">
+                                    <div class="card-body p-3 text-center">
+                                        <div class="small opacity-75 font-weight-bold text-uppercase">Total Produk Terjual</div>
+                                        <div class="h4 font-weight-bold mb-0" id="summary-total-qty">0</div>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="card bg-danger text-white shadow-none mb-3" style="border-radius: 12px;">
+                                    <div class="card-body p-3 text-center">
+                                        <div class="small opacity-75 font-weight-bold text-uppercase">Total Pelunasan (HPP)</div>
+                                        <div class="h4 font-weight-bold mb-0" id="summary-total-cost">Rp 0</div>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-4" id="supplier-info-wrapper" style="display: none;">
+                                <div class="card border shadow-none mb-3" style="border-radius: 12px; background: #f0fdfa; border-color: #0d9488 !important;">
+                                    <div class="card-body p-3">
+                                        <div class="small text-primary font-weight-bold text-uppercase mb-1">Info Rekening Supplier</div>
+                                        <div class="font-weight-bold text-dark" id="supplier-bank-name">-</div>
+                                        <div class="h5 font-weight-bold text-primary mb-0" id="supplier-account-no">-</div>
+                                        <div class="small text-muted font-weight-bold" id="supplier-account-name">-</div>
+                                    </div>
+                                </div>
+                            </div>
                         </div>
                     </div>
                     <div class="card-body">
@@ -147,6 +187,7 @@
                                      <tr>
                                          <th width="10px">#</th>
                                          <th>Nama Produk</th>
+                                         <th>Supplier</th>
                                          <th class="text-right">HPP Satuan</th>
                                          <th class="text-center">Total Terjual</th>
                                          <th class="text-right">Total</th>
@@ -175,6 +216,7 @@
                     data: function(d) {
                         d.start_date = $('#start_date').val();
                         d.end_date = $('#end_date').val();
+                        d.supplier_id = $('#supplier_id').val();
                     }
                 },
                 columns: [
@@ -182,6 +224,13 @@
                     { 
                         data: 'product_name', 
                         name: 'product_name'
+                    },
+                    { 
+                        data: 'supplier_name', 
+                        name: 'supplier_name',
+                        render: function(data) {
+                            return data ? `<span class="badge badge-light border text-dark font-weight-bold">${data}</span>` : '<span class="text-muted small">Tanpa Supplier</span>';
+                        }
                     },
                     { 
                         data: 'buy_price', 
@@ -215,10 +264,28 @@
                 updateExportUrls();
             });
 
+            table.on('xhr', function() {
+                const json = table.ajax.json();
+                const summary = json.summary;
+
+                $('#summary-total-qty').text(new Intl.NumberFormat('id-ID').format(summary.total_qty));
+                $('#summary-total-cost').text('Rp ' + new Intl.NumberFormat('id-ID').format(summary.total_cost));
+
+                if (summary.supplier) {
+                    $('#supplier-info-wrapper').show();
+                    $('#supplier-bank-name').text(summary.supplier.bank_name || '-');
+                    $('#supplier-account-no').text(summary.supplier.account_number || '-');
+                    $('#supplier-account-name').text(summary.supplier.account_holder_name || '-');
+                } else {
+                    $('#supplier-info-wrapper').hide();
+                }
+            });
+
             function updateExportUrls() {
                 const startDate = $('#start_date').val();
                 const endDate = $('#end_date').val();
-                const params = `?start_date=${startDate}&end_date=${endDate}`;
+                const supplierId = $('#supplier_id').val();
+                const params = `?start_date=${startDate}&end_date=${endDate}&supplier_id=${supplierId}`;
                 
                 $('#btn-export-excel').attr('href', "{{ route('admin.finance.settlement.export.excel') }}" + params);
                 $('#btn-export-pdf').attr('href', "{{ route('admin.finance.settlement.export.pdf') }}" + params);

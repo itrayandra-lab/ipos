@@ -254,6 +254,9 @@
                     <div class="card-header">
                         <h4>Filter Transaksi</h4>
                         <div class="card-header-form">
+                            <a href="{{ route('admin.online_sale.create') }}" class="btn btn-primary btn-sm mr-2" style="border-radius: 8px; font-weight: 700; background: #0d9488; border: none;">
+                                <i class="fas fa-plus mr-1"></i> Rekam Penjualan Saluran
+                            </a>
                             <a href="{{ route('admin.transactions.report.product') }}" class="btn btn-info btn-sm mr-2" style="border-radius: 8px; font-weight: 700;">
                                 <i class="fas fa-chart-line mr-1"></i> Laporan Per Produk
                             </a>
@@ -279,7 +282,7 @@
                         <div class="filter-card">
                             <form id="filter-form">
                                 <div class="row align-items-end">
-                                    <div class="col-md-3 mb-3">
+                                    <div class="col-md-2 mb-3">
                                         <label for="delivery_type" class="form-label">Tipe Pengiriman</label>
                                         <select class="form-control form-control-custom" id="delivery_type" name="delivery_type">
                                             <option value="">Semua Tipe</option>
@@ -287,7 +290,17 @@
                                             <option value="delivery">Delivery</option>
                                         </select>
                                     </div>
-                                    <div class="col-md-3 mb-3">
+                                    <div class="col-md-2 mb-3">
+                                        <label for="source_filter" class="form-label">Saluran</label>
+                                        <select class="form-control form-control-custom" id="source_filter" name="source">
+                                            <option value="">Semua Saluran</option>
+                                            <option value="offline">Offline</option>
+                                            @foreach(\App\Models\ChannelSetting::orderBy('name')->get() as $channel)
+                                                <option value="{{ $channel->slug }}">{{ $channel->name }}</option>
+                                            @endforeach
+                                        </select>
+                                    </div>
+                                    <div class="col-md-2 mb-3">
                                         <label for="payment_status" class="form-label">Status Pembayaran</label>
                                         <select class="form-control form-control-custom" id="payment_status" name="payment_status">
                                             <option value="">Semua Status</option>
@@ -326,6 +339,7 @@
                                     <th>User / Admin</th>
                                     <th>Total Transaksi</th>
                                     <th>Status Pembayaran</th>
+                                    <th>Saluran</th>
                                     <th>Pengiriman</th>
                                     <th>Tanggal Transaksi</th>
                                     <th width="10px">Action</th>
@@ -353,6 +367,7 @@
                     data: function(d) {
                         d.delivery_type = $('#delivery_type').val();
                         d.payment_status = $('#payment_status').val();
+                        d.source = $('#source_filter').val();
                         d.start_date = $('#start_date').val();
                         d.end_date = $('#end_date').val();
                     }
@@ -387,6 +402,21 @@
                         }
                     },
                     { 
+                        data: 'source', 
+                        name: 'source',
+                        render: function(data, type, row) {
+                            if (!data || data == 'offline') return '<span class="badge badge-light">Offline</span>';
+                            let colors = {
+                                'shopee': 'badge-soft-warning',
+                                'tokopedia': 'badge-soft-success',
+                                'tiktok': 'badge-soft-secondary',
+                                'whatsapp': 'badge-soft-info'
+                            };
+                            let cls = colors[data.toLowerCase()] || 'badge-soft-info';
+                            return `<span class="badge-soft ${cls}">${data.toUpperCase()}</span>`;
+                        }
+                    },
+                    { 
                         data: 'delivery_type', 
                         name: 'delivery_type',
                         render: function(data, type, row) {
@@ -411,6 +441,7 @@
             window.resetFilter = function() {
                 $('#delivery_type').val('');
                 $('#payment_status').val('');
+                $('#source_filter').val('');
                 $('#start_date').val('');
                 $('#end_date').val('');
                 table.draw();

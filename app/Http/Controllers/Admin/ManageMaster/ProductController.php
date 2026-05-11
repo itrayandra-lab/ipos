@@ -8,6 +8,7 @@ use App\Models\Product;
 use App\Models\Category;
 use App\Models\PhotoProduct;
 use App\Models\Voucher;
+use App\Models\Supplier;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Str;
 use Yajra\DataTables\Facades\DataTables;
@@ -45,6 +46,7 @@ class ProductController extends Controller
         })->orderBy('name', 'ASC')->get();
 
         $productTiers = \App\Models\ProductTier::all();
+        $suppliers = Supplier::select('id', 'name')->orderBy('name', 'ASC')->get();
 
         return view('admin.manage_master.products.create')->with([
             'sb' => 'Product',
@@ -52,13 +54,14 @@ class ProductController extends Controller
             'productTypes' => $productTypes,
             'merek' => $merek,
             'netto_attributes' => $netto_attributes,
-            'productTiers' => $productTiers
+            'productTiers' => $productTiers,
+            'suppliers' => $suppliers
         ]);
     }
 
     public function edit($id)
     {
-        $product = Product::with(['variants.netto', 'photos', 'subCategory'])->findOrFail($id);
+        $product = Product::with(['variants.netto', 'photos', 'subCategory', 'bundleItems.product'])->findOrFail($id);
         $categories = Category::select('id', 'name', 'code')->orderBy('name', 'ASC')->get();
         $productTypes = \App\Models\ProductType::select('id', 'name')->orderBy('name', 'ASC')->get();
         $merek = \App\Models\Merek::orderBy('name', 'ASC')->get();
@@ -67,6 +70,7 @@ class ProductController extends Controller
         })->orderBy('name', 'ASC')->get();
 
         $productTiers = \App\Models\ProductTier::all();
+        $suppliers = Supplier::select('id', 'name')->orderBy('name', 'ASC')->get();
 
         return view('admin.manage_master.products.edit')->with([
             'sb' => 'Product',
@@ -75,7 +79,8 @@ class ProductController extends Controller
             'productTypes' => $productTypes,
             'merek' => $merek,
             'netto_attributes' => $netto_attributes,
-            'productTiers' => $productTiers
+            'productTiers' => $productTiers,
+            'suppliers' => $suppliers
         ]);
     }
 
@@ -84,8 +89,11 @@ class ProductController extends Controller
         $warehouseId = $request->warehouse_id;
         $search = $request->search;
 
-        $query = Product::with(['merek', 'variants'])
-            ->where('status', 'Y');
+        $query = Product::with(['merek', 'variants', 'batches' => function($q) {
+                $q->orderBy('id', 'desc');
+            }])
+            ->where('status', 'Y')
+            ->where('is_bundle', false); // Can't nest bundles for now
 
         if ($warehouseId) {
             $query->whereHas('batches', function($q) use ($warehouseId) {
@@ -102,14 +110,32 @@ class ProductController extends Controller
             });
         }
 
-        $products = $query->limit(100)->get();
+        $products = $query->limit(50)->get()->map(function($p) {
+            $latestBatch = $p->batches->first();
+            $variant = $p->variants->first();
+            
+            $het = $variant ? $variant->het_online : $p->price_real;
+            $legacy = $variant ? $variant->price : $p->price;
+            $isApproved = $variant ? $variant->is_approved : false;
+
+            return [
+                'id' => $p->id,
+                'name' => $p->name,
+                'merek_name' => $p->merek?->name,
+                'buy_price' => $latestBatch?->buy_price ?? 0,
+                'selling_price' => $variant ? $variant->getSellingPrice() : ($p->price_real > 0 ? $p->price_real : $p->price),
+                'het_online' => $het,
+                'legacy_price' => $legacy,
+                'is_approved' => $isApproved
+            ];
+        });
 
         return response()->json($products);
     }
 
     public function getall(Request $request)
     {
-        $query = Product::with(['merek', 'photos', 'category', 'subCategory', 'productType', 'productTier', 'variants'])
+        $query = Product::with(['merek', 'supplier', 'photos', 'category', 'subCategory', 'productType', 'productTier', 'variants'])
             ->orderBy('id', 'desc')
             ->get();
 
@@ -127,8 +153,10 @@ class ProductController extends Controller
             return !empty($hierarchy) ? implode(' > ', $hierarchy) : '<span class="text-muted">No Hierarchy</span>';
         })
             ->addColumn('merek_name', function (Product $product) {
-            return $product->merek ? $product->merek->name : '-';
-        })
+                $merek = $product->merek ? $product->merek->name : '-';
+                $supplier = $product->supplier ? '<br><small class="text-muted" style="font-size: 10px;">Sup: ' . $product->supplier->name . '</small>' : '';
+                return $merek . $supplier;
+            })
             ->addColumn('variant_count', function (Product $product) {
             return $product->variants->count() . ' SKUs';
         })
@@ -156,7 +184,7 @@ class ProductController extends Controller
                 </div>
                 ';
         })
-            ->rawColumns(['hierarchy', 'photos_preview', 'action'])
+            ->rawColumns(['hierarchy', 'merek_name', 'photos_preview', 'action'])
             ->make(true);
     }
 
@@ -169,6 +197,7 @@ class ProductController extends Controller
             'category_id' => 'required|exists:categories,id',
             'sub_category_id' => 'nullable|exists:sub_categories,id',
             'product_type_id' => 'required|exists:product_types,id',
+            'supplier_id' => 'nullable|exists:suppliers,id',
             'min_stock_alert' => 'required|integer|min:0',
             'variants' => 'required|array|min:1',
         ]);
@@ -201,6 +230,7 @@ class ProductController extends Controller
                 'code' => $productCodeInput,
                 'slug' => $slug,
                 'merek_id' => $request->merek_id,
+                'supplier_id' => $request->supplier_id,
                 'category_id' => $request->category_id,
                 'sub_category_id' => $request->sub_category_id,
                 'product_type_id' => $request->product_type_id,
@@ -220,6 +250,7 @@ class ProductController extends Controller
                         'quantity' => $bi['quantity'],
                     ]);
                 }
+                $product->syncBundlePrice();
             }
 
             // Save Variants
@@ -316,6 +347,7 @@ class ProductController extends Controller
             'category_id' => 'required|exists:categories,id',
             'sub_category_id' => 'nullable|exists:sub_categories,id',
             'product_type_id' => 'required|exists:product_types,id',
+            'supplier_id' => 'nullable|exists:suppliers,id',
             'min_stock_alert' => 'required|integer|min:0',
             'variants' => 'required|array|min:1',
             'deleted_photos' => 'nullable|string',
@@ -343,6 +375,7 @@ class ProductController extends Controller
                 'code' => $productCodeInput,
                 'slug' => $slug,
                 'merek_id' => $request->merek_id,
+                'supplier_id' => $request->supplier_id,
                 'category_id' => $request->category_id,
                 'sub_category_id' => $request->sub_category_id,
                 'product_type_id' => $request->product_type_id,
@@ -367,6 +400,7 @@ class ProductController extends Controller
                         ]);
                     }
                 }
+                $product->syncBundlePrice();
             } else {
                 $product->bundleItems()->delete();
             }

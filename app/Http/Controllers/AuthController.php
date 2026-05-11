@@ -28,7 +28,7 @@ class AuthController extends Controller
         ]);
 
         if ($validator->fails()) {
-            return redirect()->to('/')
+            return redirect()->to('/login')
                 ->withErrors(['message' => 'Email & Password wajib diisi!'])
                 ->withInput($request->all());
         }
@@ -44,12 +44,12 @@ class AuthController extends Controller
                 return redirect()->intended('/admin');
             } else {
                 Auth::logout();
-                return redirect()->to('/')
+                return redirect()->to('/login')
                     ->withErrors(['message' => 'Role tidak dikenali']);
             }
         }
 
-        return redirect()->to('/')
+        return redirect()->to('/login')
             ->withErrors(['message' => 'Email atau Password salah'])
             ->withInput($request->all());
     }
@@ -60,6 +60,6 @@ class AuthController extends Controller
         $request->session()->invalidate();
         $request->session()->regenerateToken();
 
-        return redirect()->to('/');
+        return redirect()->to('/login');
     }
 }

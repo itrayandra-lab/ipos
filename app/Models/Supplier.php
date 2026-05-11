@@ -46,6 +46,11 @@ class Supplier extends Model
         return $this->hasMany(GoodsReceipt::class);
     }
 
+    public function products()
+    {
+        return $this->hasMany(Product::class);
+    }
+
     // Auto-generate supplier code
     public static function generateCode()
     {

@@ -28,6 +28,7 @@ class SettlementExport implements FromCollection, WithHeadings, WithMapping, Sho
         return [
             'No',
             'Nama Produk',
+            'Supplier',
             'HPP Satuan',
             'Total Terjual',
             'Total',
@@ -62,6 +63,7 @@ class SettlementExport implements FromCollection, WithHeadings, WithMapping, Sho
         return [
             $no,
             $finalName,
+            $row->supplier_name ?? '-',
             $row->buy_price,
             $row->total_qty,
             $row->total_cost,

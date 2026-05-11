@@ -12,8 +12,10 @@ class SettlementController extends Controller
 {
     public function index()
     {
+        $suppliers = \App\Models\Supplier::select('id', 'name')->orderBy('name', 'ASC')->get();
         return view('admin.finance.settlement_report')->with([
-            'sb' => 'FinanceSettlement'
+            'sb' => 'FinanceSettlement',
+            'suppliers' => $suppliers
         ]);
     }
 
@@ -61,7 +63,34 @@ class SettlementController extends Controller
                         </button>';
             })
             ->rawColumns(['product_name', 'action'])
+            ->with('summary', $this->getSummary($request))
             ->make(true);
+    }
+
+    private function getSummary(Request $request)
+    {
+        $query = $this->getFilteredQuery($request);
+        
+        // Clone the query to calculate totals without grouping/ordering of the main table
+        // Actually, since getFilteredQuery already has SUMs and GroupBy, we need to wrap it.
+        $totals = DB::table(DB::raw("({$query->toSql()}) as sub"))
+            ->mergeBindings($query)
+            ->select(
+                DB::raw('SUM(total_qty) as grand_total_qty'),
+                DB::raw('SUM(total_cost) as grand_total_cost')
+            )
+            ->first();
+
+        $supplier = null;
+        if ($request->has('supplier_id') && !empty($request->supplier_id)) {
+            $supplier = \App\Models\Supplier::find($request->supplier_id);
+        }
+
+        return [
+            'total_qty' => $totals->grand_total_qty ?? 0,
+            'total_cost' => $totals->grand_total_cost ?? 0,
+            'supplier' => $supplier
+        ];
     }
 
     private function getFilteredQuery(Request $request)
@@ -73,12 +102,14 @@ class SettlementController extends Controller
                 'transaction_items.buy_price',
                 'merek.name as merek_name',
                 'products.name as product_name',
+                'suppliers.name as supplier_name',
                 'product_variants.variant_name',
                 'product_variants.sku_code',
                 DB::raw('SUM(transaction_items.qty) as total_qty'),
                 DB::raw('SUM(transaction_items.qty * transaction_items.buy_price) as total_cost')
             )
             ->join('products', 'transaction_items.product_id', '=', 'products.id')
+            ->leftJoin('suppliers', 'products.supplier_id', '=', 'suppliers.id')
             ->leftJoin('merek', 'products.merek_id', '=', 'merek.id')
             ->leftJoin('product_variants', 'transaction_items.product_variant_id', '=', 'product_variants.id')
             ->join('transactions', 'transaction_items.transaction_id', '=', 'transactions.id');
@@ -89,6 +120,11 @@ class SettlementController extends Controller
         }
         if ($request->has('end_date') && !empty($request->end_date)) {
             $query->where('transactions.created_at', '<=', Carbon::parse($request->end_date)->endOfDay());
+        }
+
+        // Filter by supplier
+        if ($request->has('supplier_id') && !empty($request->supplier_id)) {
+            $query->where('products.supplier_id', $request->supplier_id);
         }
 
         // Bundling Logic: Show components, hide bundle parents
@@ -103,6 +139,7 @@ class SettlementController extends Controller
             'transaction_items.buy_price',
             'merek.name', 
             'products.name', 
+            'suppliers.name',
             'product_variants.variant_name', 
             'product_variants.sku_code'
         )
@@ -112,14 +149,14 @@ class SettlementController extends Controller
     public function exportExcel(Request $request)
     {
         $items = $this->getFilteredQuery($request)->get();
-        return \Maatwebsite\Excel\Facades\Excel::download(new \App\Exports\SettlementExport($items), 'Laporan-Pelunasan-Pabrik-' . date('d-m-Y') . '.xlsx');
+        return \Maatwebsite\Excel\Facades\Excel::download(new \App\Exports\SettlementExport($items), 'Laporan-Pelunasan-Supplier-' . date('d-m-Y') . '.xlsx');
     }
 
     public function exportPdf(Request $request)
     {
         $items = $this->getFilteredQuery($request)->get();
         $pdf = \Barryvdh\DomPDF\Facade\Pdf::loadView('admin.finance.settlement_pdf', compact('items'));
-        return $pdf->download('Laporan-Pelunasan-Pabrik-' . date('d-m-Y') . '.pdf');
+        return $pdf->download('Laporan-Pelunasan-Supplier-' . date('d-m-Y') . '.pdf');
     }
 
     public function detail(Request $request)

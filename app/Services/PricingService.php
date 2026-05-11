@@ -15,12 +15,13 @@ class PricingService
         $setting = ChannelSetting::where('slug', $channelSlug)->first();
         if (!$setting) return 0;
 
-        // Current requirement: Use price from variant for POS/Invoice
-        if ($batch->variant && $batch->variant->price > 0) {
-            return $batch->variant->price;
+        // If it's a specific variant, use its smart pricing logic (HET Online vs Legacy)
+        if ($batch->variant) {
+            return $batch->variant->getSellingPrice();
         }
 
-        return self::calculateFinalPrice($batch->buy_price, $setting);
+        // Fallback to product price if no variant
+        return $batch->product->price_real > 0 ? $batch->product->price_real : $batch->product->price;
     }
 
     /**

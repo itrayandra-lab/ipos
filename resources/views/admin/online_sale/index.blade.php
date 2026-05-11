@@ -1,31 +1,140 @@
 @extends('master')
-
-@section('title', 'Record Online Marketplace Sale')
+@section('title', 'Rekam Penjualan Saluran')
 
 @push('styles')
 <style>
-    /* Custom styling for Select2 dropdown text wrapping */
-    .select2-container .select2-selection--single {
+    :root {
+        --primary-gradient: linear-gradient(135deg, #0d9488 0%, #0f766e 100%);
+        --glass-bg: rgba(255, 255, 255, 0.9);
+        --glass-border: rgba(255, 255, 255, 0.2);
+    }
+
+    .section-header {
+        background: #fff;
+        padding: 20px 25px !important;
+        border-radius: 15px;
+        box-shadow: 0 4px 20px rgba(0,0,0,0.05);
+        margin-bottom: 25px !important;
+        border-left: 5px solid #0d9488;
+    }
+
+    .premium-card {
+        background: #fff;
+        border-radius: 20px;
+        border: 1px solid #f1f5f9;
+        box-shadow: 0 10px 40px rgba(0,0,0,0.04);
+        margin-bottom: 30px;
+    }
+
+    .card-header-premium {
+        background: #fff;
+        padding: 22px 25px;
+        border-bottom: 1px solid #f1f5f9;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        border-radius: 20px 20px 0 0;
+    }
+
+    .card-header-premium h4 {
+        margin: 0;
+        font-weight: 700;
+        color: #0d9488;
+        font-size: 16px;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+    }
+
+    .form-label-custom {
+        font-weight: 700;
+        color: #64748b;
+        font-size: 12px;
+        margin-bottom: 8px;
+        display: block;
+    }
+
+    .form-control-premium {
+        border-radius: 10px !important;
+        border: 1.5px solid #e2e8f0 !important;
+        padding: 10px 15px !important;
         height: auto !important;
-        min-height: 38px !important;
+        transition: all 0.3s ease;
+    }
+
+    .form-control-premium:focus {
+        border-color: #0d9488 !important;
+        box-shadow: 0 0 0 4px rgba(13, 148, 136, 0.1) !important;
+    }
+
+    /* Select2 Table Style */
+    .select2-container--default .select2-selection--single {
+        border-radius: 10px !important;
+        border: 1.5px solid #e2e8f0 !important;
+        height: auto !important;
+        min-height: 42px !important;
+        padding-top: 5px !important;
     }
     .select2-container--default .select2-selection--single .select2-selection__rendered {
         white-space: normal !important;
         word-wrap: break-word !important;
         line-height: 1.4 !important;
         padding: 8px 12px !important;
+        font-size: 13px !important;
     }
-    .select2-results__option {
-        white-space: normal !important;
-        word-wrap: break-word !important;
-        line-height: 1.4 !important;
+
+    #items-table th {
+        background: #f8fafc !important;
+        color: #475569 !important;
+        font-weight: 700 !important;
+        text-transform: uppercase !important;
+        font-size: 11px !important;
+        letter-spacing: 0.5px !important;
+        padding: 15px !important;
+        border: none !important;
     }
-    /* Table cell text wrapping */
-    .table td {
-        vertical-align: top !important;
+
+    #items-table td {
+        padding: 12px 15px !important;
+        vertical-align: middle !important;
+        border-bottom: 1px solid #f1f5f9 !important;
     }
-    .batch-dropdown {
-        width: 100% !important;
+
+    .amount-input {
+        font-weight: 700 !important;
+        text-align: right !important;
+        color: #0f172a !important;
+    }
+
+    .subtotal-label {
+        font-weight: 800;
+        color: #0d9488;
+        font-size: 16px;
+    }
+
+    .btn-premium-save {
+        background: var(--primary-gradient) !important;
+        border: none !important;
+        border-radius: 12px !important;
+        padding: 12px 35px !important;
+        font-weight: 700 !important;
+        color: #fff !important;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+        font-size: 13px !important;
+        box-shadow: 0 4px 15px rgba(13, 148, 136, 0.3) !important;
+        transition: all 0.3s ease;
+    }
+
+    .btn-premium-save:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 8px 20px rgba(13, 148, 136, 0.4) !important;
+    }
+
+    .card-footer-premium {
+        background: #f8fafc;
+        padding: 25px 30px;
+        border-top: 1px solid #f1f5f9;
+        border-radius: 0 0 20px 20px;
     }
 </style>
 @endpush
@@ -34,113 +143,106 @@
 <div class="main-content">
     <section class="section">
         <div class="section-header">
-            <h1>Pasar / Penjualan Online</h1>
+            <h1>Rekam Penjualan Saluran</h1>
             <div class="section-header-breadcrumb">
-                <div class="breadcrumb-item"><a href="/admin">Dashboard</a></div>
-                <div class="breadcrumb-item active">Online Sale</div>
+                <div class="breadcrumb-item"><a href="{{ route('admin.transactions.index') }}">Data Transaksi</a></div>
+                <div class="breadcrumb-item active">Rekam Baru</div>
             </div>
         </div>
 
         <div class="section-body">
-            <h2 class="section-title">Rekam Penjualan Marketplace</h2>
-            <p class="section-lead">Pilih platform, lalu ketik untuk mencari produk dan batch spesifik.</p>
-
-            <form action="{{ route('admin.online_sale.store') }}" method="POST" enctype="multipart/form-data">
+            <form action="{{ route('admin.online_sale.store') }}" method="POST" enctype="multipart/form-data" id="online-sale-form">
                 @csrf
-                <div class="row">
-                    <div class="col-12 col-md-4">
-                        <div class="card">
-                            <div class="card-header">
-                                <h4>Informasi Pesanan</h4>
-                            </div>
-                            <div class="card-body">
-                                @if(session('message'))
-                                    <div class="alert alert-success">{{ session('message') }}</div>
-                                @endif
-                                @if(session('error'))
-                                    <div class="alert alert-danger">{{ session('error') }}</div>
-                                @endif
-
+                
+                <!-- TOP: Order Information -->
+                <div class="premium-card">
+                    <div class="card-header-premium">
+                        <h4><i class="fas fa-info-circle mr-2"></i> Informasi Saluran & Pesanan</h4>
+                    </div>
+                    <div class="card-body p-4">
+                        <div class="row">
+                            <div class="col-md-3">
                                 <div class="form-group">
-                                    <label>Platform Sumber</label>
-                                    <select name="source" class="form-control selectric" required>
-                                        <option value="">Pilih Platform</option>
+                                    <label class="form-label-custom">Pilih Saluran / Platform</label>
+                                    <select name="source" class="form-control form-control-premium select2" required id="source-select">
+                                        <option value="">Pilih Saluran...</option>
                                         @foreach($channels as $channel)
                                             <option value="{{ $channel->slug }}" {{ old('source') == $channel->slug ? 'selected' : '' }}>{{ $channel->name }}</option>
                                         @endforeach
                                     </select>
                                 </div>
-
+                            </div>
+                            <div class="col-md-3">
                                 <div class="form-group">
-                                    <label>Tanggal Transaksi (Opsional)</label>
-                                    <input type="datetime-local" name="transaction_date" class="form-control" value="{{ old('transaction_date') }}">
-                                    <small class="text-muted">Kosongkan untuk menggunakan waktu sekarang.</small>
+                                    <label class="form-label-custom">Nama Customer (Opsional)</label>
+                                    <input type="text" name="customer_name" class="form-control form-control-premium" placeholder="Nama pembeli" value="{{ old('customer_name') }}">
                                 </div>
-
+                            </div>
+                            <div class="col-md-3">
                                 <div class="form-group">
-                                    <label>Nomor Pesanan / Catatan</label>
-                                    <textarea name="notes" class="form-control" placeholder="Contoh: No Pesanan platform" style="height: 100px;">{{ old('notes') }}</textarea>
+                                    <label class="form-label-custom">No. Pesanan / ID Transaksi</label>
+                                    <input type="text" name="notes" class="form-control form-control-premium" placeholder="Contoh: No Pesanan platform" value="{{ old('notes') }}">
                                 </div>
-
+                            </div>
+                            <div class="col-md-3">
                                 <div class="form-group">
-                                    <label>Bukti Pembayaran (Gambar/PDF)</label>
-                                    <input type="file" name="payment_receipt" class="form-control">
-                                    <small class="text-muted">Maksimal 2MB (JPG, PNG, PDF)</small>
+                                    <label class="form-label-custom">Bukti Bayar (Gambar/PDF)</label>
+                                    <input type="file" name="payment_receipt" class="form-control form-control-premium">
                                 </div>
                             </div>
                         </div>
                     </div>
+                </div>
 
-                    <div class="col-12 col-md-8">
-                        <div class="card">
-                            <div class="card-header">
-                                <h4>Daftar Produk</h4>
-                                <div class="card-header-action">
-                                    <button type="button" class="btn btn-primary" id="add-item">
-                                        <i class="fas fa-plus"></i> Tambah Baris
-                                    </button>
+                <!-- MIDDLE: Product List -->
+                <div class="premium-card" style="overflow: visible;">
+                    <div class="card-header-premium">
+                        <h4><i class="fas fa-shopping-basket mr-2"></i> Item Penjualan</h4>
+                    </div>
+                    <div class="card-body p-0" style="overflow: visible;">
+                        <div class="table-outer" style="overflow: visible;">
+                            <table class="table mb-0" id="items-table">
+                                <thead>
+                                    <tr>
+                                        <th style="width: 45%;">Produk & Batch</th>
+                                        <th style="width: 15%;">Qty</th>
+                                        <th style="width: 20%;">Harga Satuan</th>
+                                        <th style="width: 15%;">Total</th>
+                                        <th style="width: 5%;"></th>
+                                    </tr>
+                                </thead>
+                                <tbody id="items-container">
+                                    {{-- Row will be added via JS --}}
+                                </tbody>
+                            </table>
+                        </div>
+                        <div class="p-3">
+                            <button type="button" class="btn btn-outline-primary btn-sm" id="add-item" style="border-radius: 8px; font-weight: 700;">
+                                <i class="fas fa-plus mr-1"></i> Tambah Item
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- BOTTOM: Summary & Action -->
+                <div class="row">
+                    <div class="col-md-7"></div>
+                    <div class="col-md-5">
+                        <div class="premium-card">
+                            <div class="card-body p-4">
+                                <div class="d-flex justify-content-between align-items-center mb-3">
+                                    <span class="text-muted font-weight-bold">SUBTOTAL</span>
+                                    <span class="subtotal-label" id="label-subtotal">Rp 0</span>
+                                </div>
+                                <div class="d-flex justify-content-between align-items-center border-top pt-3">
+                                    <span class="h6 mb-0 font-weight-bold text-dark">TOTAL AKHIR</span>
+                                    <span class="h4 mb-0 font-weight-bold text-primary" id="label-grand-total">Rp 0</span>
                                 </div>
                             </div>
-                            <div class="card-body p-0">
-                                <div class="table-responsive">
-                                    <table class="table table-striped table-md">
-                                        <thead>
-                                            <tr>
-                                                <th style="width: 70%;">Produk & Batch (Cari di sini)</th>
-                                                <th style="width: 20%;">Qty</th>
-                                                <th style="width: 10%;"></th>
-                                            </tr>
-                                        </thead>
-                                        <tbody id="items-container">
-                                            <tr class="item-row">
-                                                <td style="width: 70%; word-wrap: break-word; white-space: normal;">
-                                                    <select name="items[0][product_batch_id]" class="form-control select2 batch-dropdown" required style="width: 100%;">
-                                                        <option value="">Ketik nama produk atau batch...</option>
-                                                        @foreach($batchList as $batch)
-                                                            <option value="{{ $batch->id }}" 
-                                                                    data-stock="{{ $batch->stock }}"
-                                                                    data-prices="{{ json_encode($batch->prices) }}">
-                                                                {{ $batch->text }}
-                                                            </option>
-                                                        @endforeach
-                                                    </select>
-                                                </td>
-                                                <td style="width: 20%;">
-                                                    <input type="number" name="items[0][qty]" class="form-control qty-input" required min="1" value="1">
-                                                    <small class="batch-info text-info"></small>
-                                                    <div class="mt-2 suggested-price-wrapper" style="display:none;">
-                                                        <small class="text-muted">Rekomendasi:</small><br>
-                                                        <span class="badge badge-light suggested-price-text"></span>
-                                                    </div>
-                                                </td>
-                                                <td style="width: 10%;"></td>
-                                            </tr>
-                                        </tbody>
-                                    </table>
-                                </div>
-                            </div>
-                            <div class="card-footer text-right">
-                                <button class="btn btn-success btn-lg" type="submit">Simpan Transaksi</button>
+                            <div class="card-footer-premium text-right">
+                                <button type="submit" class="btn btn-premium-save shadow-sm">
+                                    <i class="fas fa-check-circle mr-2"></i> Simpan Penjualan
+                                </button>
                             </div>
                         </div>
                     </div>
@@ -153,90 +255,133 @@
 
 @push('scripts')
 <script>
-    let itemIndex = 1;
+    const batchData = @json($batchList);
+    let itemIndex = 0;
+
+    function formatNumber(n) {
+        return parseInt(n || 0).toLocaleString('id-ID');
+    }
 
     function initSelect2(element) {
         $(element).select2({
-            placeholder: 'Ketik nama produk/batch...',
-            width: '100%',
-            allowClear: true
+            placeholder: 'Cari produk/batch...',
+            width: '100%'
         });
     }
 
-    // Initialize first row
-    $(document).ready(function() {
-        initSelect2('.batch-dropdown');
-    });
-
-    // Handle batch selection change for info and pricing
-    $(document).on('change', '.batch-dropdown, select[name="source"]', function() {
-        updatePriceSuggestions();
-    });
-
-    function updatePriceSuggestions() {
-        let source = $('select[name="source"]').val();
-        
-        $('.item-row').each(function() {
-            let row = $(this);
-            let selectedOption = row.find('.batch-dropdown option:selected');
-            let stock = selectedOption.data('stock');
-            let prices = selectedOption.data('prices');
-
-            if(stock !== undefined) {
-                row.find('.batch-info').text('Tersedia: ' + stock);
-                row.find('.qty-input').attr('max', stock);
-            } else {
-                row.find('.batch-info').text('');
-            }
-
-            if(source && prices && prices[source]) {
-                row.find('.suggested-price-text').text('Rp ' + prices[source].toLocaleString('id-ID'));
-                row.find('.suggested-price-wrapper').show();
-            } else {
-                row.find('.suggested-price-wrapper').hide();
-            }
+    function buildBatchOptions() {
+        let html = '<option value="">-- Pilih Produk --</option>';
+        batchData.forEach(function(b) {
+            html += `<option value="${b.id}" data-prices='${JSON.stringify(b.prices)}' data-stock="${b.stock}">${b.text}</option>`;
         });
+        return html;
     }
 
-    // Add new row
-    $('#add-item').click(function() {
-        let html = `
+    function addRow() {
+        const idx = itemIndex++;
+        const html = `
             <tr class="item-row">
-                <td style="width: 70%; word-wrap: break-word; white-space: normal;">
-                    <select name="items[${itemIndex}][product_batch_id]" class="form-control batch-dropdown" required style="width: 100%;">
-                        <option value="">Ketik nama produk atau batch...</option>
-                        @foreach($batchList as $batch)
-                            <option value="{{ $batch->id }}" 
-                                    data-stock="{{ $batch->stock }}"
-                                    data-prices="{{ json_encode($batch->prices) }}">
-                                {{ $batch->text }}
-                            </option>
-                        @endforeach
+                <td>
+                    <select name="items[${idx}][product_batch_id]" class="form-control batch-dropdown select2-item" required>
+                        ${buildBatchOptions()}
                     </select>
                 </td>
-                <td style="width: 20%;">
-                    <input type="number" name="items[${itemIndex}][qty]" class="form-control qty-input" required min="1" value="1">
-                    <small class="batch-info text-info"></small>
-                    <div class="mt-2 suggested-price-wrapper" style="display:none;">
-                        <small class="text-muted">Rekomendasi:</small><br>
-                        <span class="badge badge-light suggested-price-text"></span>
+                <td>
+                    <input type="number" name="items[${idx}][qty]" class="form-control form-control-premium qty-input" value="1" min="1" required>
+                    <small class="batch-info text-primary font-weight-bold mt-1 d-block"></small>
+                </td>
+                <td>
+                    <div class="input-group">
+                        <div class="input-group-prepend">
+                            <span class="input-group-text bg-light border-0 small">Rp</span>
+                        </div>
+                        <input type="number" name="items[${idx}][price]" class="form-control form-control-premium price-input amount-input" value="0" required min="0">
                     </div>
                 </td>
-                <td style="width: 10%;">
-                    <button type="button" class="btn btn-danger btn-sm remove-item"><i class="fas fa-trash"></i></button>
+                <td class="text-right">
+                    <strong class="text-dark">Rp <span class="row-subtotal">0</span></strong>
+                </td>
+                <td class="text-center">
+                    ${idx > 0 ? `<button type="button" class="btn btn-link text-danger remove-item p-0"><i class="fas fa-times-circle fa-lg"></i></button>` : ''}
                 </td>
             </tr>
         `;
-        
-        let $newRow = $(html);
-        $('#items-container').append($newRow);
-        initSelect2($newRow.find('.batch-dropdown'));
-        itemIndex++;
-    });
+        $('#items-container').append(html);
+        initSelect2($(`.select2-item`).last());
+        recalc();
+    }
 
-    // Remove row
-    $(document).on('click', '.remove-item', function() {
-        $(this).closest('.item-row').remove();
+    function recalc() {
+        let total = 0;
+        $('.item-row').each(function() {
+            const qty = parseFloat($(this).find('.qty-input').val()) || 0;
+            const price = parseFloat($(this).find('.price-input').val()) || 0;
+            const sub = qty * price;
+            $(this).find('.row-subtotal').text(formatNumber(sub));
+            total += sub;
+        });
+
+        $('#label-subtotal').text('Rp ' + formatNumber(total));
+        $('#label-grand-total').text('Rp ' + formatNumber(total));
+    }
+
+    $(document).ready(function() {
+        // Add initial row
+        addRow();
+
+        $('#add-item').click(addRow);
+
+        $(document).on('click', '.remove-item', function() {
+            $(this).closest('tr').remove();
+            recalc();
+        });
+
+        $(document).on('input', '.qty-input, .price-input', recalc);
+
+        $(document).on('change', '.batch-dropdown, #source-select', function() {
+            const row = $(this).closest('.item-row');
+            if (row.length === 0) return; // if change triggered by #source-select, update all rows
+
+            if ($(this).attr('id') === 'source-select') {
+                updateAllPrices();
+            } else {
+                updateRowPrice(row);
+            }
+        });
+
+        function updateRowPrice(row) {
+            const selectedOpt = row.find('.batch-dropdown option:selected');
+            const prices = selectedOpt.data('prices');
+            const stock = selectedOpt.data('stock');
+            const source = $('#source-select').val();
+
+            if (stock !== undefined) {
+                row.find('.batch-info').text('Stok: ' + stock);
+            }
+
+            if (prices) {
+                // If source selected, use it. Otherwise use the first available price
+                let price = 0;
+                if (source && prices[source]) {
+                    price = prices[source];
+                } else {
+                    // Get first value from prices object
+                    const values = Object.values(prices);
+                    if (values.length > 0) price = values[0];
+                }
+                
+                const priceInput = row.find('.price-input');
+                // Only auto-fill if currently 0 or just changed the product
+                priceInput.val(price);
+                recalc();
+            }
+        }
+
+        function updateAllPrices() {
+            $('.item-row').each(function() {
+                updateRowPrice($(this));
+            });
+        }
     });
 </script>
 @endpush

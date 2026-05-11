@@ -62,7 +62,7 @@ class PosController extends Controller
                 'text'      => $labelText . ' (' . $batch->batch_no . ' - ' . $batch->qty . ')',
                 'price'     => $batch->variant 
                                 ? $batch->variant->getSellingPrice()
-                                : ($product->price_real > 0 ? $product->price_real : $product->price),
+                                : $product->getSellingPrice(),
                 'stock'     => $batch->qty,
                 'buy_price' => $batch->buy_price ?? 0,
                 'product_id' => $product->id,
@@ -167,10 +167,10 @@ class PosController extends Controller
                     $nettoDisplay = trim($variant->netto->netto_value . ($variant->netto->satuan ? ' ' . $variant->netto->satuan : ''));
                 }
 
-                // Selling price: variant->price first, then product fallback
+                // Selling price logic: variant first, then product fallback (handles bundle/transitional)
                 $sellingPrice = $variant 
                     ? $variant->getSellingPrice()
-                    : ($product->price_real > 0 ? $product->price_real : $product->price);
+                    : $product->getSellingPrice();
 
                 // Fallback to PricingService if still 0
                 if ($sellingPrice <= 0) {

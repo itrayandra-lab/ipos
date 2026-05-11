@@ -27,6 +27,7 @@ class Product extends Model
         'neto',
         'pieces',
         'product_tier_id',
+        'supplier_id',
         'is_bundle'
     ];
 
@@ -75,6 +76,11 @@ class Product extends Model
         return $this->belongsTo(Merek::class , 'merek_id');
     }
 
+    public function supplier()
+    {
+        return $this->belongsTo(Supplier::class);
+    }
+
     public function photos()
     {
         return $this->hasMany(PhotoProduct::class , 'id_product');
@@ -117,5 +123,69 @@ class Product extends Model
                        - (SELECT COALESCE(SUM(qty), 0) FROM supplier_return_items WHERE product_id = products.id)
             WHERE id IN ($ids)
         ");
+    }
+
+    /**
+     * Get the active selling price for this product.
+     * Logic: If bundle, sum components based on approval status.
+     * If not bundle, delegate to first variant or fallback.
+     */
+    public function getSellingPrice()
+    {
+        if ($this->is_bundle) {
+            $items = $this->bundleItems()->with('product.variants')->get();
+            if ($items->isEmpty()) return $this->price;
+
+            $allApproved = true;
+            $totalHet = 0;
+            $totalLegacy = 0;
+
+            foreach ($items as $item) {
+                $comp = $item->product;
+                if (!$comp) continue;
+
+                $variant = $comp->variants->first();
+                if (!$variant) {
+                    $allApproved = false;
+                    $totalLegacy += ($comp->price * $item->quantity);
+                    $totalHet += ($comp->price_real > 0 ? $comp->price_real : $comp->price) * $item->quantity;
+                    continue;
+                }
+
+                if (!$variant->is_approved) {
+                    $allApproved = false;
+                }
+
+                $totalHet += ($variant->het_online > 0 ? $variant->het_online : $variant->price) * $item->quantity;
+                $totalLegacy += ($variant->price > 0 ? $variant->price : $variant->het_online) * $item->quantity;
+            }
+
+            return $allApproved ? $totalHet : $totalLegacy;
+        }
+
+        // For non-bundle products
+        $variant = $this->variants->first();
+        if ($variant) {
+            return $variant->getSellingPrice();
+        }
+
+        return $this->price_real > 0 ? $this->price_real : $this->price;
+    }
+
+    /**
+     * Sync the 'price' field for bundles based on transition logic.
+     */
+    public function syncBundlePrice()
+    {
+        if (!$this->is_bundle) return;
+        
+        $price = $this->getSellingPrice();
+        $this->update(['price' => $price]);
+        
+        // Also update the first variant price if exists
+        $variant = $this->variants->first();
+        if ($variant) {
+            $variant->update(['price' => $price]);
+        }
     }
 }

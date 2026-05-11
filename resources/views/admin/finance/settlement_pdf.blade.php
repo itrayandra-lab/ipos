@@ -15,7 +15,7 @@
 </head>
 <body>
     <div class="header">
-        <h2>Laporan Pelunasan Pabrik (HPP)</h2>
+        <h2>Laporan Pelunasan Supplier (HPP)</h2>
         <p>Tanggal Cetak: {{ date('d-m-Y H:i') }}</p>
     </div>
 
@@ -24,6 +24,7 @@
             <tr>
                 <th width="30px">#</th>
                 <th>Nama Produk</th>
+                <th>Supplier</th>
                 <th class="text-right" width="100px">HPP Satuan</th>
                 <th class="text-center" width="80px">Total Terjual</th>
                 <th class="text-right" width="120px">Total</th>
@@ -57,6 +58,7 @@
                 <tr>
                     <td class="text-center">{{ $index + 1 }}</td>
                     <td>{{ $finalName }}</td>
+                    <td>{{ $row->supplier_name ?? '-' }}</td>
                     <td class="text-right">Rp {{ number_format($row->buy_price, 0, ',', '.') }}</td>
                     <td class="text-center">{{ $row->total_qty }}</td>
                     <td class="text-right">Rp {{ number_format($row->total_cost, 0, ',', '.') }}</td>

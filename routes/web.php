@@ -42,7 +42,16 @@ Route::post('/login', [AuthController::class , 'login']);
 Route::get('/logout', [AuthController::class , 'logout'])->name('logout');
 
 # -------------------- Guest --------------------
-Route::get('/', [GuestController::class , 'home'])->name('home');
+# -------------------- Auth & Entry Point --------------------
+Route::get('/', function () {
+    if (auth()->check()) {
+        if (auth()->user()->role == 'sales') {
+            return redirect('/sales');
+        }
+        return redirect('/admin');
+    }
+    return redirect('/login');
+})->name('home');
 Route::get('/cart', [GuestController::class , 'showCart'])->name('cart.show');
 Route::post('/cart/fetch', [GuestController::class , 'fetchCart'])->name('cart.fetch');
 Route::get('/product/{slug}', [GuestController::class , 'showProduct'])->name('product.show');

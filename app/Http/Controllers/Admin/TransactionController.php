@@ -72,6 +72,7 @@ class TransactionController extends Controller
             'transactions.total_amount',
             'transactions.payment_status',
             'transactions.delivery_type',
+            'transactions.source',
             'transactions.invoice_number',
             'transactions.created_at',
             'users.name as user_name'
@@ -85,6 +86,10 @@ class TransactionController extends Controller
 
         if ($request->has('payment_status') && !empty($request->payment_status)) {
             $query->where('transactions.payment_status', $request->payment_status);
+        }
+
+        if ($request->has('source') && !empty($request->source)) {
+            $query->where('transactions.source', $request->source);
         }
 
         if ($request->has('start_date') && !empty($request->start_date)) {
@@ -182,6 +187,10 @@ class TransactionController extends Controller
 
         if ($request->has('payment_status') && !empty($request->payment_status)) {
             $query->where('payment_status', $request->payment_status);
+        }
+
+        if ($request->has('source') && !empty($request->source)) {
+            $query->where('source', $request->source);
         }
 
         if ($request->has('start_date') && !empty($request->start_date)) {

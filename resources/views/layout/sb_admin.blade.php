@@ -116,9 +116,6 @@
                     @if(in_array($role, ['super_admin', 'store_manager', 'admin', 'sales']))
                     <li class="{{ $sb == 'SalesReceipts' ? 'active' : '' }}"><a class="nav-link" href="{{ route('admin.sales.receipts.index') }}">Kuitansi</a></li>
                     @endif
-                    @if(in_array($role, ['super_admin', 'store_manager', 'admin', 'sales']))
-                    <li class="{{ $sb == 'OnlineSale' ? 'active' : '' }}"><a class="nav-link" href="{{ route('admin.online_sale.index') }}">Marketplace</a></li>
-                    @endif
                     @if(in_array($role, ['super_admin', 'store_manager', 'admin']))
                     <li class="{{ $sb == 'Voucher' ? 'active' : '' }}"><a class="nav-link" href="{{ url('admin/manage-master/voucher') }}">Voucher / Diskon</a></li>
                     @endif
@@ -133,7 +130,7 @@
                 <ul class="dropdown-menu">
                     <li class="{{ $sb == 'PettyCash' ? 'active' : '' }}"><a class="nav-link" href="{{ route('admin.finance.petty_cash.index') }}">Petty Cash</a></li>
                     <li class="{{ $sb == 'Expense' ? 'active' : '' }}"><a class="nav-link" href="{{ route('admin.finance.expenses.index') }}">Pengeluaran (Expenses)</a></li>
-                    <li class="{{ $sb == 'FinanceSettlement' ? 'active' : '' }}"><a class="nav-link" href="{{ route('admin.finance.settlement.index') }}">Pelunasan Pabrik</a></li>
+                    <li class="{{ $sb == 'FinanceSettlement' ? 'active' : '' }}"><a class="nav-link" href="{{ route('admin.finance.settlement.index') }}">Pelunasan Supplier</a></li>
                     @if(in_array($role, ['super_admin', 'store_manager', 'finance']))
                     <li class="{{ $sb == 'FinanceReport' ? 'active' : '' }}"><a class="nav-link" href="{{ route('admin.finance.reports.index') }}">Laporan Keuangan</a></li>
                     @endif

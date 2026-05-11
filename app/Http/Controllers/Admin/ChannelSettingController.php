@@ -19,10 +19,6 @@ class ChannelSettingController extends Controller
     {
         $validator = Validator::make($request->all(), [
             'name' => 'required|string|max:255|unique:channel_settings,name',
-            'factors' => 'nullable|array',
-            'factors.*.label' => 'required|string',
-            'factors.*.operator' => 'required|in:multiply,percentage,add',
-            'factors.*.value' => 'required|numeric',
         ]);
 
         if ($validator->fails()) {
@@ -32,7 +28,7 @@ class ChannelSettingController extends Controller
         ChannelSetting::create([
             'name' => $request->name,
             'slug' => \Illuminate\Support\Str::slug($request->name),
-            'factors' => $request->factors ? array_values($request->factors) : [],
+            'factors' => [],
         ]);
 
         return redirect()->back()->with('message', 'Channel baru berhasil ditambahkan');
@@ -44,10 +40,6 @@ class ChannelSettingController extends Controller
 
         $validator = Validator::make($request->all(), [
             'name' => 'required|string|max:255|unique:channel_settings,name,' . $channel->id,
-            'factors' => 'nullable|array',
-            'factors.*.label' => 'required|string',
-            'factors.*.operator' => 'required|in:multiply,percentage,add',
-            'factors.*.value' => 'required|numeric',
         ]);
 
         if ($validator->fails()) {
@@ -57,7 +49,6 @@ class ChannelSettingController extends Controller
         $channel->update([
             'name' => $request->name,
             'slug' => \Illuminate\Support\Str::slug($request->name),
-            'factors' => $request->factors ? array_values($request->factors) : [],
         ]);
 
         return redirect()->back()->with('message', "Pengaturan {$channel->name} berhasil diperbarui");

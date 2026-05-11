@@ -1,30 +1,30 @@
 @extends('master')
 
-@section('title', 'Riwayat Penjualan Marketplace')
+@section('title', 'Riwayat Rekam Penjualan')
 
 @section('content')
 <div class="main-content">
     <section class="section">
         <div class="section-header">
-            <h1>Riwayat Penjualan Marketplace</h1>
+            <h1>Riwayat Rekam Penjualan</h1>
             <div class="section-header-breadcrumb">
                 <div class="breadcrumb-item"><a href="/admin">Dashboard</a></div>
-                <div class="breadcrumb-item active">Marketplace</div>
+                <div class="breadcrumb-item active">Rekam Penjualan</div>
             </div>
         </div>
 
         <div class="section-body">
-            <h2 class="section-title">Daftar Transaksi Online</h2>
-            <p class="section-lead">Berikut adalah semua transaksi yang dilakukan melalui platform marketplace.</p>
+            <h2 class="section-title">Daftar Transaksi Saluran</h2>
+            <p class="section-lead">Berikut adalah semua transaksi yang dicatat melalui berbagai saluran penjualan.</p>
 
             <div class="row">
                 <div class="col-12">
                     <div class="card">
                         <div class="card-header">
-                            <h4>Semua Pesanan Online</h4>
+                            <h4>Semua Pesanan Saluran</h4>
                             <div class="card-header-form">
                                 <a href="{{ route('admin.online_sale.create') }}" class="btn btn-primary btn-sm">
-                                    Tambah Penjualan Online
+                                    <i class="fas fa-plus"></i> Tambah Rekam Penjualan
                                 </a>
                             </div>
                         </div>

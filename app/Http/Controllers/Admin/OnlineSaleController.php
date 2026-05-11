@@ -28,7 +28,7 @@ class OnlineSaleController extends Controller
         $mainWarehouse = \App\Models\Warehouse::where('type', 'main')->first();
         $mainWarehouseId = $mainWarehouse ? $mainWarehouse->id : 1;
 
-        $batches = ProductBatch::with(['product.merek', 'variant'])
+        $batches = ProductBatch::with(['product.merek', 'variant.netto'])
             ->where('warehouse_id', $mainWarehouseId)
             ->where('qty', '>', 0)
             ->whereHas('product', fn($q) => $q->where('status', 'Y'))
@@ -37,23 +37,35 @@ class OnlineSaleController extends Controller
         $batchList = [];
         foreach ($batches as $batch) {
             $product = $batch->product;
-            $batchList[] = [
+            $variant = $batch->variant;
+            $netto = $variant ? $variant->netto : null;
+            
+            $merekName = ($product && $product->merek) ? trim($product->merek->name) : '';
+            $productName = trim($product->name ?? '');
+            $nettoValue = $netto ? trim($netto->netto_value ?? '') : '';
+            $satuan = $netto ? trim($netto->satuan ?? '') : '';
+            $batchNo = trim($batch->batch_no ?? '');
+            
+            // Format: Merek + Produk + Netto + Satuan + (batch + stok)
+            $parts = array_filter([$merekName, $productName, $nettoValue, $satuan]);
+            $labelText = implode(' ', $parts);
+            $fullText = $labelText . ' (' . $batchNo . ' - Stok: ' . $batch->qty . ')';
+
+            $prices = [];
+            foreach ($channels as $channel) {
+                $prices[$channel->slug] = \App\Services\PricingService::calculate($batch, $channel->slug);
+            }
+
+            $batchList[] = (object)[
                 'id' => $batch->id,
                 'product_id' => $product->id,
-                'text' => ($product->merek->name ?? '') . ' ' . $product->name . ' (' . $batch->batch_no . ')',
-                'price' => $batch->variant ? (int)$batch->variant->price : (int)$product->price,
-                'stock' => $batch->qty
+                'text' => $fullText,
+                'stock' => $batch->qty,
+                'prices' => $prices
             ];
         }
 
-        $posRoutes = [
-            'products' => route('admin.pos.products'),
-            'store' => route('admin.online_sale.store'), // Direct to OnlineSale store
-            'receipt' => url('admin/pos/receipt'),
-            'verify_voucher' => route('admin.pos.verify-voucher'),
-        ];
-
-        return view('admin.online_sale.pos_mode', compact('customers', 'batchList', 'categories', 'merek', 'posRoutes', 'affiliates', 'warehouses', 'channels'))->with('sb', 'OnlineSale');
+        return view('admin.online_sale.index', compact('customers', 'batchList', 'categories', 'merek', 'affiliates', 'warehouses', 'channels'))->with('sb', 'OnlineSale');
     }
 
     public function store(Request $request)
@@ -67,8 +79,7 @@ class OnlineSaleController extends Controller
             'transaction_date' => 'nullable|date',
             'notes' => 'nullable|string',
             'items' => 'required|array|min:1',
-            'items.*.product_id' => 'required|exists:products,id',
-            'items.*.batch_id' => 'required|exists:product_batches,id',
+            'items.*.product_batch_id' => 'required|exists:product_batches,id',
             'items.*.qty' => 'required|integer|min:1',
             'payment_receipt' => 'nullable|file|mimes:jpg,jpeg,png,pdf|max:2048',
         ]);
@@ -94,14 +105,16 @@ class OnlineSaleController extends Controller
                 $itemsToCreate = [];
 
                 foreach ($request->items as $item) {
-                    $batch = ProductBatch::with(['product', 'variant'])->findOrFail($item['batch_id']);
+                    $batch = ProductBatch::with(['product', 'variant'])->findOrFail($item['product_batch_id']);
                     $product = $batch->product;
 
                     if ($batch->qty < $item['qty']) {
                         throw new \Exception('Stok batch ' . $batch->batch_no . ' untuk produk ' . $product->name . ' tidak mencukupi');
                     }
 
-                    $price = (int)($batch->variant->price ?? $product->price);
+                    // Use input price from form, fallback to pricing service if missing
+                    $price = $item['price'] ?? \App\Services\PricingService::calculate($batch, $request->source);
+                    
                     $subtotal = $price * $item['qty'];
                     $totalAmount += $subtotal;
 
@@ -353,19 +366,18 @@ class OnlineSaleController extends Controller
                     $batch = ProductBatch::with('product')->findOrFail($item['product_batch_id']);
                     $product = $batch->product;
 
-                    if ($batch->qty < $item['qty']) {
-                        throw new \Exception('Stok batch ' . $batch->batch_no . ' untuk produk ' . $product->name . ' tidak mencukupi (Tersisa: ' . $batch->qty . ')');
-                    }
-
-                    $subtotal = $product->price * $item['qty'];
+                    // Use pricing service for accurate channel pricing
+                    $price = $item['price'] ?? \App\Services\PricingService::calculate($batch, $request->source);
+                    $subtotal = $price * $item['qty'];
                     $totalAmount += $subtotal;
 
                     $transaction->items()->create([
                         'product_id' => $product->id,
+                        'product_variant_id' => $batch->product_variant_id,
                         'product_batch_id' => $batch->id,
                         'buy_price' => $batch->buy_price,
                         'qty' => $item['qty'],
-                        'price' => $product->price,
+                        'price' => $price,
                         'subtotal' => $subtotal,
                     ]);
 
