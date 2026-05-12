@@ -16,26 +16,38 @@ class DashboardController extends Controller
     {
         $today = Carbon::today();
         $range = $request->get('range', 'month');
+        $startDate = null;
+        $endDate = Carbon::now()->endOfDay();
         
         switch ($range) {
+            case 'custom':
+                if ($request->has('start_date') && !empty($request->start_date)) {
+                    $startDate = Carbon::createFromFormat('Y-m-d', $request->start_date)->startOfDay();
+                }
+                if ($request->has('end_date') && !empty($request->end_date)) {
+                    $endDate = Carbon::createFromFormat('Y-m-d', $request->end_date)->endOfDay();
+                }
+                if (!$startDate) $startDate = Carbon::now()->subMonth()->startOfDay();
+                $days = $startDate->diffInDays($endDate) + 1;
+                break;
             case 'week':
-                $startDate = Carbon::now()->subWeek();
+                $startDate = Carbon::now()->subWeek()->startOfDay();
                 $days = 7;
                 break;
             case 'year':
-                $startDate = Carbon::now()->subYear();
+                $startDate = Carbon::now()->subYear()->startOfDay();
                 $days = 365; // We'll group by month for year
                 break;
             case 'month':
             default:
-                $startDate = Carbon::now()->subMonth();
+                $startDate = Carbon::now()->subMonth()->startOfDay();
                 $days = 30;
                 break;
         }
 
         // Sales Chart Data
         $salesData = Transaction::where('payment_status', 'paid')
-            ->where('created_at', '>=', $startDate)
+            ->whereBetween('created_at', [$startDate, $endDate])
             ->selectRaw('DATE(created_at) as date, SUM(total_amount) as total')
             ->groupBy('date')
             ->orderBy('date', 'ASC')
@@ -44,7 +56,7 @@ class DashboardController extends Controller
         // Platform Transaction Count Chart (Multi-line)
         $platforms = \App\Models\ChannelSetting::pluck('name', 'slug')->toArray();
         $rawPlatformData = Transaction::where('payment_status', 'paid')
-            ->where('created_at', '>=', $startDate)
+            ->whereBetween('created_at', [$startDate, $endDate])
             ->whereIn('source', array_keys($platforms))
             ->selectRaw('source, DATE(created_at) as date, COUNT(*) as count')
             ->groupBy('source', 'date')
@@ -59,7 +71,7 @@ class DashboardController extends Controller
             }
         } else {
             for ($i = $days - 1; $i >= 0; $i--) {
-                $labels[] = Carbon::now()->subDays($i)->format('d M');
+                $labels[] = $endDate->copy()->subDays($i)->format('d M');
             }
         }
 
@@ -82,7 +94,7 @@ class DashboardController extends Controller
             } else {
                 $platformDataByDate = $platformData->keyBy('date');
                 for ($i = $days - 1; $i >= 0; $i--) {
-                    $date = Carbon::now()->subDays($i)->format('Y-m-d');
+                    $date = $endDate->copy()->subDays($i)->format('Y-m-d');
                     $dataPoints[] = $platformDataByDate->has($date) ? (int)$platformDataByDate->get($date)->count : 0;
                 }
             }
@@ -101,6 +113,9 @@ class DashboardController extends Controller
 
         // Top Selling Products
         $topProducts = \App\Models\TransactionItem::with(['product.merek'])
+            ->whereHas('transaction', function($q) use ($startDate, $endDate) {
+                $q->whereBetween('created_at', [$startDate, $endDate]);
+            })
             ->selectRaw('product_id, SUM(qty) as total_qty')
             ->groupBy('product_id')
             ->orderBy('total_qty', 'desc')
@@ -109,6 +124,7 @@ class DashboardController extends Controller
 
         // Payment Method Distribution
         $paymentMethods = Transaction::where('payment_status', 'paid')
+            ->whereBetween('created_at', [$startDate, $endDate])
             ->selectRaw('payment_method, COUNT(*) as total')
             ->groupBy('payment_method')
             ->get();
@@ -117,11 +133,13 @@ class DashboardController extends Controller
             'today'            => Carbon::now()->isoFormat('dddd, D MMMM Y'),
             'userCount'        => User::count(),
             'productCount'     => Product::count(),
-            'transactionToday' => Transaction::whereDate('created_at', $today)->count(),
+            'transactionToday' => Transaction::whereBetween('created_at', [$startDate, $endDate])->count(),
             'incomeToday'      => Transaction::whereDate('created_at', $today)->where('payment_status', 'paid')->sum('total_amount'),
             'incomeMonthly'    => Transaction::whereMonth('created_at', Carbon::now()->month)->where('payment_status', 'paid')->sum('total_amount'),
+            'incomeSelected'   => Transaction::whereBetween('created_at', [$startDate, $endDate])->where('payment_status', 'paid')->sum('total_amount'),
             'latestProducts'   => Product::latest()->take(5)->get(),
-            'counts'           => Transaction::select('payment_status', \DB::raw('count(*) as total'))
+            'counts'           => Transaction::whereBetween('created_at', [$startDate, $endDate])
+                                    ->select('payment_status', \DB::raw('count(*) as total'))
                                     ->groupBy('payment_status')
                                     ->get()
                                     ->pluck('total', 'payment_status')
@@ -139,8 +157,10 @@ class DashboardController extends Controller
                 'labels' => $paymentMethods->pluck('payment_method')->map(fn($m) => strtoupper($m))->toArray(),
                 'totals' => $paymentMethods->pluck('total')->toArray(),
             ],
-            'avgOrderValue'    => Transaction::where('payment_status', 'paid')->avg('total_amount') ?? 0,
-            'currentRange'     => $range
+            'avgOrderValue'    => Transaction::whereBetween('created_at', [$startDate, $endDate])->where('payment_status', 'paid')->avg('total_amount') ?? 0,
+            'currentRange'     => $range,
+            'startDate'        => $startDate->format('Y-m-d'),
+            'endDate'          => $endDate->format('Y-m-d')
         ];
 
         return view('admin.dashboard.index', $data)->with('sb', 'Dashboard');

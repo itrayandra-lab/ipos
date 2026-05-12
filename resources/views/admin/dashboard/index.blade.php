@@ -126,6 +126,21 @@
                     <a href="?range=week" class="btn {{ $currentRange == 'week' ? 'active' : '' }}">Week</a>
                     <a href="?range=month" class="btn {{ $currentRange == 'month' ? 'active' : '' }}">Month</a>
                     <a href="?range=year" class="btn {{ $currentRange == 'year' ? 'active' : '' }}">Year</a>
+                    <button type="button" class="btn {{ $currentRange == 'custom' ? 'active' : '' }}" onclick="$('#customDateForm').toggle()">Custom</button>
+                </div>
+                <div id="customDateForm" class="mt-3 ml-3" style="{{ $currentRange == 'custom' ? '' : 'display:none;' }}">
+                    <form action="" method="GET" class="form-inline">
+                        <input type="hidden" name="range" value="custom">
+                        <div class="form-group mr-2">
+                            <label class="mr-2 small font-weight-bold">Dari:</label>
+                            <input type="date" name="start_date" class="form-control form-control-sm" value="{{ $startDate }}">
+                        </div>
+                        <div class="form-group mr-2">
+                            <label class="mr-2 small font-weight-bold">Sampai:</label>
+                            <input type="date" name="end_date" class="form-control form-control-sm" value="{{ $endDate }}">
+                        </div>
+                        <button type="submit" class="btn btn-sm btn-primary">Filter</button>
+                    </form>
                 </div>
             </div>
             <div class="text-muted small font-weight-700">
@@ -144,8 +159,8 @@
                 </div>
                 <div class="col-lg-3 col-md-6 mb-3">
                     <div class="summary-card">
-                        <p>Pendapatan Bulan Ini</p>
-                        <h3>Rp {{ number_format($incomeMonthly, 0, ',', '.') }}</h3>
+                        <p>{{ $currentRange == 'month' ? 'Pendapatan Bulan Ini' : 'Pendapatan Terpilih' }}</p>
+                        <h3>Rp {{ number_format($incomeSelected, 0, ',', '.') }}</h3>
                     </div>
                 </div>
                 <div class="col-lg-3 col-md-6 mb-3">
