@@ -5,15 +5,24 @@
 <style>
     /* Premium Management Aesthetic */
     .section-header {
-        background: #fff;
+        background: #fff !important;
         padding: 20px 25px !important;
-        border-radius: 12px;
-        box-shadow: 0 4px 20px rgba(0,0,0,0.05);
+        border-radius: 16px !important;
+        box-shadow: 0 10px 30px rgba(0,0,0,0.08) !important;
         margin-bottom: 25px !important;
-        border-left: 5px solid #0d9488;
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
+        border-left: 6px solid #0d9488 !important;
+        border-top: none !important;
+        border-right: none !important;
+        border-bottom: none !important;
+        display: flex !important;
+        justify-content: space-between !important;
+        align-items: center !important;
+        position: relative !important;
+        z-index: 10 !important;
+    }
+
+    .section-header::after, .section-header::before {
+        display: none !important;
     }
     .section-header h1 {
         font-weight: 800 !important;

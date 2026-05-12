@@ -24,18 +24,54 @@
         }
 
         .section-header {
-            background: transparent !important;
-            padding: 0 !important;
-            box-shadow: none !important;
-            margin-bottom: 30px !important;
-            border-left: none !important;
+            background: #ffffff !important;
+            padding: 20px 25px !important;
+            border-radius: 16px !important;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.08) !important;
+            margin: 0 0 30px 0 !important;
+            border-left: 6px solid var(--primary) !important;
+            border-top: none !important;
+            border-right: none !important;
+            border-bottom: none !important;
+            display: flex !important;
+            justify-content: space-between !important;
+            align-items: center !important;
+            position: relative !important;
+            z-index: 10 !important;
+            overflow: hidden !important;
+            background-clip: padding-box !important;
+        }
+
+        .section-header::after, .section-header::before {
+            display: none !important;
         }
 
         .section-header h1 {
-            font-size: 28px !important;
+            font-size: 24px !important;
             font-weight: 800 !important;
             color: #1e293b !important;
             letter-spacing: -0.025em;
+            margin-bottom: 0 !important;
+        }
+
+        .section-header-breadcrumb {
+            background: transparent !important;
+            padding: 0 !important;
+            border-radius: 0 !important;
+            backdrop-filter: none !important;
+            border: none !important;
+            margin-top: 0 !important;
+        }
+
+        .section-header-breadcrumb .breadcrumb-item, 
+        .section-header-breadcrumb .breadcrumb-item a {
+            color: #64748b !important;
+            font-weight: 500 !important;
+        }
+
+        .section-header-breadcrumb .breadcrumb-item.active {
+            color: var(--primary) !important;
+            font-weight: 700 !important;
         }
 
         .premium-card {
@@ -53,10 +89,22 @@
 
         .card-header-premium {
             background: #ffffff;
-            border-bottom: 1px solid #f1f5f9 !important;
-            padding: 24px 30px !important;
+            border-bottom: 1px solid rgba(241, 245, 249, 0.5) !important;
+            padding: 28px 30px !important;
             display: flex;
             align-items: center;
+            position: relative;
+        }
+
+        .card-header-premium::after {
+            content: '';
+            position: absolute;
+            bottom: 0;
+            left: 30px;
+            right: 30px;
+            height: 1px;
+            background: linear-gradient(90deg, var(--primary) 0%, transparent 100%);
+            opacity: 0.3;
         }
 
         .card-header-premium h4 {
@@ -104,8 +152,9 @@
         .form-control-premium:focus {
             background: #ffffff !important;
             border-color: var(--primary) !important;
-            box-shadow: 0 0 0 4px var(--input-focus) !important;
+            box-shadow: 0 0 0 4px var(--input-focus), 0 10px 15px -3px rgba(0, 0, 0, 0.05) !important;
             outline: none;
+            transform: translateY(-1px);
         }
 
         .select2-container--default .select2-selection--single {
@@ -138,9 +187,14 @@
         }
 
         .variant-table tbody td {
-            padding: 16px !important;
-            border-bottom: 1px solid #f1f5f9 !important;
+            padding: 20px 16px !important;
+            border-bottom: 1px solid rgba(241, 245, 249, 0.8) !important;
             vertical-align: middle !important;
+            transition: all 0.2s ease;
+        }
+
+        .variant-table tbody tr:hover td {
+            background: var(--primary-light);
         }
 
         .btn-premium-save {
@@ -268,19 +322,19 @@
 
         .sticky-footer {
             position: sticky;
-            bottom: 0;
-            background: rgba(255, 255, 255, 0.8);
-            backdrop-filter: blur(10px);
-            border-top: 1px solid #f1f5f9;
-            padding: 20px 40px;
-            margin-left: -25px;
-            margin-right: -25px;
-            margin-bottom: -25px;
+            bottom: 20px;
+            background: rgba(255, 255, 255, 0.7);
+            backdrop-filter: blur(15px);
+            -webkit-backdrop-filter: blur(15px);
+            border: 1px solid rgba(255, 255, 255, 0.3) !important;
+            padding: 20px 30px !important;
+            margin-top: 40px;
             z-index: 100;
             display: flex;
             justify-content: flex-end;
             align-items: center;
-            border-radius: 0 0 20px 20px;
+            border-radius: 20px !important;
+            box-shadow: 0 -10px 25px rgba(0, 0, 0, 0.05) !important;
         }
 
         /* Animation */
@@ -371,13 +425,13 @@
                                     <div class="row">
                                         <div class="col-md-8">
                                             <div class="form-group">
-                                                <label>Nama Produk <span class="text-danger">*</span></label>
+                                                <label><i class="fas fa-signature mr-1"></i> Nama Produk <span class="text-danger">*</span></label>
                                                 <input type="text" name="name" class="form-control-premium w-100" value="{{ $product->name }}" placeholder="Contoh: Mugwort Deep Cleansing Facial Wash" required>
                                             </div>
                                         </div>
                                         <div class="col-md-4">
                                             <div class="form-group">
-                                                <label>Kode Produk / Ref</label>
+                                                <label><i class="fas fa-barcode mr-1"></i> Kode Produk / Ref</label>
                                                 <input type="text" name="code" class="form-control-premium w-100" value="{{ $product->code }}" placeholder="Contoh: MUG">
                                             </div>
                                         </div>
@@ -386,7 +440,7 @@
                                     <div class="row">
                                         <div class="col-md-3">
                                             <div class="form-group">
-                                                <label>Merek <span class="text-danger">*</span></label>
+                                                <label><i class="fas fa-copyright mr-1"></i> Merek <span class="text-danger">*</span></label>
                                                 <select name="merek_id" class="form-control select2" required>
                                                     <option value="">Pilih Merek</option>
                                                     @foreach($merek as $m)
@@ -397,7 +451,7 @@
                                         </div>
                                         <div class="col-md-3">
                                             <div class="form-group">
-                                                <label>Supplier / Pabrik</label>
+                                                <label><i class="fas fa-warehouse mr-1"></i> Supplier / Pabrik</label>
                                                 <select name="supplier_id" class="form-control select2">
                                                     <option value="">Pilih Supplier</option>
                                                     @foreach($suppliers as $s)
@@ -408,7 +462,7 @@
                                         </div>
                                         <div class="col-md-3">
                                             <div class="form-group">
-                                                <label>Kategori <span class="text-danger">*</span></label>
+                                                <label><i class="fas fa-list-ul mr-1"></i> Kategori <span class="text-danger">*</span></label>
                                                 <select name="category_id" id="add-category" class="form-control select2" required>
                                                     <option value="">Pilih Kategori</option>
                                                     @foreach($categories as $cat)
@@ -433,7 +487,7 @@
                                     <div class="row">
                                         <div class="col-md-6">
                                             <div class="form-group">
-                                                <label>Tipe Produk</label>
+                                                <label><i class="fas fa-shapes mr-1"></i> Tipe Produk</label>
                                                 <select name="product_type_id" class="form-control select2">
                                                     <option value="">Pilih Tipe</option>
                                                     @foreach($productTypes as $type)
