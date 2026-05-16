@@ -153,11 +153,13 @@
             <div class="card">
                 <div class="card-header">
                     <h4>Filter Invoice</h4>
+                    @if(!auth()->user()->isFinance())
                     <div class="card-header-action">
                         <a href="{{ route('admin.sales.invoices.create') }}" class="btn btn-premium btn-sm">
                             <i class="fas fa-plus mr-1"></i> Buat Invoice Manual
                         </a>
                     </div>
+                    @endif
                 </div>
                 <div class="card-body pb-0">
                     <div class="filter-card">

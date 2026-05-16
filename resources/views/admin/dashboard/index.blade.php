@@ -121,16 +121,54 @@
     <section class="section">
         <div class="section-header">
             <div>
-                <h1 class="d-inline mr-2">Analisis Bisnis</h1>
+                <h1 class="d-inline mr-3">
+                    @if($selectedWarehouse)
+                        Analisis Bisnis &mdash; {{ $selectedWarehouse->name }}
+                    @else
+                        Analisis Bisnis &mdash; Semua Lokasi
+                    @endif
+                </h1>
+                
+                @if(auth()->user()->isSales() && $selectedWarehouse)
+                    <span class="btn btn-outline-primary btn-sm font-weight-bold">
+                        <i class="fas fa-store mr-1"></i> {{ $selectedWarehouse->name }}
+                    </span>
+                @else
+                <div class="dropdown d-inline">
+                    <button class="btn btn-outline-primary btn-sm dropdown-toggle font-weight-bold" type="button" data-toggle="dropdown">
+                        <i class="fas fa-warehouse mr-1"></i> 
+                        {{ $selectedWarehouse ? $selectedWarehouse->name : 'Pilih Cabang' }}
+                    </button>
+                    <div class="dropdown-menu shadow">
+                        <a class="dropdown-item font-weight-bold" href="{{ url('admin?range='.$currentRange) }}">
+                            <i class="fas fa-globe mr-2"></i> Semua Lokasi
+                        </a>
+                        <div class="dropdown-divider"></div>
+                        @foreach($warehouses as $wh)
+                            <a class="dropdown-item" href="{{ url('admin?warehouse_id='.$wh->id.'&range='.$currentRange) }}">
+                                <i class="fas fa-store mr-2"></i> {{ $wh->name }}
+                            </a>
+                        @endforeach
+                    </div>
+                </div>
+                @endif
+
                 <div class="btn-group range-filter ml-3">
-                    <a href="?range=week" class="btn {{ $currentRange == 'week' ? 'active' : '' }}">Week</a>
-                    <a href="?range=month" class="btn {{ $currentRange == 'month' ? 'active' : '' }}">Month</a>
-                    <a href="?range=year" class="btn {{ $currentRange == 'year' ? 'active' : '' }}">Year</a>
+                    @php 
+                        $whParam = $selectedWarehouse ? '&warehouse_id='.$selectedWarehouse->id : '';
+                    @endphp
+                    <a href="?range=week{{ $whParam }}" class="btn {{ $currentRange == 'week' ? 'active' : '' }}">Week</a>
+                    <a href="?range=month{{ $whParam }}" class="btn {{ $currentRange == 'month' ? 'active' : '' }}">Month</a>
+                    <a href="?range=year{{ $whParam }}" class="btn {{ $currentRange == 'year' ? 'active' : '' }}">Year</a>
                     <button type="button" class="btn {{ $currentRange == 'custom' ? 'active' : '' }}" onclick="$('#customDateForm').toggle()">Custom</button>
                 </div>
+
                 <div id="customDateForm" class="mt-3 ml-3" style="{{ $currentRange == 'custom' ? '' : 'display:none;' }}">
                     <form action="" method="GET" class="form-inline">
                         <input type="hidden" name="range" value="custom">
+                        @if($selectedWarehouse)
+                            <input type="hidden" name="warehouse_id" value="{{ $selectedWarehouse->id }}">
+                        @endif
                         <div class="form-group mr-2">
                             <label class="mr-2 small font-weight-bold">Dari:</label>
                             <input type="date" name="start_date" class="form-control form-control-sm" value="{{ $startDate }}">
@@ -143,8 +181,11 @@
                     </form>
                 </div>
             </div>
-            <div class="text-muted small font-weight-700">
-                <i class="fas fa-calendar-alt mr-1"></i> {{ $today }}
+            <div class="text-muted small font-weight-700 text-right">
+                <div><i class="fas fa-calendar-alt mr-1"></i> {{ $today }}</div>
+                @if($selectedWarehouse)
+                    <div class="badge badge-primary mt-1 px-3">Filter: {{ $selectedWarehouse->name }}</div>
+                @endif
             </div>
         </div>
 

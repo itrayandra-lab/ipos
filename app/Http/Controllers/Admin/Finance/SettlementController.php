@@ -12,6 +12,10 @@ class SettlementController extends Controller
 {
     public function index()
     {
+        if (!auth()->user()->hasPermission('access_finance_settlement') && !auth()->user()->hasPermission('access_finance')) {
+            abort(403, 'Anda tidak memiliki akses ke Pelunasan Supplier.');
+        }
+
         $suppliers = \App\Models\Supplier::select('id', 'name')->orderBy('name', 'ASC')->get();
         return view('admin.finance.settlement_report')->with([
             'sb' => 'FinanceSettlement',

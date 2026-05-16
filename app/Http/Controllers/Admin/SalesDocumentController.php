@@ -22,6 +22,9 @@ class SalesDocumentController extends Controller
 {
     public function invoices()
     {
+        if (!auth()->user()->hasPermission('access_sales_invoices') && !auth()->user()->hasPermission('access_sales_pusat')) {
+            abort(403, 'Anda tidak memiliki akses ke Invoice Penjualan.');
+        }
         return view('admin.sales.invoice.index')->with('sb', 'SalesInvoices');
     }
 
@@ -64,6 +67,12 @@ class SalesDocumentController extends Controller
                     return $labels[$row->payment_status] ?? '<span class="badge-soft badge-soft-secondary">'.strtoupper($row->payment_status).'</span>';
                 })
                 ->addColumn('action', function ($row) {
+                    $isFinance = auth()->user()->isFinance();
+                    $editBtn = !$isFinance ? '<a class="dropdown-item has-icon" href="' . route('admin.sales.invoices.edit', $row->id) . '"><i class="fas fa-edit text-warning"></i> Edit</a>' : '';
+                    $deleteBtn = !$isFinance ? '
+                            <div class="dropdown-divider"></div>
+                            <a class="dropdown-item has-icon text-danger" href="javascript:void(0)" onclick="deleteInvoice(' . $row->id . ')"><i class="fas fa-trash"></i> Hapus</a>' : '';
+
                     return '
                     <div class="dropdown d-inline dropleft">
                         <button type="button" class="btn btn-action-custom btn-sm dropdown-toggle" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
@@ -71,10 +80,9 @@ class SalesDocumentController extends Controller
                         </button>
                         <div class="dropdown-menu">
                             <a class="dropdown-item has-icon" href="' . route('admin.sales.invoices.show', $row->id) . '"><i class="fas fa-eye text-info"></i> Detail</a>
-                            <a class="dropdown-item has-icon" href="' . route('admin.sales.invoices.edit', $row->id) . '"><i class="fas fa-edit text-warning"></i> Edit</a>
+                            ' . $editBtn . '
                             <a class="dropdown-item has-icon" href="' . route('admin.sales.invoices.print', $row->id) . '" target="_blank"><i class="fas fa-print text-primary"></i> Cetak</a>
-                            <div class="dropdown-divider"></div>
-                            <a class="dropdown-item has-icon text-danger" href="javascript:void(0)" onclick="deleteInvoice(' . $row->id . ')"><i class="fas fa-trash"></i> Hapus</a>
+                            ' . $deleteBtn . '
                         </div>
                     </div>';
                 })
@@ -562,6 +570,9 @@ class SalesDocumentController extends Controller
 
     public function receipts()
     {
+        if (!auth()->user()->hasPermission('access_sales_receipts') && !auth()->user()->hasPermission('access_sales_pusat')) {
+            abort(403, 'Anda tidak memiliki akses ke Kuitansi.');
+        }
         return view('admin.sales.receipt.index')->with('sb', 'SalesReceipts');
     }
 
@@ -600,6 +611,9 @@ class SalesDocumentController extends Controller
 
     public function deliveryNotes()
     {
+        if (!auth()->user()->hasPermission('access_sales_delivery_notes') && !auth()->user()->hasPermission('access_sales_pusat')) {
+            abort(403, 'Anda tidak memiliki akses ke Surat Jalan.');
+        }
         return view('admin.sales.delivery_note.index')->with('sb', 'SalesDeliveryNotes');
     }
 
@@ -634,6 +648,12 @@ class SalesDocumentController extends Controller
                         return \Carbon\Carbon::parse($row->transaction_date)->format('d/m/Y');
                     })
                     ->addColumn('action', function ($row) {
+                        $isFinance = auth()->user()->isFinance();
+                        $editBtn = !$isFinance ? '<a class="dropdown-item has-icon" href="' . route('admin.sales.delivery_notes.edit', $row->id) . '"><i class="fas fa-edit text-warning"></i> Edit</a>' : '';
+                        $deleteBtn = !$isFinance ? '
+                                <div class="dropdown-divider"></div>
+                                <a class="dropdown-item has-icon text-danger" href="javascript:void(0)" onclick="deleteDeliveryNote(' . $row->id . ')"><i class="fas fa-trash"></i> Hapus</a>' : '';
+
                         return '
                         <div class="dropdown d-inline dropleft">
                             <button type="button" class="btn btn-action-custom btn-sm dropdown-toggle" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
@@ -641,10 +661,9 @@ class SalesDocumentController extends Controller
                             </button>
                             <div class="dropdown-menu">
                                 <a class="dropdown-item has-icon" href="' . route('admin.sales.delivery_notes.show', $row->id) . '"><i class="fas fa-eye text-info"></i> Detail</a>
-                                <a class="dropdown-item has-icon" href="' . route('admin.sales.delivery_notes.edit', $row->id) . '"><i class="fas fa-edit text-warning"></i> Edit</a>
+                                ' . $editBtn . '
                                 <a class="dropdown-item has-icon" href="' . route('admin.sales.delivery_notes.print', $row->id) . '" target="_blank"><i class="fas fa-print text-primary"></i> Cetak</a>
-                                <div class="dropdown-divider"></div>
-                                <a class="dropdown-item has-icon text-danger" href="javascript:void(0)" onclick="deleteDeliveryNote(' . $row->id . ')"><i class="fas fa-trash"></i> Hapus</a>
+                                ' . $deleteBtn . '
                             </div>
                         </div>';
                     })
@@ -924,46 +943,4 @@ class SalesDocumentController extends Controller
         }
     }
 
-    public function labInvoices()
-    {
-        return view('admin.sales.lab_invoice.index')->with('sb', 'SalesLabInvoices');
-    }
-
-    public function getLabInvoices(Request $request)
-    {
-        if ($request->ajax()) {
-            $data = Transaction::with(['user', 'customer'])
-                ->where('transaction_type', 'kelas')
-                ->latest();
-            return DataTables::of($data)
-                ->addIndexColumn()
-                ->editColumn('created_at', fn($row) => Carbon::parse($row->created_at)->format('d/m/Y H:i'))
-                ->editColumn('total_amount', fn($row) => 'Rp ' . number_format($row->total_amount, 0, ',', '.'))
-                ->addColumn('action', function ($row) {
-                    return '<a href="' . route('admin.sales.lab_invoices.print', $row->id) . '" target="_blank" class="btn btn-sm btn-primary" title="Cetak Invoice Lab"><i class="fas fa-print"></i></a>';
-                })
-                ->make(true);
-        }
-    }
-
-    public function createLabInvoice()
-    {
-        $customers = Customer::orderBy('name')->get();
-        return view('admin.sales.lab_invoice.create', compact('customers'))->with('sb', 'SalesLabInvoices');
-    }
-
-    public function storeLabInvoice(Request $request)
-    {
-        $request->validate([
-            'customer_name' => 'required|string',
-            'amount' => 'required|numeric',
-        ]);
-        return redirect()->back()->with('message', 'Fitur pembuatan invoice lab manual sedang dalam pengembangan.');
-    }
-
-    public function printLabInvoice($id)
-    {
-        $transaction = Transaction::with(['user', 'customer'])->findOrFail($id);
-        return view('admin.sales.lab_invoice.print', compact('transaction'));
-    }
 }

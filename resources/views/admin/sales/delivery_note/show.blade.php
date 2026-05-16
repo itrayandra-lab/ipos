@@ -153,6 +153,7 @@
                                 </div>
                             </div>
                         </div>
+                        @if(!auth()->user()->isFinance())
                         <div class="card-footer border-top text-center">
                             <div class="row">
                                 <div class="col-6">
@@ -167,6 +168,7 @@
                                 </div>
                             </div>
                         </div>
+                        @endif
                     </div>
                 </div>
             </div>

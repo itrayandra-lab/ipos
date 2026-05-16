@@ -50,7 +50,7 @@
                                 </li>
                             </ul>
                         </div>
-                        @if(in_array($movement->status, ['pending', 'transit']))
+                        @if(in_array($movement->status, ['pending', 'transit']) && !auth()->user()->isFinance())
                         <div class="card-footer bg-whitesmoke text-right">
                             @if($movement->status === 'pending')
                                 <button type="button" class="btn btn-primary btn-block" id="btn-process-ship">
@@ -149,36 +149,70 @@
 
 @push('scripts')
 <script>
-    $('#btn-process-ship').on('click', function() {
-        swal({
-            title: 'Proses Pengiriman?',
-            text: 'Stok di gudang asal akan langsung dikurangi.',
-            icon: 'warning', buttons: true, dangerMode: true,
-        }).then(ok => {
-            if (ok) $.ajax({
-                url: "{{ route('admin.stock_movements.ship', $movement->id) }}",
-                method: 'POST',
-                data: { _token: '{{ csrf_token() }}' },
-                success: res => res.status === 'success'
-                    ? swal('Berhasil', res.message, 'success').then(() => location.reload())
-                    : swal('Error', res.message, 'error')
+    $(document).ready(function() {
+        $('#btn-process-ship').on('click', function() {
+            Swal.fire({
+                title: 'Proses Pengiriman?',
+                text: 'Stok di gudang asal akan langsung dikurangi.',
+                icon: 'warning',
+                showCancelButton: true,
+                confirmButtonColor: '#3085d6',
+                cancelButtonColor: '#6c757d',
+                confirmButtonText: 'Ya, Kirim!',
+                cancelButtonText: 'Batal',
+            }).then((result) => {
+                if (result.isConfirmed) {
+                    Swal.fire({ title: 'Memproses...', text: 'Mohon tunggu sebentar.', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
+                    $.ajax({
+                        url: "{{ route('admin.stock_movements.ship', $movement->id) }}",
+                        method: 'POST',
+                        data: { _token: '{{ csrf_token() }}' },
+                        success: function(res) {
+                            if (res.status === 'success') {
+                                Swal.fire({ icon: 'success', title: 'Berhasil!', text: res.message, timer: 2000, showConfirmButton: false })
+                                    .then(() => location.reload());
+                            } else {
+                                Swal.fire({ icon: 'error', title: 'Gagal', text: res.message });
+                            }
+                        },
+                        error: function(err) {
+                            Swal.fire({ icon: 'error', title: 'Error', text: err.responseJSON?.message || 'Terjadi kesalahan server.' });
+                        }
+                    });
+                }
             });
         });
-    });
 
-    $('#btn-process-receive').on('click', function() {
-        swal({
-            title: 'Konfirmasi Penerimaan?',
-            text: 'Stok akan ditambahkan ke gudang tujuan.',
-            icon: 'info', buttons: true,
-        }).then(ok => {
-            if (ok) $.ajax({
-                url: "{{ route('admin.stock_movements.receive', $movement->id) }}",
-                method: 'POST',
-                data: { _token: '{{ csrf_token() }}' },
-                success: res => res.status === 'success'
-                    ? swal('Berhasil', res.message, 'success').then(() => location.reload())
-                    : swal('Error', res.message, 'error')
+        $('#btn-process-receive').on('click', function() {
+            Swal.fire({
+                title: 'Konfirmasi Penerimaan?',
+                text: 'Stok akan ditambahkan ke gudang tujuan.',
+                icon: 'info',
+                showCancelButton: true,
+                confirmButtonColor: '#28a745',
+                cancelButtonColor: '#6c757d',
+                confirmButtonText: 'Ya, Terima!',
+                cancelButtonText: 'Batal',
+            }).then((result) => {
+                if (result.isConfirmed) {
+                    Swal.fire({ title: 'Memproses...', text: 'Mohon tunggu sebentar.', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
+                    $.ajax({
+                        url: "{{ route('admin.stock_movements.receive', $movement->id) }}",
+                        method: 'POST',
+                        data: { _token: '{{ csrf_token() }}' },
+                        success: function(res) {
+                            if (res.status === 'success') {
+                                Swal.fire({ icon: 'success', title: 'Berhasil!', text: res.message, timer: 2000, showConfirmButton: false })
+                                    .then(() => location.reload());
+                            } else {
+                                Swal.fire({ icon: 'error', title: 'Gagal', text: res.message });
+                            }
+                        },
+                        error: function(err) {
+                            Swal.fire({ icon: 'error', title: 'Error', text: err.responseJSON?.message || 'Terjadi kesalahan server.' });
+                        }
+                    });
+                }
             });
         });
     });

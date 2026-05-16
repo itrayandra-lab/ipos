@@ -108,14 +108,20 @@ class TransactionController extends Controller
                 return $transaction->user_name;
             })
             ->addColumn('action', function ($transaction) {
+                $role = auth()->user()->role;
                 $invoiceBtn = '';
-                if (!$transaction->invoice_number) {
-                    $invoiceBtn = '<li><button type="button" onclick="generateInvoice(' . $transaction->id . ')" class="dropdown-item text-primary font-weight-bold"><i class="fas fa-file-invoice"></i> Buat Invoice Baru</button></li>';
+                if ($role !== 'finance') {
+                    if (!$transaction->invoice_number) {
+                        $invoiceBtn = '<li><button type="button" onclick="generateInvoice(' . $transaction->id . ')" class="dropdown-item text-primary font-weight-bold"><i class="fas fa-file-invoice"></i> Buat Invoice Baru</button></li>';
+                    } else {
+                        $invoiceBtn = '<li><a href="' . route('admin.sales.invoices.print', $transaction->id) . '" target="_blank" class="dropdown-item text-success"><i class="fas fa-print"></i> Cetak Invoice</a></li>';
+                    }
                 } else {
-                    $invoiceBtn = '<li><a href="' . route('admin.sales.invoices.print', $transaction->id) . '" target="_blank" class="dropdown-item text-success"><i class="fas fa-print"></i> Cetak Invoice</a></li>';
+                    if ($transaction->invoice_number) {
+                        $invoiceBtn = '<li><a href="' . route('admin.sales.invoices.print', $transaction->id) . '" target="_blank" class="dropdown-item text-success"><i class="fas fa-print"></i> Cetak Invoice</a></li>';
+                    }
                 }
 
-                $role = auth()->user()->role;
                 $editBtn = '<li><a href="' . route('admin.transactions.edit', $transaction->id) . '" class="dropdown-item">Edit</a></li>';
                 $deleteBtn = '<li><button type="button" onclick="deleteTransaction(' . $transaction->id . ')" class="dropdown-item text-danger">Hapus</button></li>';
                 $divider = '<div class="dropdown-divider"></div>';

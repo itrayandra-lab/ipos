@@ -21,11 +21,13 @@
                 <div class="breadcrumb-item"><a href="/admin">Dashboard</a></div>
                 <div class="breadcrumb-item active">Stok</div>
             </div>
+            @if(!auth()->user()->isFinance())
             <div class="section-header-button">
                 <button class="btn btn-primary" data-toggle="modal" data-target="#modal-add">
                     <i class="fas fa-plus"></i> Tambah Batch Stok
                 </button>
             </div>
+            @endif
         </div>
 
         <div class="section-body">
@@ -34,13 +36,21 @@
                     <div class="card">
                         <div class="card-header">
                             <h4>Daftar Stok Produk</h4>
-                            <div class="card-header-action">
-                                <div class="btn-group" id="warehouse-tabs" role="group">
-                                    <button type="button" class="btn btn-outline-primary btn-sm active" data-warehouse="">Semua Gudang</button>
+                            <div class="card-header-action" style="min-width:200px;">
+                                @if(auth()->user()->isSales() && $warehouses->count() == 1)
+                                <span class="btn btn-outline-primary btn-sm active font-weight-bold w-100">
+                                    <i class="fas fa-store mr-1"></i> {{ $warehouses->first()->name }}
+                                </span>
+                                @else
+                                <select class="form-control form-control-sm" id="warehouse-filter">
+                                    @if(!auth()->user()->isSales())
+                                    <option value="">Semua Gudang</option>
+                                    @endif
                                     @foreach($warehouses as $wh)
-                                        <button type="button" class="btn btn-outline-primary btn-sm" data-warehouse="{{ $wh->id }}">{{ $wh->name }}</button>
+                                    <option value="{{ $wh->id }}" {{ auth()->user()->isSales() && $loop->first ? 'selected' : '' }}>{{ $wh->name }}</option>
                                     @endforeach
-                                </div>
+                                </select>
+                                @endif
                             </div>
                         </div>
                         <div class="card-body">
@@ -169,10 +179,10 @@
 @push('scripts')
 <script>
     let table;
-    let activeWarehouseId = '';
     let activeVariantId = null;
 
     $(document).ready(function() {
+        let activeWarehouseId = $('#warehouse-filter').length ? $('#warehouse-filter').val() : '';
         table = $('#table-stock').DataTable({
             processing: true,
             serverSide: true,
@@ -191,10 +201,8 @@
             ]
         });
 
-        $('#warehouse-tabs button').on('click', function() {
-            $('#warehouse-tabs button').removeClass('active');
-            $(this).addClass('active');
-            activeWarehouseId = $(this).data('warehouse');
+        $('#warehouse-filter').on('change', function() {
+            activeWarehouseId = $(this).val();
             table.ajax.reload();
         });
 

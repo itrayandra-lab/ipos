@@ -13,6 +13,9 @@ class AuthController extends Controller
         $user = Auth::user();
 
         if($user) {
+            if ($user->role === 'branch') {
+                return redirect()->intended('/branch');
+            }
             if (in_array($user->role, ['super_admin', 'store_manager', 'finance', 'admin', 'sales'])) {
                 return redirect()->intended('/admin');
             }
@@ -40,7 +43,9 @@ class AuthController extends Controller
 
             $user = Auth::user();
 
-            if (in_array($user->role, ['super_admin', 'store_manager', 'finance', 'admin', 'sales'])) {
+            if ($user->role === 'branch') {
+                return redirect()->intended('/branch');
+            } elseif (in_array($user->role, ['super_admin', 'store_manager', 'finance', 'admin', 'sales'])) {
                 return redirect()->intended('/admin');
             } else {
                 Auth::logout();

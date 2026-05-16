@@ -12,9 +12,13 @@ class FundRequest extends Model
     protected $fillable = [
         'request_code',
         'user_id',
+        'expense_category_id',
         'title',
         'description',
         'amount',
+        'bank_name',
+        'bank_account_number',
+        'bank_account_name',
         'status',
         'manager_id',
         'manager_approved_at',
@@ -22,7 +26,8 @@ class FundRequest extends Model
         'finance_id',
         'finance_approved_at',
         'finance_notes',
-        'attachment'
+        'attachment',
+        'transfer_proof'
     ];
 
     protected $casts = [
@@ -34,6 +39,11 @@ class FundRequest extends Model
     public function user()
     {
         return $this->belongsTo(User::class);
+    }
+
+    public function category()
+    {
+        return $this->belongsTo(ExpenseCategory::class, 'expense_category_id');
     }
 
     public function manager()

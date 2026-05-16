@@ -50,6 +50,17 @@ class PurchaseOrderController extends Controller
             return $po->po_date->format('d/m/Y');
         })
             ->addColumn('action', function ($po) {
+                $isFinance = auth()->user()->isFinance();
+                $editBtn = !$isFinance ? '
+                        <a class="dropdown-item has-icon" href="' . route('admin.purchasing.purchase_orders.edit', $po->id) . '">
+                            <i class="fas fa-edit text-primary"></i> Edit
+                        </a>' : '';
+                $deleteBtn = !$isFinance ? '
+                        <div class="dropdown-divider"></div>
+                        <a class="dropdown-item has-icon btn-delete text-danger" href="#" data-id="' . $po->id . '">
+                            <i class="fas fa-trash"></i> Hapus
+                        </a>' : '';
+
                 return '
                 <div class="dropdown d-inline">
                     <button class="btn btn-primary dropdown-toggle btn-sm" type="button" data-toggle="dropdown">
@@ -59,16 +70,11 @@ class PurchaseOrderController extends Controller
                         <a class="dropdown-item has-icon" href="' . route('admin.purchasing.purchase_orders.show', $po->id) . '">
                             <i class="fas fa-eye text-info"></i> Detail
                         </a>
-                        <a class="dropdown-item has-icon" href="' . route('admin.purchasing.purchase_orders.edit', $po->id) . '">
-                            <i class="fas fa-edit text-primary"></i> Edit
-                        </a>
+                        ' . $editBtn . '
                         <a class="dropdown-item has-icon" href="' . route('admin.purchasing.purchase_orders.print', $po->id) . '" target="_blank">
                             <i class="fas fa-print text-success"></i> Print PO
                         </a>
-                        <div class="dropdown-divider"></div>
-                        <a class="dropdown-item has-icon btn-delete text-danger" href="#" data-id="' . $po->id . '">
-                            <i class="fas fa-trash"></i> Hapus
-                        </a>
+                        ' . $deleteBtn . '
                     </div>
                 </div>';
             })

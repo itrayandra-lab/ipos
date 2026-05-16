@@ -241,9 +241,11 @@
                         </div>
 
                         <div class="mt-5 d-flex justify-content-end">
+                            @if(!auth()->user()->isFinance())
                             <a href="{{ route('admin.purchasing.purchase_orders.edit', $po->id) }}" class="btn btn-warning px-4 mr-2" style="border-radius: 12px; font-weight: 700;">
                                 <i class="fas fa-edit mr-1"></i> Edit PO
                             </a>
+                            @endif
                             <a href="{{ route('admin.purchasing.purchase_orders.print', $po->id) }}" target="_blank" class="btn btn-premium px-4">
                                 <i class="fas fa-print mr-1"></i> Print PO
                             </a>

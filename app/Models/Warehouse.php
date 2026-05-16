@@ -40,4 +40,34 @@ class Warehouse extends Model
     {
         return $this->hasMany(WarehouseSettlement::class);
     }
+
+    public function users()
+    {
+        return $this->hasMany(User::class);
+    }
+
+    public function branchStockRequests()
+    {
+        return $this->hasMany(BranchStockRequest::class, 'branch_warehouse_id');
+    }
+
+    public function branchSales()
+    {
+        return $this->hasMany(BranchSale::class, 'branch_warehouse_id');
+    }
+
+    public function branchReturns()
+    {
+        return $this->hasMany(BranchReturn::class, 'branch_warehouse_id');
+    }
+
+    public function isBranch(): bool
+    {
+        return $this->type === 'branch';
+    }
+
+    public function isMain(): bool
+    {
+        return $this->type === 'main';
+    }
 }

@@ -96,7 +96,7 @@
     $(document).ready(function() {
         $('#btn-add-row').on('click', function() {
             if (!$('#from_warehouse_id').val()) {
-                swal('Peringatan', 'Pilih gudang asal terlebih dahulu!', 'warning');
+                Swal.fire({ icon: 'warning', title: 'Perhatian', text: 'Pilih gudang asal terlebih dahulu!' });
                 return;
             }
             addRow();
@@ -115,11 +115,12 @@
         $('#form-movement').on('submit', function(e) {
             e.preventDefault();
             if ($('#table-items tbody tr').length === 0) {
-                swal('Error', 'Minimal 1 item harus ditambahkan!', 'error');
+                Swal.fire({ icon: 'error', title: 'Error', text: 'Minimal 1 item harus ditambahkan!' });
                 return;
             }
             let btn = $(this).find('button[type=submit]');
-            btn.addClass('btn-progress').attr('disabled', true);
+            let originalHtml = btn.html();
+            btn.attr('disabled', true).html('<i class="fas fa-spinner fa-spin mr-1"></i> Menyimpan...');
 
             $.ajax({
                 url: $(this).attr('action'),
@@ -127,15 +128,16 @@
                 data: $(this).serialize(),
                 success: function(res) {
                     if (res.status === 'success') {
-                        swal('Berhasil', res.message, 'success').then(() => location.href = res.redirect);
+                        Swal.fire({ icon: 'success', title: 'Berhasil!', text: res.message, timer: 1800, showConfirmButton: false })
+                            .then(() => location.href = res.redirect);
                     } else {
-                        btn.removeClass('btn-progress').attr('disabled', false);
-                        swal('Error', res.message, 'error');
+                        btn.attr('disabled', false).html(originalHtml);
+                        Swal.fire({ icon: 'error', title: 'Gagal', text: res.message });
                     }
                 },
                 error: function(err) {
-                    btn.removeClass('btn-progress').attr('disabled', false);
-                    swal('Error', err.responseJSON?.message || 'Terjadi kesalahan', 'error');
+                    btn.attr('disabled', false).html(originalHtml);
+                    Swal.fire({ icon: 'error', title: 'Error', text: err.responseJSON?.message || 'Terjadi kesalahan server.' });
                 }
             });
         });

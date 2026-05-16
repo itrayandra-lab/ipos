@@ -404,9 +404,11 @@
                                         <i class="fas fa-check-circle fa-xs text-success"></i> Approved
                                     </span>
                                 </div>
+                                @if(auth()->user()->canEdit('access_pricing') && !auth()->user()->isSales())
                                 <button id="btn-recalc-all" class="btn toolbar-btn btn-recalc-all ml-2">
                                     <i class="fas fa-sync-alt mr-1"></i> Hitung Semua
                                 </button>
+                                @endif
                             </div>
                         </div>
                         <div class="card-body p-0">

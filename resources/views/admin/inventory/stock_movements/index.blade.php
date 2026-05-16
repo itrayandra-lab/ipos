@@ -7,9 +7,11 @@
     <section class="section">
         <div class="section-header">
             <h1>Stock Movements</h1>
+            @if(!auth()->user()->isFinance())
             <div class="section-header-button">
                 <a href="{{ route('admin.stock_movements.create') }}" class="btn btn-primary">Tambah Movement</a>
             </div>
+            @endif
             <div class="section-header-breadcrumb">
                 <div class="breadcrumb-item active"><a href="#">Inventory</a></div>
                 <div class="breadcrumb-item">Stock Movements</div>
@@ -65,26 +67,33 @@
 
         $(document).on('click', '.btn-ship', function() {
             let id = $(this).data('id');
-            swal({
+            Swal.fire({
                 title: 'Kirim Barang?',
                 text: 'Stok akan dikurangi dari gudang asal.',
                 icon: 'warning',
-                buttons: true,
-                dangerMode: true,
-            }).then((willShip) => {
-                if (willShip) {
+                showCancelButton: true,
+                confirmButtonColor: '#3085d6',
+                cancelButtonColor: '#6c757d',
+                confirmButtonText: 'Ya, Kirim!',
+                cancelButtonText: 'Batal',
+            }).then((result) => {
+                if (result.isConfirmed) {
                     let url = "{{ route('admin.stock_movements.ship', ':id') }}".replace(':id', id);
+                    Swal.fire({ title: 'Memproses...', text: 'Mohon tunggu sebentar.', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
                     $.ajax({
                         url: url,
                         method: 'POST',
                         data: { _token: '{{ csrf_token() }}' },
                         success: function(res) {
                             if (res.status === 'success') {
-                                swal('Berhasil', res.message, 'success');
-                                table.ajax.reload();
+                                Swal.fire({ icon: 'success', title: 'Berhasil!', text: res.message, timer: 2000, showConfirmButton: false })
+                                    .then(() => table.ajax.reload());
                             } else {
-                                swal('Error', res.message, 'error');
+                                Swal.fire({ icon: 'error', title: 'Gagal', text: res.message });
                             }
+                        },
+                        error: function(err) {
+                            Swal.fire({ icon: 'error', title: 'Error', text: err.responseJSON?.message || 'Terjadi kesalahan server.' });
                         }
                     });
                 }
@@ -93,25 +102,33 @@
 
         $(document).on('click', '.btn-receive', function() {
             let id = $(this).data('id');
-            swal({
-                title: 'Terima Barang?',
+            Swal.fire({
+                title: 'Konfirmasi Penerimaan?',
                 text: 'Stok akan ditambahkan ke gudang tujuan.',
                 icon: 'info',
-                buttons: true,
-            }).then((willReceive) => {
-                if (willReceive) {
+                showCancelButton: true,
+                confirmButtonColor: '#28a745',
+                cancelButtonColor: '#6c757d',
+                confirmButtonText: 'Ya, Terima!',
+                cancelButtonText: 'Batal',
+            }).then((result) => {
+                if (result.isConfirmed) {
                     let url = "{{ route('admin.stock_movements.receive', ':id') }}".replace(':id', id);
+                    Swal.fire({ title: 'Memproses...', text: 'Mohon tunggu sebentar.', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
                     $.ajax({
                         url: url,
                         method: 'POST',
                         data: { _token: '{{ csrf_token() }}' },
                         success: function(res) {
                             if (res.status === 'success') {
-                                swal('Berhasil', res.message, 'success');
-                                table.ajax.reload();
+                                Swal.fire({ icon: 'success', title: 'Berhasil!', text: res.message, timer: 2000, showConfirmButton: false })
+                                    .then(() => table.ajax.reload());
                             } else {
-                                swal('Error', res.message, 'error');
+                                Swal.fire({ icon: 'error', title: 'Gagal', text: res.message });
                             }
+                        },
+                        error: function(err) {
+                            Swal.fire({ icon: 'error', title: 'Error', text: err.responseJSON?.message || 'Terjadi kesalahan server.' });
                         }
                     });
                 }

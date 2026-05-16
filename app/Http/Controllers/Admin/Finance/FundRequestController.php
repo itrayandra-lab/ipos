@@ -13,23 +13,28 @@ class FundRequestController extends Controller
 {
     public function index()
     {
+        if (!auth()->user()->hasPermission('access_fund_requests') && !auth()->user()->hasPermission('access_finance')) {
+            abort(403, 'Anda tidak memiliki akses ke Pengajuan Dana.');
+        }
         return view('admin.finance.fund_requests.index')->with('sb', 'FinanceFundRequest');
     }
 
     public function getall(Request $request)
     {
         $user = Auth::user();
-        $query = FundRequest::with(['user', 'manager', 'finance'])->orderBy('id', 'desc');
+        $query = FundRequest::with(['user', 'manager', 'finance', 'category'])->orderBy('id', 'desc');
 
         // Filter based on role
-        if ($user->role === 'sales' || $user->role === 'admin') {
-            // Can only see their own requests
-            $query->where('user_id', $user->id);
+        if ($user->role === 'finance' || $user->role === 'super_admin') {
+            // Finance and Super Admin see all
         } elseif ($user->role === 'store_manager') {
-            // Can see all but usually relevant for approval
-            // For simplicity, manager sees all but action buttons differ
-        } elseif ($user->role === 'finance') {
-            // Finance sees all
+            // Store Manager sees all as well? Or only their own?
+            // The user said "yang akses ke menu pengajuan dana hanya role finance dan sore_manager"
+            // So we allow both to see everything or at least their relevant parts.
+        } else {
+            // Other roles (like sales or admin) can't see this menu at all based on user request
+            // But if they somehow get here, only show their own
+            $query->where('user_id', $user->id);
         }
 
         return DataTables::of($query)
@@ -37,51 +42,68 @@ class FundRequestController extends Controller
             ->addColumn('requester', function($row) {
                 return $row->user->name;
             })
+            ->addColumn('category', function($row) {
+                return $row->category
+                    ? '<span class="badge badge-light border">' . e($row->category->name) . '</span>'
+                    : '<span class="text-muted">-</span>';
+            })
             ->editColumn('amount', function($row) {
                 return 'Rp ' . number_format($row->amount, 0, ',', '.');
             })
             ->editColumn('status', function($row) {
                 $statusMap = [
-                    'pending' => ['label' => 'Pending Manager', 'class' => 'warning'],
-                    'manager_approved' => ['label' => 'Pending Finance', 'class' => 'info'],
+                    'pending' => ['label' => 'Menunggu Persetujuan', 'class' => 'warning'],
+                    'manager_approved' => ['label' => 'Disetujui Manager', 'class' => 'info'],
                     'manager_rejected' => ['label' => 'Ditolak Manager', 'class' => 'danger'],
                     'finance_approved' => ['label' => 'Disetujui Finance', 'class' => 'success'],
                     'finance_rejected' => ['label' => 'Ditolak Finance', 'class' => 'danger'],
-                    'disbursed' => ['label' => 'Sudah Cair', 'class' => 'dark'],
+                    'disbursed' => ['label' => 'Dana Cair', 'class' => 'dark'],
                 ];
                 $s = $statusMap[$row->status] ?? ['label' => $row->status, 'class' => 'secondary'];
                 return '<span class="badge badge-' . $s['class'] . '">' . $s['label'] . '</span>';
             })
             ->addColumn('action', function($row) {
                 $user = Auth::user();
-                $btn = '<a href="' . route('admin.finance.fund_requests.show', $row->id) . '" class="btn btn-primary btn-sm"><i class="fas fa-eye"></i></a> ';
-                
-                // Only allow edit/delete if status is pending
+                $btn = '<div class="dropdown d-inline">
+                    <button type="button" class="btn btn-primary btn-sm dropdown-toggle" data-toggle="dropdown">
+                        Aksi
+                    </button>
+                    <div class="dropdown-menu dropdown-menu-right">';
+
+                $btn .= '<a href="' . route('admin.finance.fund_requests.show', $row->id) . '" class="dropdown-item"><i class="fas fa-eye mr-2 text-primary"></i> Lihat Detail</a>';
+
                 if ($row->status === 'pending') {
-                    // Only owner or super_admin can edit/delete
                     if ($row->user_id === $user->id || $user->role === 'super_admin') {
-                        $btn .= '<a href="' . route('admin.finance.fund_requests.edit', $row->id) . '" class="btn btn-warning btn-sm"><i class="fas fa-edit"></i></a> ';
-                        $btn .= '<button type="button" onclick="deleteRequest(' . $row->id . ')" class="btn btn-danger btn-sm"><i class="fas fa-trash"></i></button>';
+                        $btn .= '<a href="' . route('admin.finance.fund_requests.edit', $row->id) . '" class="dropdown-item"><i class="fas fa-edit mr-2 text-warning"></i> Edit</a>';
+                        $btn .= '<div class="dropdown-divider"></div>';
+                        $btn .= '<a href="#" onclick="deleteRequest(' . $row->id . '); return false;" class="dropdown-item text-danger"><i class="fas fa-trash mr-2"></i> Hapus</a>';
                     }
                 }
+
+                $btn .= '</div></div>';
                 return $btn;
             })
-            ->rawColumns(['status', 'action'])
+            ->rawColumns(['status', 'action', 'category'])
             ->make(true);
     }
 
     public function create()
     {
-        return view('admin.finance.fund_requests.create')->with('sb', 'FinanceFundRequest');
+        $categories = \App\Models\ExpenseCategory::orderBy('name')->get();
+        return view('admin.finance.fund_requests.create', compact('categories'))->with('sb', 'FinanceFundRequest');
     }
 
     public function store(Request $request)
     {
         $request->validate([
-            'title' => 'required|string|max:255',
-            'amount' => 'required|numeric|min:1',
-            'description' => 'required|string',
-            'attachment' => 'nullable|file|mimes:jpg,jpeg,png,pdf|max:2048'
+            'title'               => 'required|string|max:255',
+            'expense_category_id' => 'required|exists:expense_categories,id',
+            'amount'              => 'required|numeric|min:1',
+            'description'         => 'required|string',
+            'bank_name'           => 'required|string|max:100',
+            'bank_account_number' => 'required|string|max:50',
+            'bank_account_name'   => 'required|string|max:100',
+            'attachment'          => 'nullable|file|mimes:jpg,jpeg,png,pdf|max:2048'
         ]);
 
         $data = $request->all();
@@ -103,7 +125,7 @@ class FundRequestController extends Controller
 
     public function show($id)
     {
-        $fundRequest = FundRequest::with(['user', 'manager', 'finance'])->findOrFail($id);
+        $fundRequest = FundRequest::with(['user', 'manager', 'finance', 'category'])->findOrFail($id);
         return view('admin.finance.fund_requests.show', compact('fundRequest'))->with('sb', 'FinanceFundRequest');
     }
 
@@ -187,22 +209,34 @@ class FundRequestController extends Controller
             return redirect()->back()->with('error', 'Hanya Finance yang dapat menandai pencairan dana');
         }
 
-        $fundRequest->update([
-            'status' => 'disbursed'
+        $request->validate([
+            'transfer_proof' => 'required|file|mimes:jpg,jpeg,png,pdf|max:2048'
         ]);
 
-        return redirect()->back()->with('message', 'Dana telah ditandai sebagai Dicairkan');
+        $data = ['status' => 'disbursed'];
+
+        if ($request->hasFile('transfer_proof')) {
+            $file = $request->file('transfer_proof');
+            $filename = time() . '_transfer_' . $file->getClientOriginalName();
+            $file->move(public_path('uploads/fund_requests/proofs'), $filename);
+            $data['transfer_proof'] = 'uploads/fund_requests/proofs/' . $filename;
+        }
+
+        $fundRequest->update($data);
+
+        return redirect()->back()->with('message', 'Dana telah ditandai sebagai Dicairkan dengan bukti transfer');
     }
 
     public function edit($id)
     {
         $fundRequest = FundRequest::findOrFail($id);
+        $categories = \App\Models\ExpenseCategory::orderBy('name')->get();
 
         if ($fundRequest->status !== 'pending' && Auth::user()->role !== 'super_admin') {
             return redirect()->route('admin.finance.fund_requests.index')->with('error', 'Pengajuan yang sudah diproses tidak dapat diubah');
         }
 
-        return view('admin.finance.fund_requests.edit', compact('fundRequest'))->with('sb', 'FinanceFundRequest');
+        return view('admin.finance.fund_requests.edit', compact('fundRequest', 'categories'))->with('sb', 'FinanceFundRequest');
     }
 
     public function update(Request $request, $id)
@@ -214,13 +248,17 @@ class FundRequestController extends Controller
         }
 
         $request->validate([
-            'title' => 'required|string|max:255',
-            'amount' => 'required|numeric|min:1',
-            'description' => 'required|string',
-            'attachment' => 'nullable|file|mimes:jpg,jpeg,png,pdf|max:2048'
+            'title'               => 'required|string|max:255',
+            'expense_category_id' => 'required|exists:expense_categories,id',
+            'amount'              => 'required|numeric|min:1',
+            'description'         => 'required|string',
+            'bank_name'           => 'required|string|max:100',
+            'bank_account_number' => 'required|string|max:50',
+            'bank_account_name'   => 'required|string|max:100',
+            'attachment'          => 'nullable|file|mimes:jpg,jpeg,png,pdf|max:2048'
         ]);
 
-        $data = $request->only(['title', 'amount', 'description']);
+        $data = $request->only(['title', 'expense_category_id', 'amount', 'description', 'bank_name', 'bank_account_number', 'bank_account_name']);
 
         if ($request->hasFile('attachment')) {
             // Delete old attachment if exists

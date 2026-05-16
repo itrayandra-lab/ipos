@@ -162,11 +162,13 @@
                     <div class="card">
                         <div class="card-header d-flex justify-content-between align-items-center">
                             <h4>Daftar Seluruh PO</h4>
+                            @if(!auth()->user()->isFinance())
                             <div class="card-header-action">
                                 <a href="{{ route('admin.purchasing.purchase_orders.create') }}" class="btn btn-premium">
                                     <i class="fas fa-plus-circle mr-2"></i> Buat PO Baru
                                 </a>
                             </div>
+                            @endif
                         </div>
                         <div class="card-body">
                             <!-- Filter Box Integrated -->

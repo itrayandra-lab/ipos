@@ -21,11 +21,13 @@ class ProductController extends Controller
             $user = auth()->user();
             $restrictedMethods = ['create', 'create_view', 'edit', 'update', 'delete', 'syncPrice'];
             
-            if ($user && $user->role === 'sales' && in_array($request->route()->getActionMethod(), $restrictedMethods)) {
-                if ($request->ajax()) {
-                    return response()->json(['status' => 'error', 'message' => 'Anda tidak memiliki akses untuk tindakan ini.'], 403);
+            if ($user && in_array($request->route()->getActionMethod(), $restrictedMethods)) {
+                if (!$user->canEdit('access_products')) {
+                    if ($request->ajax()) {
+                        return response()->json(['status' => 'error', 'message' => 'Anda tidak memiliki akses untuk tindakan ini.'], 403);
+                    }
+                    return redirect()->route('admin.products.index')->with('error', 'Anda tidak memiliki akses untuk tindakan ini.');
                 }
-                return redirect()->route('admin.products.index')->with('error', 'Anda tidak memiliki akses untuk tindakan ini.');
             }
             
             return $next($request);
@@ -226,7 +228,9 @@ class ProductController extends Controller
             return '<img src="' . asset('assets/img/Asset 3.png') . '" width="50" class="img-thumbnail">';
         })
             ->addColumn('action', function (Product $product) {
-                $role = auth()->user()->role;
+                $user = auth()->user();
+                $canEdit = $user->canEdit('access_products') && !$user->isSales();
+                
                 $html = '
                     <div class="dropdown d-inline dropleft">
                         <button type="button" class="btn btn-action-custom btn-sm dropdown-toggle" aria-haspopup="true" data-toggle="dropdown">
@@ -235,7 +239,7 @@ class ProductController extends Controller
                         <ul class="dropdown-menu">
                             <li><a href="' . route('admin.products.show', $product->id) . '" class="dropdown-item">Detail</a></li>';
                 
-                if ($role !== 'sales') {
+                if ($canEdit) {
                     $html .= '
                             <li><a href="' . route('admin.products.edit', $product->id) . '" class="dropdown-item">Edit</a></li>
                             <li><a data-id="' . $product->id . '" class="dropdown-item hapus" href="#">Hapus</a></li>';

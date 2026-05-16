@@ -11,6 +11,9 @@ class ExpenseCategoryController extends Controller
 {
     public function index()
     {
+        if (!auth()->user()->hasPermission('access_expense_categories') && !auth()->user()->hasPermission('access_finance')) {
+            abort(403, 'Anda tidak memiliki akses ke Kategori Pengeluaran.');
+        }
         return view('admin.finance.expense_categories.index')->with('sb', 'ExpenseCategory');
     }
 

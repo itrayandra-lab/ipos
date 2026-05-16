@@ -45,8 +45,11 @@ Route::get('/logout', [AuthController::class , 'logout'])->name('logout');
 # -------------------- Auth & Entry Point --------------------
 Route::get('/', function () {
     if (auth()->check()) {
-        if (auth()->user()->role == 'sales') {
-            return redirect('/sales');
+        $user = auth()->user();
+        if ($user->role == 'branch') {
+            return redirect('/branch');
+        } elseif ($user->role == 'sales') {
+            return redirect('/admin');
         }
         return redirect('/admin');
     }
@@ -72,9 +75,11 @@ Route::prefix('admin')->middleware(['auth', 'role:super_admin,store_manager,fina
     Route::prefix('manage-master')->group(function () {
             Route::prefix('users')->group(function () {
                     Route::get('/', [UserAdmin::class , 'index']);
-                    Route::post('/', [UserAdmin::class , 'create']);
+                    Route::get('/create', [UserAdmin::class , 'create']);
+                    Route::post('/', [UserAdmin::class , 'store']);
                     Route::get('all', [UserAdmin::class , 'getall']);
                     Route::post('get', [UserAdmin::class , 'get']);
+                    Route::get('/edit/{id}', [UserAdmin::class , 'edit']);
                     Route::post('update', [UserAdmin::class , 'update']);
                     Route::delete('/', [UserAdmin::class , 'delete']);
                 }
@@ -300,6 +305,9 @@ Route::prefix('admin')->middleware(['auth', 'role:super_admin,store_manager,fina
             Route::get('petty-cash', [App\Http\Controllers\Admin\Finance\PettyCashController::class, 'index'])->name('admin.finance.petty_cash.index');
             Route::get('petty-cash/all', [App\Http\Controllers\Admin\Finance\PettyCashController::class, 'data'])->name('admin.finance.petty_cash.all');
             Route::post('petty-cash', [App\Http\Controllers\Admin\Finance\PettyCashController::class, 'store'])->name('admin.finance.petty_cash.store');
+            Route::get('petty-cash/{id}', [App\Http\Controllers\Admin\Finance\PettyCashController::class, 'show'])->name('admin.finance.petty_cash.show');
+            Route::post('petty-cash/{id}/update', [App\Http\Controllers\Admin\Finance\PettyCashController::class, 'update'])->name('admin.finance.petty_cash.update');
+            Route::delete('petty-cash/{id}', [App\Http\Controllers\Admin\Finance\PettyCashController::class, 'destroy'])->name('admin.finance.petty_cash.destroy');
 
             // Expenses
             Route::get('expenses', [App\Http\Controllers\Admin\Finance\ExpenseController::class, 'index'])->name('admin.finance.expenses.index');
@@ -375,14 +383,6 @@ Route::prefix('admin')->middleware(['auth', 'role:super_admin,store_manager,fina
                     Route::get('/', [SalesDocumentAdmin::class , 'receipts'])->name('admin.sales.receipts.index');
                     Route::get('/all', [SalesDocumentAdmin::class , 'getReceipts'])->name('admin.sales.receipts.all');
                     Route::get('/print/{id}', [SalesDocumentAdmin::class , 'printReceipt'])->name('admin.sales.receipts.print');
-                }
-                );
-                Route::prefix('lab-invoices')->group(function () {
-                    Route::get('/', [SalesDocumentAdmin::class , 'labInvoices'])->name('admin.sales.lab_invoices.index');
-                    Route::get('/all', [SalesDocumentAdmin::class , 'getLabInvoices'])->name('admin.sales.lab_invoices.all');
-                    Route::get('/create', [SalesDocumentAdmin::class , 'createLabInvoice'])->name('admin.sales.lab_invoices.create');
-                    Route::post('/store', [SalesDocumentAdmin::class , 'storeLabInvoice'])->name('admin.sales.lab_invoices.store');
-                    Route::get('/print/{id}', [SalesDocumentAdmin::class , 'printLabInvoice'])->name('admin.sales.lab_invoices.print');
                 }
                 );
             }
@@ -486,9 +486,66 @@ Route::prefix('admin')->middleware(['auth', 'role:super_admin,store_manager,fina
                     Route::post('/settlements/{id}/verify', 'verify')->name('admin.settlements.verify');
                     Route::post('/settlements/{id}/reject', 'reject')->name('admin.settlements.reject');
                 });
-            }
-            );
+            });
+
+        // Branch Approvals (sisi pusat/admin)
+        Route::prefix('branch-management')->middleware('role:super_admin,store_manager,admin')->group(function () {
+            Route::controller(\App\Http\Controllers\Admin\Branch\StockRequestApprovalController::class)->group(function () {
+                Route::get('/stock-requests', 'index')->name('admin.branch.stock_requests.index');
+                Route::get('/stock-requests/all', 'getall')->name('admin.branch.stock_requests.getall');
+                Route::get('/stock-requests/{id}', 'show')->name('admin.branch.stock_requests.show');
+                Route::post('/stock-requests/{id}/approve', 'approve')->name('admin.branch.stock_requests.approve');
+                Route::post('/stock-requests/{id}/reject', 'reject')->name('admin.branch.stock_requests.reject');
+                Route::post('/stock-requests/{id}/ship', 'ship')->name('admin.branch.stock_requests.ship');
+            });
+            Route::controller(\App\Http\Controllers\Admin\Branch\BranchReturnApprovalController::class)->group(function () {
+                Route::get('/returns', 'index')->name('admin.branch.returns.index');
+                Route::get('/returns/all', 'getall')->name('admin.branch.returns.getall');
+                Route::get('/returns/{id}', 'show')->name('admin.branch.returns.show');
+                Route::post('/returns/{id}/approve', 'approve')->name('admin.branch.returns.approve');
+                Route::post('/returns/{id}/reject', 'reject')->name('admin.branch.returns.reject');
+                Route::post('/returns/{id}/confirm-receive', 'confirmReceive')->name('admin.branch.returns.confirm_receive');
+            });
         });
+    });
+
+// -------------------- BRANCH --------------------
+Route::prefix('branch')->middleware(['auth', 'role:super_admin,store_manager,admin,sales,branch'])->group(function () {
+    Route::get('/', [\App\Http\Controllers\Branch\DashboardController::class, 'index'])->name('branch.dashboard');
+    Route::get('/switch/{id}', [\App\Http\Controllers\Branch\DashboardController::class, 'switchBranch'])->name('branch.switch');
+    
+    // Product Catalog (Read-only)
+    Route::get('/products', [\App\Http\Controllers\Branch\BranchProductController::class, 'index'])->name('branch.products.index');
+    Route::get('/products/all', [\App\Http\Controllers\Branch\BranchProductController::class, 'getall'])->name('branch.products.getall');
+
+    Route::get('/stock', [\App\Http\Controllers\Branch\BranchStockController::class, 'index'])->name('branch.stock.index');
+    Route::get('/stock/all', [\App\Http\Controllers\Branch\BranchStockController::class, 'getall'])->name('branch.stock.getall');
+    Route::controller(\App\Http\Controllers\Branch\StockRequestController::class)->group(function () {
+        Route::get('/stock-requests', 'index')->name('branch.stock_requests.index');
+        Route::get('/stock-requests/all', 'getall')->name('branch.stock_requests.getall');
+        Route::get('/stock-requests/create', 'create')->name('branch.stock_requests.create');
+        Route::post('/stock-requests', 'store')->name('branch.stock_requests.store');
+        Route::get('/stock-requests/{id}', 'show')->name('branch.stock_requests.show');
+        Route::post('/stock-requests/{id}/confirm-receive', 'confirmReceive')->name('branch.stock_requests.confirm_receive');
+        Route::post('/stock-requests/{id}/cancel', 'cancel')->name('branch.stock_requests.cancel');
+    });
+    Route::controller(\App\Http\Controllers\Branch\BranchSaleController::class)->group(function () {
+        Route::get('/sales', 'index')->name('branch.sales.index');
+        Route::get('/sales/all', 'getall')->name('branch.sales.getall');
+        Route::get('/sales/create', 'create')->name('branch.sales.create');
+        Route::post('/sales', 'store')->name('branch.sales.store');
+        Route::get('/sales/{id}', 'show')->name('branch.sales.show');
+    });
+    Route::controller(\App\Http\Controllers\Branch\BranchReturnController::class)->group(function () {
+        Route::get('/returns', 'index')->name('branch.returns.index');
+        Route::get('/returns/all', 'getall')->name('branch.returns.getall');
+        Route::get('/returns/create', 'create')->name('branch.returns.create');
+        Route::post('/returns', 'store')->name('branch.returns.store');
+        Route::get('/returns/{id}', 'show')->name('branch.returns.show');
+        Route::post('/returns/{id}/confirm-ship', 'confirmShip')->name('branch.returns.confirm_ship');
+        Route::post('/returns/{id}/cancel', 'cancel')->name('branch.returns.cancel');
+    });
+});
 
 # -------------------- SALES --------------------
 Route::prefix('sales')->middleware(['auth', 'role:sales'])->group(function () {

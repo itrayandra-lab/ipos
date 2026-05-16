@@ -1,6 +1,6 @@
 @extends('master')
 
-@section('title', 'Detail Audit Stok')
+@section('title', 'Detail Stok')
 
 @push('styles')
 <style>
@@ -40,6 +40,7 @@
                                 <tr><th>Netto</th><td>: <span id="det-info-netto" class="font-weight-bold text-primary">...</span></td></tr>
                             </table>
                         </div>
+                        @if(!auth()->user()->isFinance())
                         <div class="col-md-4 text-right">
                             <button class="btn btn-warning btn-sm mt-1" id="btn-edit-netto" style="display:none;">
                                 <i class="fas fa-exchange-alt"></i> Ganti Varian
@@ -48,6 +49,7 @@
                                 <i class="fas fa-link"></i> Hubungkan Varian
                             </button>
                         </div>
+                        @endif
                     </div>
 
                     <ul class="nav nav-pills" id="auditTab" role="tablist">
@@ -79,7 +81,9 @@
                                             <th>Exp Date</th>
                                             <th class="text-right">Qty Awal</th>
                                             <th class="text-right text-primary">Sisa Stok</th>
+                                            @if(!auth()->user()->isFinance())
                                             <th class="text-center">Action</th>
+                                            @endif
                                         </tr>
                                     </thead>
                                     <tbody>
@@ -116,6 +120,7 @@
                                             <th>Tujuan (Customer/Supplier)</th>
                                             <th class="text-right">Qty Keluar</th>
                                             <th>Tgl Transaksi</th>
+                                            <th class="text-center">Aksi</th>
                                         </tr>
                                     </thead>
                                     <tbody></tbody>
@@ -264,16 +269,23 @@
                 $('#table-det-batches tbody').empty();
                 if(res.batches.length) {
                     res.batches.forEach(b => {
+                        let actionBtn = '';
+                        @if(!auth()->user()->isFinance())
+                        actionBtn = `
+                                <td class="text-center">
+                                    <button class="btn btn-sm btn-info btn-edit-batch" data-id="${b.id}"><i class="fas fa-edit"></i></button>
+                                    <button class="btn btn-sm btn-danger btn-delete-batch" data-id="${b.id}"><i class="fas fa-trash"></i></button>
+                                </td>
+                        `;
+                        @endif
+
                         $('#table-det-batches tbody').append(`
                             <tr>
                                 <td><b>${b.batch_no}</b></td>
                                 <td>${b.expiry_date ? new Date(b.expiry_date).toLocaleDateString('id-ID') : '-'}</td>
                                 <td class="text-right">${b.qty}</td>
                                 <td class="text-right text-primary font-weight-bold">${b.current_qty}</td>
-                                <td class="text-center">
-                                    <button class="btn btn-sm btn-info btn-edit-batch" data-id="${b.id}"><i class="fas fa-edit"></i></button>
-                                    <button class="btn btn-sm btn-danger btn-delete-batch" data-id="${b.id}"><i class="fas fa-trash"></i></button>
-                                </td>
+                                ${actionBtn}
                             </tr>
                         `);
                     });
@@ -307,6 +319,8 @@
                         if (o.type === 'Penjualan') badge = 'badge-success';
                         if (o.type === 'Return Supplier') badge = 'badge-danger';
                         
+                        let printBtn = o.print_url ? `<a href="${o.print_url}" target="_blank" class="btn btn-sm btn-light" title="Cetak Surat Jalan"><i class="fas fa-print"></i></a>` : '-';
+                        
                         $('#table-det-outgoing tbody').append(`
                             <tr>
                                 <td class="font-weight-bold text-dark">${o.batch_no || '-'}</td>
@@ -314,7 +328,8 @@
                                 <td class="font-weight-bold">${o.ref_no}</td>
                                 <td>${o.destination}</td>
                                 <td class="text-right">${o.qty}</td>
-                                <td>${new Date(o.date).toLocaleString('id-ID')}</td>
+                                <td>${o.date}</td>
+                                <td class="text-center">${printBtn}</td>
                             </tr>
                         `);
                     });
@@ -322,6 +337,11 @@
                     $('#table-det-outgoing tbody').append('<tr><td colspan="6" class="text-center text-muted">Tidak ada data outgoing</td></tr>');
                 }
             }
+        }).fail(function(xhr) {
+            let msg = xhr.responseJSON?.message || 'Terjadi kesalahan saat memuat data.';
+            $('#det-title-product').text('Error');
+            $('#table-det-batches tbody').html(`<tr><td colspan="5" class="text-center text-danger">${msg}</td></tr>`);
+            iziToast.error({ title: 'Gagal', message: msg });
         });
     }
 

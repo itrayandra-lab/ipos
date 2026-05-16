@@ -14,6 +14,20 @@ class DashboardController extends Controller
 {
     public function index(Request $request)
     {
+        $user = auth()->user();
+        $warehouseId = $request->warehouse_id;
+        $warehouse = null;
+
+        if ($user->isSales()) {
+            $salesWarehouse = $user->warehouses->first();
+            if ($salesWarehouse) {
+                $warehouseId = $salesWarehouse->id;
+                $warehouse = $salesWarehouse;
+            }
+        } elseif ($warehouseId) {
+            $warehouse = \App\Models\Warehouse::find($warehouseId);
+        }
+
         $today = Carbon::today();
         $range = $request->get('range', 'month');
         $startDate = null;
@@ -45,8 +59,14 @@ class DashboardController extends Controller
                 break;
         }
 
+        // Base Query for Transactions
+        $baseTransaction = Transaction::query()
+            ->when($warehouseId, function($q) use ($warehouseId) {
+                $q->where('warehouse_id', $warehouseId);
+            });
+
         // Sales Chart Data
-        $salesData = Transaction::where('payment_status', 'paid')
+        $salesData = (clone $baseTransaction)->where('payment_status', 'paid')
             ->whereBetween('created_at', [$startDate, $endDate])
             ->selectRaw('DATE(created_at) as date, SUM(total_amount) as total')
             ->groupBy('date')
@@ -55,7 +75,7 @@ class DashboardController extends Controller
 
         // Platform Transaction Count Chart (Multi-line)
         $platforms = \App\Models\ChannelSetting::pluck('name', 'slug')->toArray();
-        $rawPlatformData = Transaction::where('payment_status', 'paid')
+        $rawPlatformData = (clone $baseTransaction)->where('payment_status', 'paid')
             ->whereBetween('created_at', [$startDate, $endDate])
             ->whereIn('source', array_keys($platforms))
             ->selectRaw('source, DATE(created_at) as date, COUNT(*) as count')
@@ -113,8 +133,11 @@ class DashboardController extends Controller
 
         // Top Selling Products
         $topProducts = \App\Models\TransactionItem::with(['product.merek'])
-            ->whereHas('transaction', function($q) use ($startDate, $endDate) {
-                $q->whereBetween('created_at', [$startDate, $endDate]);
+            ->whereHas('transaction', function($q) use ($startDate, $endDate, $warehouseId) {
+                $q->whereBetween('created_at', [$startDate, $endDate])
+                  ->when($warehouseId, function($sq) use ($warehouseId) {
+                      $sq->where('warehouse_id', $warehouseId);
+                  });
             })
             ->selectRaw('product_id, SUM(qty) as total_qty')
             ->groupBy('product_id')
@@ -123,22 +146,24 @@ class DashboardController extends Controller
             ->get();
 
         // Payment Method Distribution
-        $paymentMethods = Transaction::where('payment_status', 'paid')
+        $paymentMethods = (clone $baseTransaction)->where('payment_status', 'paid')
             ->whereBetween('created_at', [$startDate, $endDate])
             ->selectRaw('payment_method, COUNT(*) as total')
             ->groupBy('payment_method')
             ->get();
 
+        $warehouses = \App\Models\Warehouse::orderBy('name')->get();
+
         $data = [
             'today'            => Carbon::now()->isoFormat('dddd, D MMMM Y'),
             'userCount'        => User::count(),
             'productCount'     => Product::count(),
-            'transactionToday' => Transaction::whereBetween('created_at', [$startDate, $endDate])->count(),
-            'incomeToday'      => Transaction::whereDate('created_at', $today)->where('payment_status', 'paid')->sum('total_amount'),
-            'incomeMonthly'    => Transaction::whereMonth('created_at', Carbon::now()->month)->where('payment_status', 'paid')->sum('total_amount'),
-            'incomeSelected'   => Transaction::whereBetween('created_at', [$startDate, $endDate])->where('payment_status', 'paid')->sum('total_amount'),
+            'transactionToday' => (clone $baseTransaction)->whereBetween('created_at', [$startDate, $endDate])->count(),
+            'incomeToday'      => (clone $baseTransaction)->whereDate('created_at', $today)->where('payment_status', 'paid')->sum('total_amount'),
+            'incomeMonthly'    => (clone $baseTransaction)->whereMonth('created_at', Carbon::now()->month)->where('payment_status', 'paid')->sum('total_amount'),
+            'incomeSelected'   => (clone $baseTransaction)->whereBetween('created_at', [$startDate, $endDate])->where('payment_status', 'paid')->sum('total_amount'),
             'latestProducts'   => Product::latest()->take(5)->get(),
-            'counts'           => Transaction::whereBetween('created_at', [$startDate, $endDate])
+            'counts'           => (clone $baseTransaction)->whereBetween('created_at', [$startDate, $endDate])
                                     ->select('payment_status', \DB::raw('count(*) as total'))
                                     ->groupBy('payment_status')
                                     ->get()
@@ -157,10 +182,12 @@ class DashboardController extends Controller
                 'labels' => $paymentMethods->pluck('payment_method')->map(fn($m) => strtoupper($m))->toArray(),
                 'totals' => $paymentMethods->pluck('total')->toArray(),
             ],
-            'avgOrderValue'    => Transaction::whereBetween('created_at', [$startDate, $endDate])->where('payment_status', 'paid')->avg('total_amount') ?? 0,
+            'avgOrderValue'    => (clone $baseTransaction)->whereBetween('created_at', [$startDate, $endDate])->where('payment_status', 'paid')->avg('total_amount') ?? 0,
             'currentRange'     => $range,
             'startDate'        => $startDate->format('Y-m-d'),
-            'endDate'          => $endDate->format('Y-m-d')
+            'endDate'          => $endDate->format('Y-m-d'),
+            'warehouses'       => $warehouses,
+            'selectedWarehouse'=> $warehouse
         ];
 
         return view('admin.dashboard.index', $data)->with('sb', 'Dashboard');

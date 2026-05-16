@@ -41,6 +41,13 @@ class StockMovementController extends Controller
             ->addColumn('action', function ($m) {
                 $btn = '<div class="btn-group">';
                 $btn .= '<a href="' . route('admin.stock_movements.show', $m->id) . '" class="btn btn-sm btn-info"><i class="fas fa-eye"></i></a>';
+                
+                // Role Finance only sees Detail
+                if (auth()->user()->isFinance()) {
+                    $btn .= '</div>';
+                    return $btn;
+                }
+
                 if ($m->status === 'pending') {
                     $btn .= '<button class="btn btn-sm btn-primary btn-ship ml-1" data-id="' . $m->id . '"><i class="fas fa-truck"></i> Kirim</button>';
                 }

@@ -214,7 +214,7 @@
                             
                             <div class="d-flex justify-content-between align-items-center mb-2">
                                 <label class="font-weight-bold text-muted small text-uppercase mb-0">Riwayat Pembayaran</label>
-                                @if($balance > 0)
+                                @if($balance > 0 && !auth()->user()->isFinance())
                                     <button class="btn btn-sm btn-primary" data-toggle="modal" data-target="#receiptModal">
                                         <i class="fas fa-plus mr-1"></i> Tambah
                                     </button>
@@ -256,7 +256,7 @@
                                 </div>
                             @endif
 
-                            @if($transaction->payment_status === 'credit' && $balance > 0)
+                            @if($transaction->payment_status === 'credit' && $balance > 0 && !auth()->user()->isFinance())
                                 <button type="button" class="btn btn-warning btn-block font-weight-bold py-2 mt-3 shadow-sm" data-toggle="modal" data-target="#settleModal">
                                     <i class="fas fa-check-circle mr-1"></i> PROSES PELUNASAN
                                 </button>
@@ -284,11 +284,13 @@
                                 @endif
                             </div>
                         </div>
+                        @if(!auth()->user()->isFinance())
                         <div class="card-footer border-top text-center">
                             <button onclick="deleteInvoice({{ $transaction->id }})" class="btn btn-outline-danger btn-sm btn-block">
                                 <i class="fas fa-trash"></i> Hapus Invoice
                             </button>
                         </div>
+                        @endif
                     </div>
                 </div>
             </div>

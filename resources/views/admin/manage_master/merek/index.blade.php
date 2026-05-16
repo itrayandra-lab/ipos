@@ -168,11 +168,13 @@
                     <div class="card">
                         <div class="card-header d-flex justify-content-between align-items-center">
                             <h4>Daftar Merek Produk</h4>
+                            @if(auth()->user()->role !== 'sales')
                             <div class="card-header-action">
                                 <button type="button" class="btn btn-premium" data-toggle="modal" data-target="#addModal">
                                     <i class="fas fa-plus-circle mr-2"></i> Tambah Merek Baru
                                 </button>
                             </div>
+                            @endif
                         </div>
                         <div class="card-body">
                             <div class="table-responsive">

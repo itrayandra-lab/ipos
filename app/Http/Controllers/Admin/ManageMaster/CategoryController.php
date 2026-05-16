@@ -24,7 +24,10 @@ class CategoryController extends Controller
                 return $row->code ?? '-';
             })
             ->addColumn('action', function ($row) {
-            return '
+                if (!auth()->user()->canEdit('access_categories')) {
+                    return '<span class="text-muted small">View Only</span>';
+                }
+                return '
                     <div class="dropdown d-inline dropleft">
                         <button type="button" class="btn btn-primary btn-sm dropdown-toggle" data-toggle="dropdown">
                             Action
@@ -35,7 +38,7 @@ class CategoryController extends Controller
                         </ul>
                     </div>
                 ';
-        })
+            })
             ->rawColumns(['action'])
             ->make(true);
     }

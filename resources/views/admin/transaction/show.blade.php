@@ -196,6 +196,7 @@
                                 <div class="card card-info border shadow-sm">
                                     <div class="card-header">
                                         <h4><i class="fas fa-history"></i> Riwayat Pembayaran</h4>
+                                        @if(!auth()->user()->isFinance())
                                         @if($isPaidStatus)
                                             <div class="card-header-action">
                                                 <button class="btn btn-info btn-sm" data-toggle="modal" data-target="#quickUploadModal">
@@ -215,6 +216,7 @@
                                                     @endif
                                                 </div>
                                             @endif
+                                        @endif
                                         @endif
                                     </div>
                                     <div class="card-body p-0">
@@ -245,12 +247,14 @@
                                                                         <i class="fas fa-image"></i> Lihat
                                                                     </a>
                                                                 @else
+                                                                    @if(!auth()->user()->isFinance())
                                                                     <button class="btn btn-sm btn-outline-primary btn-upload-receipt" 
                                                                             data-id="{{ $payment->id }}"
                                                                             data-amount="{{ number_format($payment->amount, 0, ',', '.') }}"
                                                                             data-date="{{ \Carbon\Carbon::parse($payment->payment_date)->format('d/m/Y') }}">
                                                                         <i class="fas fa-upload"></i> Upload
                                                                     </button>
+                                                                    @endif
                                                                 @endif
                                                             </td>
                                                             <td><span class="badge badge-success">Sukses</span></td>

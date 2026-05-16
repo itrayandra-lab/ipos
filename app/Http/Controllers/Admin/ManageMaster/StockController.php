@@ -14,17 +14,28 @@ class StockController extends Controller
 {
     public function index()
     {
+        $user = auth()->user();
         $products = Product::with('merek')->orderBy('name')->get();
-        $warehouses = \App\Models\Warehouse::orderBy('type')->orderBy('name')->get();
+
+        $userWarehouses = $user->warehouses;
+        $warehouses = $userWarehouses->isNotEmpty()
+            ? $userWarehouses
+            : \App\Models\Warehouse::orderBy('type')->orderBy('name')->get();
+
         return view('admin.manage_master.stock.index', compact('products', 'warehouses'))->with('sb', 'Stock');
     }
 
     public function getall(Request $request)
     {
         $warehouseId = $request->warehouse_id;
+        $user = auth()->user();
+        $userWarehouseIds = $user->warehouses->pluck('id')->toArray();
 
         // Query dengan Join agar kolom nama bisa dicari oleh Datatables
         $batches = ProductBatch::query()
+            ->when($userWarehouseIds, function ($q) use ($userWarehouseIds) {
+                $q->whereIn('product_batches.warehouse_id', $userWarehouseIds);
+            })
             ->join('products', 'product_batches.product_id', '=', 'products.id')
             ->leftJoin('merek', 'products.merek_id', '=', 'merek.id')
             ->join('warehouses', 'product_batches.warehouse_id', '=', 'warehouses.id')
@@ -70,7 +81,7 @@ class StockController extends Controller
                 $url = url('admin/manage-master/stock/detail-audit') . '?product_id=' . $row->product_id . '&variant_id=' . $row->product_variant_id . '&warehouse_id=' . $row->warehouse_id;
                 return '
                     <a href="' . $url . '" class="btn btn-primary btn-sm btn-detail">
-                        <i class="fas fa-eye"></i> Detail Audit
+                        <i class="fas fa-eye"></i> Detail
                     </a>
                 ';
             })
@@ -237,12 +248,23 @@ class StockController extends Controller
         $variantId = $request->variant_id;
         $warehouseId = $request->warehouse_id;
 
+        // Safety check
+        if (!$productId || !$warehouseId) {
+            return response()->json(['success' => false, 'message' => 'ID Produk atau Gudang tidak valid']);
+        }
+
         // 1. Get All Batches for this group
-        $batches = ProductBatch::with(['variant.netto'])
+        $batchesQuery = ProductBatch::with(['variant.netto'])
             ->where('product_id', $productId)
-            ->where('product_variant_id', $variantId)
-            ->where('warehouse_id', $warehouseId)
-            ->get()
+            ->where('warehouse_id', $warehouseId);
+
+        if ($variantId && $variantId !== 'null' && $variantId !== '') {
+            $batchesQuery->where('product_variant_id', $variantId);
+        } else {
+            $batchesQuery->whereNull('product_variant_id');
+        }
+
+        $batches = $batchesQuery->get()
             ->map(function($batch) {
                 $sold = $batch->transactionItems()->sum('qty');
                 $returned = $batch->supplierReturnItems()->sum('qty');
@@ -252,6 +274,10 @@ class StockController extends Controller
 
         $product = Product::with('merek')->find($productId);
         $warehouse = \App\Models\Warehouse::find($warehouseId);
+
+        if (!$product || !$warehouse) {
+            return response()->json(['success' => false, 'message' => 'Produk atau Gudang tidak ditemukan']);
+        }
         
         $batchIds = $batches->pluck('id');
 
@@ -264,9 +290,10 @@ class StockController extends Controller
             ->map(function($item) {
                 return [
                     'type' => 'Supplier',
-                    'ref_no' => $item->delivery_note_number,
+                    'ref_no' => $item->sj_number ?? $item->delivery_note_number,
                     'source' => $item->supplier ? $item->supplier->name : '-',
-                    'date' => $item->received_date
+                    'date' => $item->received_date ? $item->received_date->format('Y-m-d') : '-',
+                    'print_url' => null
                 ];
             });
 
@@ -282,7 +309,8 @@ class StockController extends Controller
                     'type' => 'Mutasi Masuk',
                     'ref_no' => $item->stockMovement->reference_number,
                     'source' => 'Dari: ' . ($item->stockMovement->fromWarehouse->name ?? '-'),
-                    'date' => $item->stockMovement->received_at
+                    'date' => $item->stockMovement->received_at ? $item->stockMovement->received_at->format('Y-m-d') : '-',
+                    'print_url' => null
                 ];
             });
 
@@ -294,12 +322,14 @@ class StockController extends Controller
             ->get()
             ->map(function($item) {
                 return [
+                    'id' => $item->transaction_id,
                     'type' => 'Penjualan',
-                    'ref_no' => $item->transaction->invoice_number ?? $item->transaction->transaction_number ?? '-',
+                    'ref_no' => $item->transaction->invoice_number ?? $item->transaction->transaction_code ?? '-',
                     'destination' => $item->transaction->customer ? $item->transaction->customer->name : 'Customer Umum',
                     'qty' => $item->qty,
-                    'date' => $item->transaction->created_at,
-                    'batch_no' => $item->batch->batch_no ?? '-'
+                    'date' => $item->transaction->created_at ? $item->transaction->created_at->format('Y-m-d H:i') : '-',
+                    'batch_no' => $item->batch->batch_no ?? '-',
+                    'print_url' => route('admin.sales.invoices.print', $item->transaction_id)
                 ];
             });
 
@@ -311,12 +341,14 @@ class StockController extends Controller
             ->get()
             ->map(function($item) {
                 return [
+                    'id' => $item->stock_movement_id,
                     'type' => 'Mutasi Stok',
                     'ref_no' => $item->stockMovement->reference_number,
                     'destination' => 'Ke: ' . ($item->stockMovement->toWarehouse->name ?? '-'),
                     'qty' => $item->qty,
-                    'date' => $item->stockMovement->created_at,
-                    'batch_no' => $item->batch->batch_no ?? '-'
+                    'date' => $item->stockMovement->created_at ? $item->stockMovement->created_at->format('Y-m-d H:i') : '-',
+                    'batch_no' => $item->batch->batch_no ?? '-',
+                    'print_url' => null // Add print route if available
                 ];
             });
 
@@ -325,12 +357,14 @@ class StockController extends Controller
             ->get()
             ->map(function($item) {
                 return [
+                    'id' => $item->supplier_return_id,
                     'type' => 'Return Supplier',
                     'ref_no' => $item->supplierReturn->return_number ?? '-',
                     'destination' => 'Ke: ' . ($item->supplierReturn->supplier->name ?? '-'),
                     'qty' => $item->qty,
-                    'date' => $item->supplierReturn->return_date,
-                    'batch_no' => $item->batch->batch_no ?? '-'
+                    'date' => $item->supplierReturn->return_date ? $item->supplierReturn->return_date->format('Y-m-d') : '-',
+                    'batch_no' => $item->batch->batch_no ?? '-',
+                    'print_url' => null
                 ];
             });
 
@@ -339,7 +373,7 @@ class StockController extends Controller
 
         // Ambil info netto dari variant
         $nettoInfo = null;
-        if ($variantId) {
+        if ($variantId && $variantId !== 'null' && $variantId !== '') {
             $variant = \App\Models\ProductVariant::with('netto')->find($variantId);
             if ($variant && $variant->netto) {
                 $nettoInfo = trim($variant->netto->netto_value . ' ' . ($variant->netto->satuan ?? ''));

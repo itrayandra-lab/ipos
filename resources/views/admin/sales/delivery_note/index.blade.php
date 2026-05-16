@@ -116,11 +116,13 @@
             <div class="card">
                 <div class="card-header">
                     <h4>Filter Surat Jalan</h4>
+                    @if(!auth()->user()->isFinance())
                     <div class="card-header-action">
                         <a href="{{ route('admin.sales.delivery_notes.create') }}" class="btn btn-premium btn-sm">
                             <i class="fas fa-plus mr-1"></i> Tambah Surat Jalan
                         </a>
                     </div>
+                    @endif
                 </div>
                 <div class="card-body pb-0">
                     <div class="filter-card">

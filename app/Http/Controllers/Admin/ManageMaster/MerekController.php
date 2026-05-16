@@ -24,6 +24,9 @@ class MerekController extends Controller
         return DataTables::of($query)
             ->addIndexColumn()
             ->addColumn('action', function (Merek $merek) {
+                if (!auth()->user()->canEdit('access_merek')) {
+                    return '<span class="text-muted small">View Only</span>';
+                }
                 return '
                 <div class="dropdown d-inline">
                     <button class="btn btn-primary dropdown-toggle btn-sm" type="button" data-toggle="dropdown">
@@ -47,6 +50,9 @@ class MerekController extends Controller
 
     public function create(Request $request)
     {
+        if (!auth()->user()->canEdit('access_merek')) {
+            return redirect()->back()->with('error', 'Anda tidak memiliki akses untuk menambah data');
+        }
         $validator = Validator::make($request->all(), [
             'name' => 'required|string|max:100',
             'code' => 'required|string|max:10|unique:merek,code',
@@ -78,6 +84,9 @@ class MerekController extends Controller
 
     public function update(Request $request)
     {
+        if (!auth()->user()->canEdit('access_merek')) {
+            return redirect()->back()->with('error', 'Anda tidak memiliki akses untuk mengubah data');
+        }
         $id = $request->id;
         if (!$id) {
             return redirect()->back()->with('error', 'ID merek tidak ditemukan');
@@ -116,6 +125,9 @@ class MerekController extends Controller
 
     public function delete(Request $request)
     {
+        if (!auth()->user()->canEdit('access_merek')) {
+            return response()->json(['message' => 'Anda tidak memiliki akses untuk menghapus data'], 403);
+        }
         $merek = Merek::findOrFail($request->id);
         $merek->delete();
         return response()->json(['message' => 'Data merek berhasil dihapus'], 200);

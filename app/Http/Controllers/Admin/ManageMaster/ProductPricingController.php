@@ -16,9 +16,17 @@ class ProductPricingController extends Controller
     {
         $this->middleware(function ($request, $next) {
             $user = auth()->user();
-            if ($user && $user->role === 'sales') {
-                abort(403, 'Akses ditolak. Role Sales tidak diizinkan mengakses halaman Harga Produk.');
+            $restrictedMethods = ['savePricing', 'updateHpp', 'updateTier', 'updateTaxStatus', 'recalculate', 'recalculateAll', 'updateRayStore', 'approve'];
+            
+            if ($user && in_array($request->route()->getActionMethod(), $restrictedMethods)) {
+                if (!$user->canEdit('access_pricing')) {
+                    if ($request->ajax()) {
+                        return response()->json(['status' => 'error', 'message' => 'Anda tidak memiliki akses untuk tindakan ini.'], 403);
+                    }
+                    return redirect()->back()->with('error', 'Anda tidak memiliki akses untuk tindakan ini.');
+                }
             }
+            
             return $next($request);
         });
     }
@@ -155,13 +163,18 @@ class ProductPricingController extends Controller
                 ";
             })
             ->addColumn('action', function ($v) {
+                $user = auth()->user();
+                if (!$user->canEdit('access_pricing') || $user->isSales()) {
+                    return "<span class='text-muted small'>View Only</span>";
+                }
+
                 $merek  = $v->netto->product->merek->name ?? '';
                 $name   = $v->netto->product->name ?? '';
                 $netto  = $v->netto->netto_value . ' ' . $v->netto->satuan;
                 $fullName = "{$merek} {$name} {$netto}";
                 
                 $currentTierId = $v->product_tier_id ?? ($v->netto->product->product_tier_id ?? '');
-
+                
                 $processBtn = "
                     <button class='btn btn-sm btn-primary btn-process mb-1 w-100' 
                             data-id='{$v->id}' 

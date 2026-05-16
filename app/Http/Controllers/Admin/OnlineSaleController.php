@@ -230,6 +230,7 @@ class OnlineSaleController extends Controller
             ->addColumn('action', function ($trx) {
                 $itemsJson = htmlspecialchars(json_encode($trx->items), ENT_QUOTES, 'UTF-8');
                 $receiptUrl = $trx->payment_receipt ? asset($trx->payment_receipt) : '';
+                $isFinance = auth()->user()->isFinance();
                 
                 $html = '<div class="dropdown d-inline">
                             <button class="btn btn-primary dropdown-toggle btn-sm" type="button" data-toggle="dropdown">Aksi</button>
@@ -244,14 +245,16 @@ class OnlineSaleController extends Controller
                                 <i class="fas fa-file-download text-success"></i> Lihat Bukti
                               </a>';
                 }
-                $html .= '<a class="dropdown-item has-icon" href="' . route('admin.online_sale.edit', $trx->id) . '">
-                            <i class="fas fa-edit text-primary"></i> Edit
-                          </a>
-                          <div class="dropdown-divider"></div>
-                          <a class="dropdown-item has-icon text-danger btn-delete" href="#" data-id="' . $trx->id . '">
-                            <i class="fas fa-trash"></i> Hapus
-                          </a>
-                        </div>
+                if (!$isFinance) {
+                    $html .= '<a class="dropdown-item has-icon" href="' . route('admin.online_sale.edit', $trx->id) . '">
+                                <i class="fas fa-edit text-primary"></i> Edit
+                              </a>
+                              <div class="dropdown-divider"></div>
+                              <a class="dropdown-item has-icon text-danger btn-delete" href="#" data-id="' . $trx->id . '">
+                                <i class="fas fa-trash"></i> Hapus
+                              </a>';
+                }
+                $html .= '</div>
                     </div>';
                 return $html;
             })

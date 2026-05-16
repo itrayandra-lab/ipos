@@ -23,9 +23,11 @@
                         <div class="card-header">
                             <h4>Semua Pesanan Saluran</h4>
                             <div class="card-header-form">
+                                @if(!auth()->user()->isFinance())
                                 <a href="{{ route('admin.online_sale.create') }}" class="btn btn-primary btn-sm">
-                                    <i class="fas fa-plus"></i> Tambah Rekam Penjualan
+                                    <i class="fas fa-plus"></i> Tambah Penjualan
                                 </a>
+                                @endif
                             </div>
                         </div>
                         <div class="card-header">
