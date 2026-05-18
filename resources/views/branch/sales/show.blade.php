@@ -1,5 +1,33 @@
 @extends('master')
 @section('title', 'Detail Penjualan')
+@push('styles')
+<style>
+    .btn-edit-premium {
+        border-radius: 50px;
+        padding: 8px 22px;
+        font-weight: 700;
+        font-size: 13px;
+        letter-spacing: 0.5px;
+        box-shadow: 0 3px 10px rgba(255, 193, 7, 0.25);
+        transition: all 0.3s ease;
+    }
+    .btn-edit-premium:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 6px 15px rgba(255, 193, 7, 0.35);
+    }
+    .info-label {
+        font-size: 12px;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        color: #94a3b8;
+    }
+    .info-value {
+        font-weight: 600;
+        color: #1e293b;
+    }
+</style>
+@endpush
 @section('content')
 <div class="main-content">
     <section class="section">
@@ -13,7 +41,12 @@
             <div class="row">
                 <div class="col-md-4">
                     <div class="card">
-                        <div class="card-header"><h4>Informasi Penjualan</h4></div>
+                        <div class="card-header">
+                            <h4>Informasi Penjualan</h4>
+                            <div class="card-header-action">
+                                <a href="{{ route('branch.sales.edit', $sale->id) }}" class="btn btn-warning btn-edit-premium"><i class="fas fa-edit mr-1"></i> Edit</a>
+                            </div>
+                        </div>
                         <div class="card-body">
                             <ul class="list-group list-group-flush">
                                 <li class="list-group-item d-flex justify-content-between px-0">
@@ -26,8 +59,27 @@
                                     <span class="text-muted">Dicatat oleh</span><span>{{ $sale->user->name ?? '-' }}</span>
                                 </li>
                                 <li class="list-group-item d-flex justify-content-between px-0">
+                                    <span class="text-muted">Saluran</span><strong>{{ $sale->source ? ucfirst($sale->source) : 'Langsung (Toko)' }}</strong>
+                                </li>
+                                <li class="list-group-item d-flex justify-content-between px-0">
                                     <span class="text-muted">Gudang</span><strong>{{ $sale->warehouse->name ?? '-' }}</strong>
                                 </li>
+                                @if($sale->customer_name)
+                                <li class="list-group-item d-flex justify-content-between px-0">
+                                    <span class="text-muted">Customer</span><span>{{ $sale->customer_name }}</span>
+                                </li>
+                                @endif
+                                @if($sale->external_order_id)
+                                <li class="list-group-item d-flex justify-content-between px-0">
+                                    <span class="text-muted">No. Pesanan</span><span>{{ $sale->external_order_id }}</span>
+                                </li>
+                                @endif
+                                @if($sale->payment_receipt)
+                                <li class="list-group-item d-flex justify-content-between px-0">
+                                    <span class="text-muted">Bukti Bayar</span>
+                                    <a href="{{ asset($sale->payment_receipt) }}" target="_blank" class="badge badge-info"><i class="fas fa-file-invoice mr-1"></i> Lihat</a>
+                                </li>
+                                @endif
                                 <li class="list-group-item d-flex justify-content-between px-0">
                                     <span class="text-muted">Total</span>
                                     <strong class="text-success">Rp {{ number_format($sale->total_amount, 0, ',', '.') }}</strong>

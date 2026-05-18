@@ -57,7 +57,7 @@ class BranchReturnController extends Controller
     {
         $warehouse = Auth::user()->warehouse;
         $batches   = $warehouse
-            ? ProductBatch::with(['product.merek', 'variant'])
+            ? ProductBatch::with(['product.merek', 'variant.netto'])
                 ->where('warehouse_id', $warehouse->id)
                 ->where('qty', '>', 0)
                 ->get()
@@ -69,6 +69,7 @@ class BranchReturnController extends Controller
     public function store(Request $request)
     {
         $validator = Validator::make($request->all(), [
+            'warehouse_code'            => 'required|string|max:50',
             'reason'                    => 'nullable|string',
             'items'                     => 'required|array|min:1',
             'items.*.product_batch_id'  => 'required|exists:product_batches,id',
@@ -90,8 +91,9 @@ class BranchReturnController extends Controller
             DB::beginTransaction();
 
             $branchReturn = BranchReturn::create([
-                'reference_number'   => BranchReturn::generateReferenceNumber(),
+                'reference_number'   => BranchReturn::generateReferenceNumber($request->warehouse_code ?? ''),
                 'branch_warehouse_id' => $warehouse->id,
+                'warehouse_code'     => $request->warehouse_code,
                 'requested_by'       => $user->id,
                 'status'             => 'pending',
                 'reason'             => $request->reason,

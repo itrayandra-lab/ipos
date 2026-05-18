@@ -14,6 +14,7 @@ use Carbon\Carbon;
 use App\Models\TransactionPayment;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\File;
+use App\Models\Warehouse;
 use App\Services\InvoiceService;
 
 class TransactionController extends Controller
@@ -51,15 +52,25 @@ class TransactionController extends Controller
 
     public function index()
     {
+        $user = auth()->user();
+
         $counts = Transaction::select('payment_status', DB::raw('count(*) as total'))
             ->groupBy('payment_status')
             ->get()
             ->pluck('total', 'payment_status')
             ->toArray();
 
+        $warehouses = collect();
+        if ($user->isSuperAdmin() || $user->isStoreManager()) {
+            $warehouses = Warehouse::orderBy('name')->get();
+        } else {
+            $warehouses = $user->warehouses()->orderBy('name')->get();
+        }
+
         return view('admin.transaction.index')->with([
             'sb' => 'Transaction',
-            'counts' => $counts
+            'counts' => $counts,
+            'warehouses' => $warehouses,
         ]);
     }
 
@@ -73,11 +84,26 @@ class TransactionController extends Controller
             'transactions.payment_status',
             'transactions.delivery_type',
             'transactions.source',
+            'transactions.warehouse_id',
             'transactions.invoice_number',
             'transactions.created_at',
-            'users.name as user_name'
+            'users.name as user_name',
+            'warehouses.name as warehouse_name'
         )
-        ->join('users', 'transactions.user_id', '=', 'users.id')->orderBy('id', 'desc');
+        ->join('users', 'transactions.user_id', '=', 'users.id')
+        ->leftJoin('warehouses', 'transactions.warehouse_id', '=', 'warehouses.id')
+        ->orderBy('id', 'desc');
+
+        // Filter by warehouse affiliation
+        $user = auth()->user();
+        if (!$user->isSuperAdmin() && !$user->isStoreManager()) {
+            $warehouseIds = $user->warehouses()->pluck('warehouses.id')->toArray();
+            if (!empty($warehouseIds)) {
+                $query->whereIn('transactions.warehouse_id', $warehouseIds);
+            } else {
+                $query->whereNull('transactions.warehouse_id');
+            }
+        }
 
         // Apply filters
         if ($request->has('delivery_type') && !empty($request->delivery_type)) {
@@ -90,6 +116,10 @@ class TransactionController extends Controller
 
         if ($request->has('source') && !empty($request->source)) {
             $query->where('transactions.source', $request->source);
+        }
+
+        if ($request->has('warehouse_id') && !empty($request->warehouse_id)) {
+            $query->where('transactions.warehouse_id', $request->warehouse_id);
         }
 
         if ($request->has('start_date') && !empty($request->start_date)) {

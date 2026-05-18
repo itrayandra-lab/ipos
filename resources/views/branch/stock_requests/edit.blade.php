@@ -1,5 +1,5 @@
 @extends('master')
-@section('title', 'Buat Pengajuan Barang')
+@section('title', 'Edit Pengajuan Barang')
 @push('styles')
 <style>
 .select2-container--bootstrap4 .select2-selection--single,
@@ -47,11 +47,12 @@
             <div class="section-header-back">
                 <a href="{{ route('branch.stock_requests.index') }}" class="btn btn-icon"><i class="fas fa-arrow-left"></i></a>
             </div>
-            <h1>Buat Pengajuan Barang</h1>
+            <h1>Edit Pengajuan Barang</h1>
         </div>
 
-        <form id="form-request" action="{{ route('branch.stock_requests.store') }}" method="POST">
+        <form id="form-request" action="{{ route('branch.stock_requests.update', $request->id) }}" method="POST">
             @csrf
+            @method('PUT')
             <div class="section-body">
                 <div class="row">
                     <div class="col-12">
@@ -60,7 +61,7 @@
                             <div class="card-body">
                                 <div class="form-group">
                                     <label>Catatan Pengajuan</label>
-                                    <textarea name="notes" class="form-control" rows="2" placeholder="Keterangan tambahan untuk pusat..."></textarea>
+                                    <textarea name="notes" class="form-control" rows="2" placeholder="Keterangan tambahan untuk pusat...">{{ $request->notes }}</textarea>
                                 </div>
 
                                 <hr>
@@ -89,7 +90,7 @@
                             <div class="card-footer text-right">
                                 <a href="{{ route('branch.stock_requests.index') }}" class="btn btn-secondary mr-2">Batal</a>
                                 <button type="submit" id="btn-submit" class="btn btn-primary btn-lg px-5">
-                                    <i class="fas fa-paper-plane mr-1"></i> Kirim Pengajuan
+                                    <i class="fas fa-save mr-1"></i> Simpan Perubahan
                                 </button>
                             </div>
                         </div>
@@ -104,9 +105,16 @@
 <script>
 let rowCount = 0;
 const variants = @json($variants);
+const existingItems = @json($request->items);
 
 $(document).ready(function() {
-    $('#btn-add-item').on('click', addRow);
+    $('#btn-add-item').on('click', () => addRow());
+
+    if (existingItems && existingItems.length > 0) {
+        existingItems.forEach(item => addRow(item));
+    } else {
+        addRow();
+    }
 
     $(document).on('click', '.btn-remove-row', function() {
         $(this).closest('tr').remove();
@@ -121,7 +129,7 @@ $(document).ready(function() {
         }
         const btn = $('#btn-submit');
         const ori = btn.html();
-        btn.attr('disabled', true).html('<i class="fas fa-spinner fa-spin mr-1"></i> Mengirim...');
+        btn.attr('disabled', true).html('<i class="fas fa-spinner fa-spin mr-1"></i> Menyimpan...');
         $.ajax({
             url: $(this).attr('action'), method: 'POST', data: $(this).serialize(),
             success: res => {
@@ -141,12 +149,19 @@ $(document).ready(function() {
     });
 });
 
-function addRow() {
+function addRow(existing = null) {
     const idx = rowCount++;
     const num = $('#table-items tbody tr').length + 1;
+    
+    const productId = existing ? existing.product_id : '';
+    const variantId = existing ? existing.product_variant_id : '';
+    const qty = existing ? existing.qty_requested : '';
+    const notes = existing ? (existing.notes || '') : '';
+
     let options = '<option value="">— Pilih Produk —</option>';
     variants.forEach(v => {
-        options += `<option value="${v.id}" data-product="${v.product_id}">${v.label}</option>`;
+        const selected = (v.id == variantId) ? 'selected' : '';
+        options += `<option value="${v.id}" data-product="${v.product_id}" ${selected}>${v.label}</option>`;
     });
     const html = `
         <tr>
@@ -155,13 +170,13 @@ function addRow() {
                 <select name="items[${idx}][product_variant_id]" class="form-control form-control-sm select-variant" required>
                     ${options}
                 </select>
-                <input type="hidden" name="items[${idx}][product_id]" class="product-id-input">
+                <input type="hidden" name="items[${idx}][product_id]" class="product-id-input" value="${productId}">
             </td>
             <td>
-                <input type="number" name="items[${idx}][qty_requested]" class="form-control form-control-sm" min="1" required placeholder="0">
+                <input type="number" name="items[${idx}][qty_requested]" class="form-control form-control-sm" min="1" required placeholder="0" value="${qty}">
             </td>
             <td>
-                <textarea name="items[${idx}][notes]" class="form-control form-control-sm" rows="1" style="height: auto; min-height: 38px; resize: vertical; word-wrap: break-word;" placeholder="Catatan item..."></textarea>
+                <textarea name="items[${idx}][notes]" class="form-control form-control-sm" rows="1" style="height: auto; min-height: 38px; resize: vertical; word-wrap: break-word;" placeholder="Catatan item...">${notes}</textarea>
             </td>
             <td class="text-center align-middle">
                 <button type="button" class="btn btn-sm btn-danger btn-remove-row"><i class="fas fa-trash"></i></button>

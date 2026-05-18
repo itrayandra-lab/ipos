@@ -91,10 +91,21 @@ class StockRequestApprovalController extends Controller
         try {
             DB::beginTransaction();
 
+            $caseStmts = [];
+            $ids = [];
             foreach ($request->items as $itemData) {
-                BranchStockRequestItem::where('id', $itemData['id'])
-                    ->where('branch_stock_request_id', $stockRequest->id)
-                    ->update(['qty_approved' => $itemData['qty_approved']]);
+                $id = (int) $itemData['id'];
+                $qty = (int) $itemData['qty_approved'];
+                $ids[] = $id;
+                $caseStmts[] = "WHEN {$id} THEN {$qty}";
+            }
+            $idsStr = implode(',', $ids);
+            $caseStr = implode(' ', $caseStmts);
+
+            if ($ids) {
+                DB::statement("UPDATE branch_stock_request_items
+                    SET qty_approved = CASE id {$caseStr} END
+                    WHERE id IN ({$idsStr}) AND branch_stock_request_id = ?", [$stockRequest->id]);
             }
 
             $stockRequest->update([

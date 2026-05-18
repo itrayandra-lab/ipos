@@ -106,18 +106,36 @@
                 e.preventDefault();
                 let id = $('#bank-id').val();
                 let url = id ? "{{ route('admin.bank_accounts.update') }}" : "{{ route('admin.bank_accounts.store') }}";
-                
+                let btn = $(this).find('button[type="submit"]');
+                let originalText = btn.text();
+
+                btn.prop('disabled', true).text('Menyimpan...');
+
                 $.ajax({
                     url: url,
                     method: 'POST',
                     data: $(this).serialize(),
                     success: function(res) {
-                        swal('Berhasil', res.message, 'success');
-                        $('#modal-form').modal('hide');
-                        table.draw();
+                        if (typeof Swal !== 'undefined') {
+                            Swal.fire('Berhasil', res.message, 'success').then(function() {
+                                $('#modal-form').modal('hide');
+                                table.draw();
+                            });
+                        } else {
+                            $('#modal-form').modal('hide');
+                            table.draw();
+                        }
                     },
                     error: function(err) {
-                        swal('Gagal', err.responseJSON?.message || 'Terjadi kesalahan', 'error');
+                        let msg = (err.responseJSON && err.responseJSON.message) ? err.responseJSON.message : 'Terjadi kesalahan';
+                        if (typeof Swal !== 'undefined') {
+                            Swal.fire('Gagal', msg, 'error');
+                        } else {
+                            alert('Gagal: ' + msg);
+                        }
+                    },
+                    complete: function() {
+                        btn.prop('disabled', false).text(originalText);
                     }
                 });
             });
@@ -141,26 +159,61 @@
 
             $(document).on('click', '.delete', function() {
                 let id = $(this).data('id');
-                swal({
+                if (typeof Swal === 'undefined') {
+                    if (!confirm('Apakah anda yakin? Rekening bank akan dihapus!')) return;
+                    doDelete(id);
+                    return;
+                }
+                Swal.fire({
                     title: 'Apakah anda yakin?',
                     text: 'Rekening bank akan dihapus!',
                     icon: 'warning',
-                    buttons: true,
-                    dangerMode: true,
-                }).then((willDelete) => {
-                    if (willDelete) {
-                        $.ajax({
-                            url: "{{ route('admin.bank_accounts.delete') }}",
-                            method: 'DELETE',
-                            data: { _token: '{{ csrf_token() }}', id: id },
-                            success: function(res) {
-                                swal('Berhasil', res.message, 'success');
-                                table.draw();
-                            }
-                        });
+                    showCancelButton: true,
+                    confirmButtonColor: '#d33',
+                    confirmButtonText: 'Ya, hapus!',
+                    cancelButtonText: 'Batal',
+                }).then(function(result) {
+                    if (result.isConfirmed) {
+                        doDelete(id);
                     }
                 });
             });
+
+            function doDelete(id) {
+                $.ajax({
+                    url: "{{ route('admin.bank_accounts.delete') }}",
+                    type: 'DELETE',
+                    data: { _token: '{{ csrf_token() }}', id: id },
+                    beforeSend: function() {
+                        if (typeof Swal !== 'undefined') {
+                            Swal.fire({
+                                title: "Menghapus...",
+                                text: "Mohon tunggu sebentar",
+                                icon: "info",
+                                showConfirmButton: false,
+                                allowOutsideClick: false,
+                                allowEscapeKey: false,
+                            });
+                        }
+                    },
+                    success: function(res) {
+                        if (typeof Swal !== 'undefined') {
+                            Swal.fire('Berhasil', res.message, 'success');
+                        } else {
+                            alert(res.message);
+                        }
+                        table.draw();
+                    },
+                    error: function(err) {
+                        let msg = (err.responseJSON && err.responseJSON.message) ? err.responseJSON.message : 'Terjadi kesalahan';
+                        if (typeof Swal !== 'undefined') {
+                            Swal.fire('Gagal', msg, 'error');
+                        } else {
+                            alert('Gagal: ' + msg);
+                        }
+                    }
+                });
+            }
         });
     </script>
     @endpush

@@ -20,6 +20,7 @@
                             <thead>
                                 <tr>
                                     <th width="30">#</th>
+                                    <th>Kode</th>
                                     <th>Nama Gudang</th>
                                     <th>Alamat</th>
                                     <th>Tipe</th>
@@ -48,6 +49,10 @@
                     <button type="button" class="close" data-dismiss="modal"><span>&times;</span></button>
                 </div>
                 <div class="modal-body">
+                    <div class="form-group">
+                        <label>Kode Gudang</label>
+                        <input type="text" name="code" id="warehouse-code" class="form-control" placeholder="Contoh: GUD-001">
+                    </div>
                     <div class="form-group">
                         <label>Nama Gudang <span class="text-danger">*</span></label>
                         <input type="text" name="name" id="warehouse-name" class="form-control" required>
@@ -90,6 +95,7 @@
             ajax: "{{ route('admin.settings.warehouses.getall') }}",
             columns: [
                 {data: 'DT_RowIndex', name: 'DT_RowIndex', orderable: false, searchable: false},
+                {data: 'code', name: 'code'},
                 {data: 'name', name: 'name'},
                 {data: 'address', name: 'address'},
                 {data: 'type', name: 'type', render: function(data) {
@@ -138,6 +144,7 @@
                 btn.removeClass('btn-progress').attr('disabled', false);
                 if (res.status === 'success') {
                     $('#warehouse-id').val(res.data.id);
+                    $('#warehouse-code').val(res.data.code);
                     $('#warehouse-name').val(res.data.name);
                     $('#warehouse-address').val(res.data.address);
                     $('#warehouse-type').val(res.data.type);

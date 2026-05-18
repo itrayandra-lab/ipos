@@ -65,14 +65,12 @@ class BranchStockRequest extends Model
     }
 
     /**
-     * Generate nomor referensi: PR/mmyy/001 (reset every month)
+     * Generate nomor referensi: PR/[warehouseCode]/mmyy/001 (per cabang)
      */
-    public static function generateReferenceNumber(): string
+    public static function generateReferenceNumber(string $warehouseCode): string
     {
-        $prefix = 'PR/' . date('my');
+        $prefix = 'PR/' . $warehouseCode . '/' . date('my');
         $last   = static::where('reference_number', 'like', $prefix . '/%')
-                        ->whereMonth('created_at', date('m'))
-                        ->whereYear('created_at', date('Y'))
                         ->orderByDesc('id')
                         ->first();
         $seq    = $last ? ((int) substr($last->reference_number, -3)) + 1 : 1;

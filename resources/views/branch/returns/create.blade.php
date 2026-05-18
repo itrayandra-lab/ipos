@@ -15,10 +15,21 @@
                 <div class="card">
                     <div class="card-header"><h4>Informasi Return</h4></div>
                     <div class="card-body">
-                        <div class="form-group">
-                            <label>Alasan Return</label>
-                            <textarea name="reason" class="form-control" rows="2" placeholder="Jelaskan alasan return barang ke pusat..."></textarea>
+                        <div class="row">
+                            <div class="col-md-3">
+                                <div class="form-group">
+                                    <label>Kode Gudang <span class="text-danger">*</span></label>
+                                    <input type="text" name="warehouse_code" class="form-control" placeholder="Contoh: GUD-001" value="{{ old('warehouse_code') }}" required>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="form-group">
+                                    <label>Alasan Return</label>
+                                    <textarea name="reason" class="form-control" rows="2" placeholder="Jelaskan alasan return barang ke pusat..."></textarea>
+                                </div>
+                            </div>
                         </div>
+                        <hr>
                         <hr>
                         <div class="d-flex justify-content-between align-items-center mb-3">
                             <h6 class="font-weight-bold mb-0">Barang yang Akan Di-Return</h6>
@@ -96,9 +107,9 @@ function addRow() {
     const idx = rowIdx++;
     let opts = '<option value="">— Pilih Batch —</option>';
     batches.forEach(b => {
-        const merek   = b.product?.merek?.name ? b.product.merek.name + ' ' : '';
-        const variant = b.variant?.variant_name ? ' / ' + b.variant.variant_name : '';
-        opts += `<option value="${b.id}">[${b.batch_no}] ${merek}${b.product?.name || ''}${variant} (Stok: ${b.qty})</option>`;
+        const merek  = b.product?.merek?.name ? b.product.merek.name + ' ' : '';
+        const netto  = b.variant?.netto ? (b.variant.netto.netto_value || '') + (b.variant.netto.satuan || '') : '';
+        opts += `<option value="${b.id}">[${b.batch_no}] ${merek}${b.product?.name || ''} ${netto} (Stok: ${b.qty})</option>`;
     });
     const html = `
         <tr>

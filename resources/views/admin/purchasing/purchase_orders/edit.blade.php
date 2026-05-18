@@ -318,15 +318,16 @@
         $('.select2').select2();
 
         // Load existing items
-        @foreach($po->items as $item)
+        const existingItems = @json($po->items);
+        existingItems.forEach(item => {
             addRow({
-                product_id: '{{ $item->product_id }}',
-                product_name: '{{ $item->product_name }}',
-                qty: '{{ $item->quantity }}',
-                price: '{{ $item->unit_price }}',
-                description: '{{ $item->description }}'
+                product_id: item.product_id,
+                product_name: item.product_name,
+                qty: item.quantity,
+                price: item.unit_price,
+                description: item.description || ''
             });
-        @endforeach
+        });
 
         if ($('#table-items tbody tr').length === 0) addRow();
 
@@ -339,7 +340,7 @@
                     calculateTotal();
                 });
             } else {
-                swal('Gagal', 'Minimal harus ada 1 item produk', 'error');
+                Swal.fire('Gagal', 'Minimal harus ada 1 item produk', 'error');
             }
         });
 
@@ -371,7 +372,7 @@
                 <td class="text-center font-weight-bold text-muted">${$('#table-items tbody tr').length + 1}</td>
                 <td>
                     <select name="items[${rowCount}][product_name]" class="form-control product-select" required>
-                        ${pName ? `<option value="${pName}" selected>${pName}</option>` : ''}
+                        ${pName ? `<option value="${pName.replace(/"/g, '&quot;')}" selected>${pName.replace(/"/g, '&quot;')}</option>` : ''}
                     </select>
                     <input type="hidden" name="items[${rowCount}][product_id]" class="product-id-hidden" value="${pId}">
                 </td>
@@ -462,12 +463,14 @@
         let form = $('#form-po');
         let btn = $('#btn-save-po');
 
-        swal({
+        Swal.fire({
             title: "Simpan Perubahan PO?",
             icon: "info",
-            buttons: ["Batal", "Ya, Simpan"],
-        }).then((confirm) => {
-            if (confirm) {
+            showCancelButton: true,
+            confirmButtonText: "Ya, Simpan",
+            cancelButtonText: "Batal"
+        }).then((result) => {
+            if (result.isConfirmed) {
                 btn.addClass('btn-progress').attr('disabled', true);
                 $.LoadingOverlay("show");
 
@@ -485,7 +488,7 @@
                     success: function (res) {
                         $.LoadingOverlay("hide");
                         if (res.status === 'success') {
-                            swal('Berhasil', res.message, 'success').then(() => {
+                            Swal.fire('Berhasil', res.message, 'success').then(() => {
                                 window.location.href = res.redirect;
                             });
                         }
@@ -493,7 +496,7 @@
                     error: function (err) {
                         $.LoadingOverlay("hide");
                         btn.removeClass('btn-progress').attr('disabled', false);
-                        swal('Gagal', err.responseJSON?.message || 'Terjadi kesalahan sistem', 'error');
+                        Swal.fire('Gagal', err.responseJSON?.message || 'Terjadi kesalahan sistem', 'error');
                     }
                 });
             }

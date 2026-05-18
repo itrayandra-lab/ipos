@@ -9,7 +9,7 @@ class Warehouse extends Model
 {
     use HasFactory;
 
-    protected $fillable = ['name', 'address', 'type', 'status'];
+    protected $fillable = ['code', 'name', 'address', 'type', 'status'];
 
     public function productBatches()
     {

@@ -174,6 +174,22 @@
                             </div>
                             <div class="col-md-3">
                                 <div class="form-group">
+                                    <label class="form-label-custom">Gudang</label>
+                                    @if($warehouses->count() > 1)
+                                        <select name="warehouse_id" class="form-control form-control-premium select2" required id="warehouse-select">
+                                            <option value="">Pilih Gudang...</option>
+                                            @foreach($warehouses as $wh)
+                                                <option value="{{ $wh->id }}" {{ old('warehouse_id', $defaultWarehouseId ?? '') == $wh->id ? 'selected' : '' }}>{{ $wh->name }}</option>
+                                            @endforeach
+                                        </select>
+                                    @else
+                                        <input type="hidden" name="warehouse_id" value="{{ $defaultWarehouseId }}">
+                                        <p class="form-control-plaintext font-weight-bold text-teal mb-0">{{ $warehouses->first()->name ?? 'Gudang Utama' }}</p>
+                                    @endif
+                                </div>
+                            </div>
+                            <div class="col-md-3">
+                                <div class="form-group">
                                     <label class="form-label-custom">Nama Customer (Opsional)</label>
                                     <input type="text" name="customer_name" class="form-control form-control-premium" placeholder="Nama pembeli" value="{{ old('customer_name') }}">
                                 </div>
@@ -269,12 +285,31 @@
         });
     }
 
+    function selectedWarehouseId() {
+        return parseInt($('#warehouse-select').val()) || 0;
+    }
+
     function buildBatchOptions() {
+        const whId = selectedWarehouseId();
         let html = '<option value="">-- Pilih Produk --</option>';
         batchData.forEach(function(b) {
+            if (b.warehouse_id !== whId) return;
             html += `<option value="${b.id}" data-prices='${JSON.stringify(b.prices)}' data-stock="${b.stock}">${b.text}</option>`;
         });
         return html;
+    }
+
+    function refreshBatchDropdowns() {
+        const options = buildBatchOptions();
+        $('.batch-dropdown').each(function() {
+            const currentVal = $(this).val();
+            $(this).html(options);
+            if (currentVal && options.includes(`value="${currentVal}"`)) {
+                $(this).val(currentVal).trigger('change');
+            } else {
+                $(this).val('').trigger('change');
+            }
+        });
     }
 
     function addRow() {
@@ -338,11 +373,18 @@
 
         $(document).on('input', '.qty-input, .price-input', recalc);
 
-        $(document).on('change', '.batch-dropdown, #source-select', function() {
+        $(document).on('change', '.batch-dropdown, #source-select, #warehouse-select', function() {
+            const elId = $(this).attr('id');
+
+            if (elId === 'warehouse-select') {
+                refreshBatchDropdowns();
+                return;
+            }
+
             const row = $(this).closest('.item-row');
             if (row.length === 0) return; // if change triggered by #source-select, update all rows
 
-            if ($(this).attr('id') === 'source-select') {
+            if (elId === 'source-select') {
                 updateAllPrices();
             } else {
                 updateRowPrice(row);

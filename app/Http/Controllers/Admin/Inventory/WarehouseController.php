@@ -21,6 +21,7 @@ class WarehouseController extends Controller
 
         return DataTables::of($warehouses)
             ->addIndexColumn()
+            ->addColumn('code', fn($wh) => $wh->code ? '<code>' . e($wh->code) . '</code>' : '-')
             ->editColumn('status', function ($wh) {
                 return $wh->status === 'active' 
                     ? '<span class="badge badge-success">Active</span>' 
@@ -33,13 +34,14 @@ class WarehouseController extends Controller
                     <button type="button" class="btn btn-sm btn-danger btn-delete" data-id="' . $wh->id . '"><i class="fas fa-trash"></i></button>
                 </div>';
             })
-            ->rawColumns(['status', 'action'])
+            ->rawColumns(['code', 'status', 'action'])
             ->make(true);
     }
 
     public function store(Request $request)
     {
         $validator = Validator::make($request->all(), [
+            'code' => 'nullable|string|max:50|unique:warehouses,code',
             'name' => 'required|string|max:255',
             'type' => 'required|in:main,branch',
             'status' => 'required|in:active,inactive',
@@ -64,6 +66,7 @@ class WarehouseController extends Controller
     {
         $validator = Validator::make($request->all(), [
             'id' => 'required|exists:warehouses,id',
+            'code' => 'nullable|string|max:50|unique:warehouses,code,' . $request->id,
             'name' => 'required|string|max:255',
             'type' => 'required|in:main,branch',
             'status' => 'required|in:active,inactive',

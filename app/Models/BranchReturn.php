@@ -12,6 +12,7 @@ class BranchReturn extends Model
     protected $fillable = [
         'reference_number',
         'branch_warehouse_id',
+        'warehouse_code',
         'requested_by',
         'approved_by',
         'received_by',
@@ -58,16 +59,16 @@ class BranchReturn extends Model
     }
 
     /**
-     * Generate nomor referensi: BRT/MM/YY/0001
+     * Generate nomor referensi: BRT/[warehouseCode]/mmyy/001 (per cabang)
      */
-    public static function generateReferenceNumber(): string
+    public static function generateReferenceNumber(string $warehouseCode): string
     {
-        $prefix = 'BRT/' . date('m') . '/' . date('y');
+        $prefix = 'BRT/' . $warehouseCode . '/' . date('my');
         $last   = static::where('reference_number', 'like', $prefix . '/%')
                         ->orderByDesc('id')
                         ->first();
-        $seq    = $last ? ((int) substr($last->reference_number, -4)) + 1 : 1;
-        return $prefix . '/' . str_pad($seq, 4, '0', STR_PAD_LEFT);
+        $seq    = $last ? ((int) substr($last->reference_number, -3)) + 1 : 1;
+        return $prefix . '/' . str_pad($seq, 3, '0', STR_PAD_LEFT);
     }
 
     public function getStatusLabelAttribute(): string

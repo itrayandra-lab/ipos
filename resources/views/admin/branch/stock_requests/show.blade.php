@@ -277,6 +277,15 @@
 @push('scripts')
 <script>
 $(document).ready(function() {
+    function showAlert(icon, title, text, cb) {
+        if (typeof Swal !== 'undefined') {
+            Swal.fire({ icon, title, text, timer: 2000, showConfirmButton: false }).then(() => { if (cb) cb(); });
+        } else {
+            alert(title + ': ' + text);
+            if (cb) cb();
+        }
+    }
+
     // Approve
     $('#btn-approve').on('click', () => $('#modalApprove').modal('show'));
     $('#form-approve').on('submit', function(e) {
@@ -285,7 +294,6 @@ $(document).ready(function() {
         const ori = btn.html();
         btn.attr('disabled', true).html('<i class="fas fa-spinner fa-spin mr-1"></i>');
 
-        // Kumpulkan qty_approved per item
         const items = [];
         $('#items-body tr').each(function() {
             items.push({ id: $(this).data('item-id'), qty_approved: $(this).find('.input-qty-approved').val() });
@@ -298,16 +306,15 @@ $(document).ready(function() {
             success: res => {
                 $('#modalApprove').modal('hide');
                 if (res.status === 'success') {
-                    Swal.fire({ icon: 'success', title: 'Disetujui!', text: res.message, timer: 2000, showConfirmButton: false })
-                        .then(() => location.reload());
+                    showAlert('success', 'Disetujui!', res.message, () => location.reload());
                 } else {
                     btn.attr('disabled', false).html(ori);
-                    Swal.fire({ icon: 'error', title: 'Gagal', text: res.message });
+                    showAlert('error', 'Gagal', res.message);
                 }
             },
             error: err => {
                 btn.attr('disabled', false).html(ori);
-                Swal.fire({ icon: 'error', title: 'Error', text: err.responseJSON?.message || 'Terjadi kesalahan' });
+                showAlert('error', 'Error', err.responseJSON?.message || 'Terjadi kesalahan');
             }
         });
     });
@@ -317,6 +324,7 @@ $(document).ready(function() {
     $('#form-reject').on('submit', function(e) {
         e.preventDefault();
         const btn = $(this).find('button[type=submit]');
+        const ori = btn.html();
         btn.attr('disabled', true).html('<i class="fas fa-spinner fa-spin mr-1"></i>');
         $.ajax({
             url: "{{ route('admin.branch.stock_requests.reject', $request->id) }}",
@@ -324,15 +332,15 @@ $(document).ready(function() {
             success: res => {
                 $('#modalReject').modal('hide');
                 if (res.status === 'success') {
-                    Swal.fire({ icon: 'success', title: 'Ditolak', text: res.message, timer: 2000, showConfirmButton: false })
-                        .then(() => location.reload());
+                    showAlert('success', 'Ditolak', res.message, () => location.reload());
                 } else {
-                    Swal.fire({ icon: 'error', title: 'Gagal', text: res.message });
+                    btn.attr('disabled', false).html(ori);
+                    showAlert('error', 'Gagal', res.message);
                 }
             },
             error: err => {
-                btn.attr('disabled', false).html('Tolak');
-                Swal.fire({ icon: 'error', title: 'Error', text: err.responseJSON?.message });
+                btn.attr('disabled', false).html(ori);
+                showAlert('error', 'Error', err.responseJSON?.message);
             }
         });
     });
@@ -342,6 +350,7 @@ $(document).ready(function() {
     $('#form-ship').on('submit', function(e) {
         e.preventDefault();
         const btn = $(this).find('button[type=submit]');
+        const ori = btn.html();
         btn.attr('disabled', true).html('<i class="fas fa-spinner fa-spin mr-1"></i> Mengirim...');
         $.ajax({
             url: "{{ route('admin.branch.stock_requests.ship', $request->id) }}",
@@ -349,15 +358,15 @@ $(document).ready(function() {
             success: res => {
                 $('#modalShip').modal('hide');
                 if (res.status === 'success') {
-                    Swal.fire({ icon: 'success', title: 'Dikirim!', text: res.message, timer: 2000, showConfirmButton: false })
-                        .then(() => location.reload());
+                    showAlert('success', 'Dikirim!', res.message, () => location.reload());
                 } else {
-                    Swal.fire({ icon: 'error', title: 'Gagal', text: res.message });
+                    btn.attr('disabled', false).html(ori);
+                    showAlert('error', 'Gagal', res.message);
                 }
             },
             error: err => {
-                btn.attr('disabled', false).html('<i class="fas fa-truck mr-1"></i> Kirim Sekarang');
-                Swal.fire({ icon: 'error', title: 'Error', text: err.responseJSON?.message });
+                btn.attr('disabled', false).html(ori);
+                showAlert('error', 'Error', err.responseJSON?.message);
             }
         });
     });

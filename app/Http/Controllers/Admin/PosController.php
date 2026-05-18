@@ -293,6 +293,7 @@ class PosController extends Controller
             return DB::transaction(function() use ($request) {
                 $mainWarehouse = \App\Models\Warehouse::where('type', 'main')->first();
                 $warehouseId = $mainWarehouse ? $mainWarehouse->id : 1;
+                $whCode = $mainWarehouse ? ($mainWarehouse->code ?? '') : '';
 
                 $totalAmount = 0;
                 $itemsToCreate = [];
@@ -454,7 +455,7 @@ class PosController extends Controller
                 }
 
                 $transaction = Transaction::create([
-                    'transaction_code' => \App\Services\TransactionCodeService::generate($request->created_at ? \Carbon\Carbon::parse($request->created_at) : now()),
+                    'transaction_code' => \App\Services\TransactionCodeService::generate($request->created_at ? \Carbon\Carbon::parse($request->created_at) : now(), $whCode),
                     'user_id' => auth()->id(),
                     'customer_id' => $request->customer_id,
                     'customer_name' => $request->customer_name,

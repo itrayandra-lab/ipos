@@ -15,6 +15,11 @@
     #items-table th, #items-table td {
         vertical-align: middle !important;
     }
+    /* Fixed width for Produk column */
+    #items-table th:first-child,
+    #items-table td:first-child {
+        min-width: 250px !important;
+    }
 </style>
 @endpush
 

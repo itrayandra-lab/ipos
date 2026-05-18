@@ -525,6 +525,8 @@ Route::prefix('branch')->middleware(['auth', 'role:super_admin,store_manager,adm
         Route::get('/stock-requests/all', 'getall')->name('branch.stock_requests.getall');
         Route::get('/stock-requests/create', 'create')->name('branch.stock_requests.create');
         Route::post('/stock-requests', 'store')->name('branch.stock_requests.store');
+        Route::get('/stock-requests/{id}/edit', 'edit')->name('branch.stock_requests.edit');
+        Route::put('/stock-requests/{id}', 'update')->name('branch.stock_requests.update');
         Route::get('/stock-requests/{id}', 'show')->name('branch.stock_requests.show');
         Route::post('/stock-requests/{id}/confirm-receive', 'confirmReceive')->name('branch.stock_requests.confirm_receive');
         Route::post('/stock-requests/{id}/cancel', 'cancel')->name('branch.stock_requests.cancel');
@@ -534,7 +536,10 @@ Route::prefix('branch')->middleware(['auth', 'role:super_admin,store_manager,adm
         Route::get('/sales/all', 'getall')->name('branch.sales.getall');
         Route::get('/sales/create', 'create')->name('branch.sales.create');
         Route::post('/sales', 'store')->name('branch.sales.store');
+        Route::get('/sales/{id}/edit', 'edit')->name('branch.sales.edit');
+        Route::post('/sales/{id}/update', 'update')->name('branch.sales.update');
         Route::get('/sales/{id}', 'show')->name('branch.sales.show');
+        Route::delete('/sales/{id}', 'destroy')->name('branch.sales.destroy');
     });
     Route::controller(\App\Http\Controllers\Branch\BranchReturnController::class)->group(function () {
         Route::get('/returns', 'index')->name('branch.returns.index');

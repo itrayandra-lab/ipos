@@ -16,6 +16,10 @@ class BranchSale extends Model
         'sale_date',
         'notes',
         'total_amount',
+        'source',
+        'customer_name',
+        'external_order_id',
+        'payment_receipt',
     ];
 
     protected $casts = [
@@ -38,15 +42,16 @@ class BranchSale extends Model
     }
 
     /**
-     * Generate nomor referensi: BS/MM/YY/0001
+     * Generate nomor referensi: BS[warehouseCode]2605001 (per cabang)
      */
-    public static function generateReferenceNumber(): string
+    public static function generateReferenceNumber(int $branchWarehouseId, string $warehouseCode): string
     {
-        $prefix = 'BS/' . date('m') . '/' . date('y');
-        $last   = static::where('reference_number', 'like', $prefix . '/%')
+        $prefix = 'BS' . $warehouseCode . date('y') . date('m');
+        $last   = static::where('branch_warehouse_id', $branchWarehouseId)
+                        ->where('reference_number', 'like', $prefix . '%')
                         ->orderByDesc('id')
                         ->first();
-        $seq    = $last ? ((int) substr($last->reference_number, -4)) + 1 : 1;
-        return $prefix . '/' . str_pad($seq, 4, '0', STR_PAD_LEFT);
+        $seq    = $last ? ((int) substr($last->reference_number, -3)) + 1 : 1;
+        return $prefix . str_pad($seq, 3, '0', STR_PAD_LEFT);
     }
 }

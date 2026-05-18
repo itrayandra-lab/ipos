@@ -59,6 +59,7 @@
                 font-weight: 600 !important;
                 padding: 15px 12px !important;
                 border-top: none !important;
+                letter-spacing: 0.3px;
             }
 
             #transaction-table tbody td {
@@ -67,14 +68,19 @@
                 border-bottom: 1px solid #f1f5f9 !important;
             }
 
+            #transaction-table tbody tr:hover td {
+                background-color: #f8fafc;
+            }
+
             /* Status Badges */
             .badge-soft {
-                padding: 6px 12px;
+                padding: 4px 10px;
                 border-radius: 50px;
                 font-weight: 600;
-                font-size: 11px;
+                font-size: 10px;
                 display: inline-flex;
                 align-items: center;
+                letter-spacing: 0.3px;
             }
             .badge-soft-success { background-color: #dcfce7; color: #15803d; }
             .badge-soft-warning { background-color: #fef9c3; color: #854d0e; }
@@ -82,27 +88,31 @@
             .badge-soft-info { background-color: #e0f2fe; color: #0369a1; }
             .badge-soft-secondary { background-color: #f1f5f9; color: #475569; }
 
-            .badge-soft::before {
-                content: "";
-                width: 6px;
-                height: 6px;
-                border-radius: 50%;
-                margin-right: 6px;
-                background: currentColor;
-            }
-
             .amount-text {
                 font-weight: 700;
                 color: #1e293b;
+                font-size: 14px;
+            }
+
+            .cell-merged {
+                display: flex;
+                flex-direction: column;
+                gap: 4px;
+            }
+
+            .cell-merged .label-sub {
+                font-size: 11px;
+                color: #94a3b8;
             }
 
             .btn-action-custom {
-                border-radius: 8px !important;
+                border-radius: 6px !important;
                 font-weight: 600 !important;
-                padding: 5px 15px !important;
+                padding: 4px 12px !important;
                 background-color: #f8fafc !important;
                 border: 1px solid #e2e8f0 !important;
                 color: #475569 !important;
+                font-size: 12px !important;
             }
             .btn-action-custom:hover {
                 background-color: #f1f5f9 !important;
@@ -254,8 +264,8 @@
                     <div class="card-header">
                         <h4>Filter Transaksi</h4>
                         <div class="card-header-form">
-                            <a href="{{ route('admin.online_sale.create') }}" class="btn btn-primary btn-sm mr-2" style="border-radius: 8px; font-weight: 700; background: #0d9488; border: none;">
-                                <i class="fas fa-plus mr-1"></i> Rekam Penjualan Saluran
+                            <a href="{{ route('admin.online_sale.create') }}" class="btn btn-premium btn-sm mr-2">
+                                <i class="fas fa-plus mr-1"></i> Tambah Penjualan Platform
                             </a>
                             <a href="{{ route('admin.transactions.report.product') }}" class="btn btn-info btn-sm mr-2" style="border-radius: 8px; font-weight: 700;">
                                 <i class="fas fa-chart-line mr-1"></i> Laporan Per Produk
@@ -283,11 +293,12 @@
                             <form id="filter-form">
                                 <div class="row align-items-end">
                                     <div class="col-md-2 mb-3">
-                                        <label for="delivery_type" class="form-label">Tipe Pengiriman</label>
-                                        <select class="form-control form-control-custom" id="delivery_type" name="delivery_type">
-                                            <option value="">Semua Tipe</option>
-                                            <option value="pickup">Pickup</option>
-                                            <option value="delivery">Delivery</option>
+                                        <label for="warehouse_filter" class="form-label">Cabang</label>
+                                        <select class="form-control form-control-custom" id="warehouse_filter" name="warehouse_id">
+                                            <option value="">Semua Cabang</option>
+                                            @foreach($warehouses as $wh)
+                                                <option value="{{ $wh->id }}">{{ $wh->name }}</option>
+                                            @endforeach
                                         </select>
                                     </div>
                                     <div class="col-md-2 mb-3">
@@ -330,24 +341,25 @@
                             </form>
                         </div>
                     </div>
-                    <div class="card-body">
-                        <table class="table table-striped mt-5" id="transaction-table">
-                            <thead>
-                                <tr>
-                                    <th width="10px">#</th>
-                                    <th>ID</th>
-                                    <th>User / Admin</th>
-                                    <th>Total Transaksi</th>
-                                    <th>Status Pembayaran</th>
-                                    <th>Saluran</th>
-                                    <th>Pengiriman</th>
-                                    <th>Tanggal Transaksi</th>
-                                    <th width="10px">Action</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                            </tbody>
-                        </table>
+                    <div class="card-body p-0">
+                        <div class="table-responsive">
+                            <table class="table table-premium table-hover mb-0" id="transaction-table" style="width: 100%;">
+                                <thead>
+                                    <tr>
+                                        <th width="5%" class="text-center">#</th>
+                                        <th width="15%">ID Transaksi</th>
+                                        <th width="15%">Kasir / Admin</th>
+                                        <th width="15%">Total & Status</th>
+                                        <th width="15%">Saluran & Gudang</th>
+                                        <th width="10%">Pengiriman</th>
+                                        <th width="15%">Tanggal</th>
+                                        <th width="10%" class="text-center">Aksi</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                </tbody>
+                            </table>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -365,6 +377,7 @@
                     url: "{{ url('admin/transactions/all') }}",
                     type: "GET",
                     data: function(d) {
+                        d.warehouse_id = $('#warehouse_filter').val();
                         d.delivery_type = $('#delivery_type').val();
                         d.payment_status = $('#payment_status').val();
                         d.source = $('#source_filter').val();
@@ -373,36 +386,30 @@
                     }
                 },
                 columns: [
-                    { data: 'DT_RowIndex', name: 'DT_RowIndex', orderable: false, searchable: false },
+                    { data: 'DT_RowIndex', name: 'DT_RowIndex', orderable: false, searchable: false, className: 'text-center' },
                     { 
                         data: 'transaction_code', 
                         name: 'transaction_code',
                         render: function(data, type, row) {
-                            return `<span class="badge badge-light">${data || '#'+row.id}</span>`;
+                            let code = data || '#'+row.id;
+                            return `<span style="font-family:monospace;font-size:12px;font-weight:600;color:#475569">${code}</span>`;
                         }
                     },
                     { data: 'user.name', name: 'user.name' },
-                    { 
-                        data: 'total_amount', 
+                    {
+                        data: 'total_amount',
                         name: 'total_amount',
                         render: function(data, type, row) {
-                            return `<span class="amount-text">${data}</span>`;
-                        }
-                    },
-                    { 
-                        data: 'payment_status', 
-                        name: 'payment_status',
-                        render: function(data, type, row) {
                             let cls = 'badge-soft-secondary';
-                            let text = data.toUpperCase();
-                            if(data == 'paid' || data == 'completed') cls = 'badge-soft-success';
-                            if(data == 'pending' || data == 'credit') cls = 'badge-soft-warning';
-                            if(data == 'canceled' || data == 'failed') cls = 'badge-soft-danger';
-                            return `<span class="badge-soft ${cls}">${text}</span>`;
+                            let label = (row.payment_status || '').toUpperCase();
+                            if(row.payment_status == 'paid' || row.payment_status == 'completed') cls = 'badge-soft-success';
+                            if(row.payment_status == 'pending' || row.payment_status == 'credit') cls = 'badge-soft-warning';
+                            if(row.payment_status == 'canceled' || row.payment_status == 'failed') cls = 'badge-soft-danger';
+                            return `<div class="cell-merged"><span class="amount-text">${data}</span><span class="badge-soft ${cls}" style="align-self:flex-start">${label}</span></div>`;
                         }
                     },
-                    { 
-                        data: 'source', 
+                    {
+                        data: 'source',
                         name: 'source',
                         render: function(data, type, row) {
                             if (!data || data == 'offline') return '<span class="badge badge-light">Offline</span>';
@@ -413,7 +420,12 @@
                                 'whatsapp': 'badge-soft-info'
                             };
                             let cls = colors[data.toLowerCase()] || 'badge-soft-info';
-                            return `<span class="badge-soft ${cls}">${data.toUpperCase()}</span>`;
+                            let wh = row.warehouse_name || '';
+                            let sourceHtml = `<span class="badge-soft ${cls}">${data.toUpperCase()}</span>`;
+                            if (wh) {
+                                return `<div class="cell-merged">${sourceHtml}<span class="label-sub">${wh}</span></div>`;
+                            }
+                            return sourceHtml;
                         }
                     },
                     { 
@@ -427,7 +439,7 @@
                         }
                     },
                     { data: 'created_at', name: 'created_at' },
-                    { data: 'action', name: 'action', orderable: false, searchable: false }
+                    { data: 'action', name: 'action', orderable: false, searchable: false, className: 'text-center' }
                 ]
             });
 
@@ -439,6 +451,7 @@
 
             // Reset filter
             window.resetFilter = function() {
+                $('#warehouse_filter').val('');
                 $('#delivery_type').val('');
                 $('#payment_status').val('');
                 $('#source_filter').val('');

@@ -9,17 +9,18 @@ use Illuminate\Support\Facades\DB;
 class TransactionCodeService
 {
     /**
-     * Generate a transaction code with format: TRyymmnourut
+     * Generate a transaction code with format: TR[warehouseCode]yymmnnn
      * Sequence resets every month (3 digits, zero-padded).
      *
      * @param Carbon|null $date  The date to base the code on (defaults to now)
+     * @param string $warehouseCode  The warehouse code to include in the transaction code
      * @return string
      */
-    public static function generate(Carbon $date = null): string
+    public static function generate(Carbon $date = null, string $warehouseCode = ''): string
     {
         $date = $date ?? Carbon::now();
         $yymm = $date->format('ym');
-        $prefix = "TR{$yymm}";
+        $prefix = 'TR' . $warehouseCode . $yymm;
 
         // Thread-safe: lock the rows for this month to prevent duplicate sequence numbers
         $lastRecord = DB::table('transactions')
@@ -30,7 +31,6 @@ class TransactionCodeService
             ->first(['transaction_code']);
 
         if ($lastRecord && $lastRecord->transaction_code) {
-            // Format is TRyymmnnn, so the sequence is the last 3 characters
             $lastSeq = (int)substr($lastRecord->transaction_code, -3);
             $nextSeq = $lastSeq + 1;
         }

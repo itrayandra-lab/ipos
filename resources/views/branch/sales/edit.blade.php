@@ -1,5 +1,5 @@
 @extends('master')
-@section('title', 'Input Penjualan Harian')
+@section('title', 'Edit Penjualan Harian')
 @section('content')
 <div class="main-content">
     @push('styles')
@@ -58,11 +58,11 @@
     <section class="section">
         <div class="section-header">
             <div class="section-header-back">
-                <a href="{{ route('branch.sales.index') }}" class="btn btn-icon"><i class="fas fa-arrow-left"></i></a>
+                <a href="{{ route('branch.sales.show', $sale->id) }}" class="btn btn-icon"><i class="fas fa-arrow-left"></i></a>
             </div>
-            <h1>Input Penjualan Harian</h1>
+            <h1>Edit Penjualan <code>{{ $sale->reference_number }}</code></h1>
         </div>
-        <form id="form-sale" action="{{ route('branch.sales.store') }}" method="POST" enctype="multipart/form-data">
+        <form id="form-sale" action="{{ route('branch.sales.update', $sale->id) }}" method="POST" enctype="multipart/form-data">
             @csrf
             <div class="section-body">
                 <div class="card">
@@ -72,7 +72,7 @@
                             <div class="col-md-3">
                                 <div class="form-group">
                                     <label>Tanggal Penjualan <span class="text-danger">*</span></label>
-                                    <input type="date" name="sale_date" class="form-control" value="{{ date('Y-m-d') }}" required>
+                                    <input type="date" name="sale_date" class="form-control" value="{{ $sale->sale_date->format('Y-m-d') }}" required>
                                 </div>
                             </div>
                             <div class="col-md-3">
@@ -81,7 +81,7 @@
                                     <select name="source" class="form-control">
                                         <option value="">— Langsung (Toko) —</option>
                                         @foreach($channels as $ch)
-                                            <option value="{{ $ch->slug }}" {{ old('source') == $ch->slug ? 'selected' : '' }}>{{ $ch->name }}</option>
+                                            <option value="{{ $ch->slug }}" {{ $sale->source == $ch->slug ? 'selected' : '' }}>{{ $ch->name }}</option>
                                         @endforeach
                                     </select>
                                 </div>
@@ -90,21 +90,21 @@
                                 <div class="form-group">
                                     <label>Gudang <span class="text-danger">*</span></label>
                                     @if($warehouses->count() > 1)
-                                        <select class="form-control" onchange="window.location='?warehouse_id='+this.value">
+                                        <select name="warehouse_id" class="form-control">
                                             @foreach($warehouses as $wh)
-                                                <option value="{{ $wh->id }}" {{ (old('warehouse_id', $warehouses->first()->id) == $wh->id) ? 'selected' : '' }}>{{ $wh->name }}</option>
+                                                <option value="{{ $wh->id }}" {{ $sale->branch_warehouse_id == $wh->id ? 'selected' : '' }}>{{ $wh->name }}</option>
                                             @endforeach
                                         </select>
                                     @else
-                                        <input type="hidden" name="warehouse_id" value="{{ $warehouses->first()->id }}">
-                                        <p class="form-control-plaintext font-weight-bold mb-0">{{ $warehouses->first()->name ?? 'Gudang Utama' }}</p>
+                                        <input type="hidden" name="warehouse_id" value="{{ $sale->branch_warehouse_id }}">
+                                        <p class="form-control-plaintext font-weight-bold mb-0">{{ $warehouses->first()?->name ?? $sale->warehouse->name }}</p>
                                     @endif
                                 </div>
                             </div>
                             <div class="col-md-3">
                                 <div class="form-group">
                                     <label>Nama Customer</label>
-                                    <input type="text" name="customer_name" class="form-control" placeholder="Nama pembeli" value="{{ old('customer_name') }}">
+                                    <input type="text" name="customer_name" class="form-control" placeholder="Nama pembeli" value="{{ old('customer_name', $sale->customer_name) }}">
                                 </div>
                             </div>
                         </div>
@@ -112,19 +112,22 @@
                             <div class="col-md-3">
                                 <div class="form-group">
                                     <label>No. Pesanan / ID Transaksi</label>
-                                    <input type="text" name="external_order_id" class="form-control" placeholder="Contoh: #INV-001" value="{{ old('external_order_id') }}">
+                                    <input type="text" name="external_order_id" class="form-control" placeholder="Contoh: #INV-001" value="{{ old('external_order_id', $sale->external_order_id) }}">
                                 </div>
                             </div>
                             <div class="col-md-3">
                                 <div class="form-group">
                                     <label>Bukti Bayar</label>
                                     <input type="file" name="payment_receipt" class="form-control">
+                                    @if($sale->payment_receipt)
+                                        <small class="text-muted">Current: <a href="{{ asset($sale->payment_receipt) }}" target="_blank">Lihat file</a></small>
+                                    @endif
                                 </div>
                             </div>
                             <div class="col-md-6">
                                 <div class="form-group">
                                     <label>Catatan</label>
-                                    <input type="text" name="notes" class="form-control" placeholder="Keterangan penjualan..." value="{{ old('notes') }}">
+                                    <input type="text" name="notes" class="form-control" placeholder="Keterangan penjualan..." value="{{ old('notes', $sale->notes) }}">
                                 </div>
                             </div>
                         </div>
@@ -156,9 +159,9 @@
                         </div>
                     </div>
                     <div class="card-footer text-right">
-                        <a href="{{ route('branch.sales.index') }}" class="btn btn-secondary mr-2">Batal</a>
+                        <a href="{{ route('branch.sales.show', $sale->id) }}" class="btn btn-secondary mr-2">Batal</a>
                         <button type="submit" id="btn-submit" class="btn btn-success btn-lg px-5">
-                            <i class="fas fa-save mr-1"></i> Simpan Penjualan
+                            <i class="fas fa-save mr-1"></i> Simpan Perubahan
                         </button>
                     </div>
                 </div>
@@ -174,9 +177,14 @@
 let rowIdx = 0;
 const variants = @json($variants);
 const batchesByVariant = @json($batchesByVariant);
+const existingItems = @json($existingItems);
 
 $(document).ready(function() {
-    $('#btn-add-item').on('click', addRow);
+    existingItems.forEach(function(item) {
+        addRow(item);
+    });
+
+    $('#btn-add-item').on('click', function() { addRow(null); });
     $(document).on('click', '.btn-remove-row', function() {
         $(this).closest('tr').remove();
         reindex();
@@ -186,7 +194,11 @@ $(document).ready(function() {
         const variantId = $(this).val();
         const row = $(this).closest('tr');
         const variant = variants.find(v => v.id == variantId);
-        row.find('.input-sell-price').val(variant?.selling_price || 0);
+        if (!$(this).data('initialized')) {
+            $(this).data('initialized', true);
+        } else {
+            row.find('.input-sell-price').val(variant?.selling_price || 0);
+        }
         updateBatchInfo(row, variantId);
         calcSubtotal(row);
     });
@@ -230,25 +242,33 @@ $(document).ready(function() {
     });
 });
 
-function addRow() {
+function addRow(data) {
     const idx = rowIdx++;
     let opts = '<option value="">— Pilih Produk —</option>';
     variants.forEach(v => {
         opts += `<option value="${v.id}" data-product-id="${v.product_id}">${v.label}</option>`;
+    });
+    const selectedVal = data ? data.product_variant_id : '';
+    const qty = data ? data.qty_sold : '';
+    const price = data ? data.sell_price : '';
+    let optsHtml = '<option value="">— Pilih Produk —</option>';
+    variants.forEach(v => {
+        const sel = v.id == selectedVal ? 'selected' : '';
+        optsHtml += `<option value="${v.id}" ${sel} data-product-id="${v.product_id}">${v.label}</option>`;
     });
     const html = `
         <tr>
             <td class="align-middle text-center">${$('#table-items tbody tr').length + 1}</td>
             <td>
                 <select name="items[${idx}][product_variant_id]" class="form-control form-control-sm select-variant" required>
-                    ${opts}
+                    ${optsHtml}
                 </select>
-                <input type="hidden" name="items[${idx}][product_id]" class="input-product-id">
+                <input type="hidden" name="items[${idx}][product_id]" class="input-product-id" value="${data ? data.product_id : ''}">
             </td>
             <td class="align-middle text-center stok-info text-muted" style="font-size:12px">—</td>
-            <td><input type="number" name="items[${idx}][qty_sold]" class="form-control form-control-sm input-qty" min="1" required placeholder="0"></td>
-            <td><input type="number" name="items[${idx}][sell_price]" class="form-control form-control-sm input-sell-price" min="0" required placeholder="0"></td>
-            <td class="align-middle font-weight-bold subtotal-cell">Rp 0</td>
+            <td><input type="number" name="items[${idx}][qty_sold]" class="form-control form-control-sm input-qty" min="1" required placeholder="0" value="${qty}"></td>
+            <td><input type="number" name="items[${idx}][sell_price]" class="form-control form-control-sm input-sell-price" min="0" required placeholder="0" value="${price}"></td>
+            <td class="align-middle font-weight-bold subtotal-cell">Rp ${(qty * price).toLocaleString('id-ID')}</td>
             <td class="text-center align-middle">
                 <button type="button" class="btn btn-sm btn-danger btn-remove-row"><i class="fas fa-trash"></i></button>
             </td>
@@ -260,6 +280,13 @@ function addRow() {
         const v = variants.find(x => x.id == $(this).val());
         $(this).closest('tr').find('.input-product-id').val(v?.product_id || '');
     });
+    if (selectedVal) {
+        const v = variants.find(x => x.id == selectedVal);
+        $select.closest('tr').find('.input-product-id').val(v?.product_id || '');
+        updateBatchInfo($select.closest('tr'), selectedVal);
+        calcSubtotal($select.closest('tr'));
+    }
+    calcTotal();
 }
 
 function updateBatchInfo(row, variantId) {

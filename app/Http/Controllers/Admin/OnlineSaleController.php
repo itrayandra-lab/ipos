@@ -19,53 +19,47 @@ class OnlineSaleController extends Controller
     public function create()
     {
         $customers = \App\Models\Customer::orderBy('name')->get();
-        $warehouses = \App\Models\Warehouse::where('status', 'active')->get();
         $merek = \App\Models\Merek::orderBy('name', 'asc')->get();
         $categories = \App\Models\Category::orderBy('name', 'asc')->get();
         $affiliates = \App\Models\Affiliate::where('is_active', true)->get();
         $channels = \App\Models\ChannelSetting::where('slug', '!=', 'offline')->get();
-        
-        $mainWarehouse = \App\Models\Warehouse::where('type', 'main')->first();
-        $mainWarehouseId = $mainWarehouse ? $mainWarehouse->id : 1;
 
-        $batches = ProductBatch::with(['product.merek', 'variant.netto'])
-            ->where('warehouse_id', $mainWarehouseId)
+        $user = auth()->user();
+        if ($user->isSuperAdmin() || $user->isStoreManager()) {
+            $warehouses = \App\Models\Warehouse::where('status', 'active')->orderBy('name')->get();
+        } else {
+            $warehouses = $user->warehouses()->where('status', 'active')->orderBy('name')->get();
+        }
+
+        $defaultWarehouseId = null;
+        if ($warehouses->count() === 1) {
+            $defaultWarehouseId = $warehouses->first()->id;
+        } elseif ($warehouses->count() > 1) {
+            $defaultWarehouseId = $warehouses->first()->id;
+        } else {
+            $mainWarehouse = \App\Models\Warehouse::where('type', 'main')->first();
+            $defaultWarehouseId = $mainWarehouse ? $mainWarehouse->id : 1;
+        }
+
+        $allWarehouseIds = $warehouses->pluck('id')->toArray();
+
+        $batches = ProductBatch::with(['product.merek', 'variant.netto', 'warehouse'])
+            ->whereIn('warehouse_id', $allWarehouseIds)
             ->where('qty', '>', 0)
             ->whereHas('product', fn($q) => $q->where('status', 'Y'))
             ->get();
 
-        $batchList = [];
-        foreach ($batches as $batch) {
-            $product = $batch->product;
-            $variant = $batch->variant;
-            $netto = $variant ? $variant->netto : null;
-            
-            $merekName = ($product && $product->merek) ? trim($product->merek->name) : '';
-            $productName = trim($product->name ?? '');
-            $nettoValue = $netto ? trim($netto->netto_value ?? '') : '';
-            $satuan = $netto ? trim($netto->satuan ?? '') : '';
-            $batchNo = trim($batch->batch_no ?? '');
-            
-            // Format: Merek + Produk + Netto + Satuan + (batch + stok)
-            $parts = array_filter([$merekName, $productName, $nettoValue, $satuan]);
-            $labelText = implode(' ', $parts);
-            $fullText = $labelText . ' (' . $batchNo . ' - Stok: ' . $batch->qty . ')';
+        $batchList = $batches->map(fn($b) => [
+            'id' => $b->id,
+            'text' => ($b->product->merek->name ?? '') . ' - ' . $b->product->name . ' (' . ($b->variant->netto ?? '-') . ') - ' . $b->batch_no,
+            'stock' => $b->qty,
+            'warehouse_id' => $b->warehouse_id,
+            'prices' => $channels->pluck('slug')->mapWithKeys(fn($s) => [$s => \App\Services\PricingService::calculate($b, $s)])->toArray(),
+        ]);
 
-            $prices = [];
-            foreach ($channels as $channel) {
-                $prices[$channel->slug] = \App\Services\PricingService::calculate($batch, $channel->slug);
-            }
-
-            $batchList[] = (object)[
-                'id' => $batch->id,
-                'product_id' => $product->id,
-                'text' => $fullText,
-                'stock' => $batch->qty,
-                'prices' => $prices
-            ];
-        }
-
-        return view('admin.online_sale.index', compact('customers', 'batchList', 'categories', 'merek', 'affiliates', 'warehouses', 'channels'))->with('sb', 'OnlineSale');
+        return view('admin.online_sale.index', compact(
+            'customers', 'merek', 'categories', 'affiliates', 'channels', 'batchList', 'warehouses', 'defaultWarehouseId'
+        ))->with('sb', 'OnlineSale');
     }
 
     public function store(Request $request)
@@ -76,6 +70,7 @@ class OnlineSaleController extends Controller
 
         $validator = Validator::make($request->all(), [
             'source' => 'required|exists:channel_settings,slug',
+            'warehouse_id' => 'required|exists:warehouses,id',
             'transaction_date' => 'nullable|date',
             'notes' => 'nullable|string',
             'items' => 'required|array|min:1',
@@ -89,6 +84,19 @@ class OnlineSaleController extends Controller
                 return response()->json(['success' => false, 'message' => $validator->errors()->first()], 422);
             }
             return redirect()->back()->withErrors($validator)->withInput();
+        }
+
+        $user = auth()->user();
+        $allowedWarehouseIds = ($user->isSuperAdmin() || $user->isStoreManager())
+            ? \App\Models\Warehouse::where('status', 'active')->pluck('id')->toArray()
+            : $user->warehouses()->pluck('id')->toArray();
+
+        if (!in_array((int) $request->warehouse_id, $allowedWarehouseIds)) {
+            $msg = 'Anda tidak memiliki akses ke gudang tersebut';
+            if ($request->ajax()) {
+                return response()->json(['success' => false, 'message' => $msg], 403);
+            }
+            return redirect()->back()->with('error', $msg)->withInput();
         }
 
         try {
@@ -107,6 +115,10 @@ class OnlineSaleController extends Controller
                 foreach ($request->items as $item) {
                     $batch = ProductBatch::with(['product', 'variant'])->findOrFail($item['product_batch_id']);
                     $product = $batch->product;
+
+                    if ((int) $batch->warehouse_id !== (int) $request->warehouse_id) {
+                        throw new \Exception('Batch ' . $batch->batch_no . ' tidak tersedia di gudang terpilih');
+                    }
 
                     if ($batch->qty < $item['qty']) {
                         throw new \Exception('Stok batch ' . $batch->batch_no . ' untuk produk ' . $product->name . ' tidak mencukupi');
@@ -129,10 +141,12 @@ class OnlineSaleController extends Controller
                     ];
                 }
 
+                $whCode = \App\Models\Warehouse::where('id', $request->warehouse_id)->value('code') ?? '';
                 $transaction = Transaction::create([
-                    'transaction_code' => \App\Services\TransactionCodeService::generate($request->transaction_date ? \Carbon\Carbon::parse($request->transaction_date) : now()),
+                    'transaction_code' => \App\Services\TransactionCodeService::generate($request->transaction_date ? \Carbon\Carbon::parse($request->transaction_date) : now(), $whCode),
                     'user_id' => auth()->id(),
                     'source' => $request->source,
+                    'warehouse_id' => $request->warehouse_id,
                     'notes' => $request->notes,
                     'total_amount' => $totalAmount,
                     'payment_status' => 'paid',
@@ -392,6 +406,7 @@ class OnlineSaleController extends Controller
                 // 4. Update Transaction
                 $transaction->update([
                     'source' => $request->source,
+                    'warehouse_id' => $request->warehouse_id ?? $transaction->warehouse_id,
                     'notes' => $request->notes,
                     'total_amount' => $totalAmount,
                     'payment_receipt' => $receiptPath,
