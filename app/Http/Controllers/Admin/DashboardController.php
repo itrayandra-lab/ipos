@@ -7,7 +7,6 @@ use App\Http\Controllers\Controller;
 use App\Models\User;
 use App\Models\Product;
 use App\Models\Transaction;
-use App\Models\LogAktivitas;
 use Carbon\Carbon;
 
 class DashboardController extends Controller
