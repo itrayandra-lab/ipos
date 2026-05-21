@@ -433,6 +433,9 @@ Route::prefix('admin')->middleware(['auth', 'role:super_admin,store_manager,fina
                     Route::get('/goods-receipts/all', 'getall')->name('admin.purchasing.goods_receipts.getall');
                     Route::get('/goods-receipts/po-items', 'getPoItems')->name('admin.purchasing.goods_receipts.get_po_items');
                     Route::post('/goods-receipts', 'store')->name('admin.purchasing.goods_receipts.store');
+                    Route::get('/goods-receipts/{id}/edit', 'edit')->name('admin.purchasing.goods_receipts.edit');
+                    Route::put('/goods-receipts/{id}', 'update')->name('admin.purchasing.goods_receipts.update');
+                    Route::delete('/goods-receipts/{id}', 'destroy')->name('admin.purchasing.goods_receipts.destroy');
                     Route::get('/goods-receipts/{id}', 'show')->name('admin.purchasing.goods_receipts.show');
                 }
                 );

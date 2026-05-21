@@ -79,6 +79,39 @@
                 { data: 'action', name: 'action', orderable: false, searchable: false }
             ]
         });
+
+        $(document).on('click', '.btn-delete', function() {
+            let id = $(this).data('id');
+            swal({
+                title: 'Hapus Penerimaan Barang?',
+                text: 'Stok barang terkait akan dikembalikan. Data tidak bisa dikembalikan!',
+                icon: 'warning',
+                buttons: {
+                    cancel: 'Batal',
+                    confirm: { text: 'Ya, Hapus', className: 'btn-danger' }
+                },
+                dangerMode: true,
+            }).then((confirm) => {
+                if (confirm) {
+                    $.ajax({
+                        url: "{{ route('admin.purchasing.goods_receipts.destroy', '') }}/" + id,
+                        method: 'DELETE',
+                        data: { _token: '{{ csrf_token() }}' },
+                        success: function(res) {
+                            if (res.success) {
+                                swal('Berhasil', res.message, 'success');
+                                table.ajax.reload();
+                            } else {
+                                swal('Error', res.message, 'error');
+                            }
+                        },
+                        error: function(err) {
+                            swal('Error', err.responseJSON?.message || 'Gagal menghapus data', 'error');
+                        }
+                    });
+                }
+            });
+        });
     });
 </script>
 @endpush
