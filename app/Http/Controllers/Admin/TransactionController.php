@@ -215,6 +215,44 @@ class TransactionController extends Controller
         return $pdf->download('Laporan-Transaksi-' . date('d-m-Y') . '.pdf');
     }
 
+    public function downloadTemplate()
+    {
+        return \Maatwebsite\Excel\Facades\Excel::download(
+            new \App\Exports\TransactionTemplateExport(),
+            'Template-Import-Transaksi.xlsx'
+        );
+    }
+
+    public function import(Request $request)
+    {
+        $request->validate([
+            'file' => 'required|mimes:xlsx,xls,csv|max:5120',
+        ]);
+
+        try {
+            $import = new \App\Imports\TransactionImport(
+                auth()->id(),
+                $request->warehouse_id
+            );
+
+            \Maatwebsite\Excel\Facades\Excel::import($import, $request->file('file'));
+
+            $imported = $import->getImportedCount();
+            $skipped = $import->getSkippedCount();
+
+            $message = "Berhasil mengimport {$imported} transaksi.";
+            if ($skipped > 0) {
+                $message .= " {$skipped} baris dilewati (produk tidak ditemukan atau data tidak valid).";
+            }
+
+            return redirect()->route('admin.transactions.index')
+                ->with('message', $message);
+        } catch (\Exception $e) {
+            return redirect()->route('admin.transactions.index')
+                ->with('error', 'Gagal import: ' . $e->getMessage());
+        }
+    }
+
     private function getFilteredTransactions(Request $request)
     {
         $query = Transaction::with(['user', 'customer', 'items.product.merek']);

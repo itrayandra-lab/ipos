@@ -270,6 +270,9 @@
                             <a href="{{ route('admin.transactions.report.product') }}" class="btn btn-info btn-sm mr-2" style="border-radius: 8px; font-weight: 700;">
                                 <i class="fas fa-chart-line mr-1"></i> Laporan Per Produk
                             </a>
+                            <button class="btn btn-success btn-sm mr-2" style="border-radius: 8px; font-weight: 700;" onclick="showImportModal()">
+                                <i class="fas fa-file-upload mr-1"></i> Import Excel
+                            </button>
                             <div class="dropdown d-inline">
                                 <button class="btn btn-premium btn-sm dropdown-toggle" type="button" id="exportDropdown" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
                                     <i class="fas fa-file-export mr-1"></i> Cetak Laporan
@@ -364,6 +367,51 @@
                 </div>
             </div>
         </section>
+    </div>
+
+    {{-- Import Modal --}}
+    <div class="modal fade" id="importModal" tabindex="-1" role="dialog" aria-labelledby="importModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered" role="document">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="importModalLabel"><i class="fas fa-file-upload mr-2"></i>Import Transaksi dari Excel</h5>
+                    <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                        <span aria-hidden="true">&times;</span>
+                    </button>
+                </div>
+                <form id="import-form" action="{{ route('admin.transactions.import') }}" method="POST" enctype="multipart/form-data">
+                    @csrf
+                    <div class="modal-body">
+                        <div class="alert alert-info">
+                            <i class="fas fa-info-circle mr-2"></i>
+                            Format file: <strong>.xlsx, .xls</strong> (maks 5MB).<br>
+                            Template terdiri dari 3 sheet:<br>
+                            <strong>Transaksi</strong> — isi data penjualan (kolom product_name pakai dropdown dari sheet Referensi Produk)<br>
+                            <strong>Referensi Produk</strong> — daftar produk (otomatis, hanya untuk patokan)<br>
+                            <strong>Referensi Pelanggan</strong> — daftar pelanggan (otomatis, hanya untuk patokan)
+                        </div>
+                        <div class="form-group">
+                            <label>Pilih File Excel</label>
+                            <div class="custom-file">
+                                <input type="file" class="custom-file-input" id="import-file" name="file" accept=".xlsx,.xls" required>
+                                <label class="custom-file-label" for="import-file">Pilih file...</label>
+                            </div>
+                        </div>
+                        <div class="text-center mt-3">
+                            <a href="{{ route('admin.transactions.import.template') }}" class="btn btn-sm btn-outline-primary">
+                                <i class="fas fa-download mr-1"></i> Download Template Excel (Multi Sheet)
+                            </a>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-dismiss="modal">Batal</button>
+                        <button type="submit" class="btn btn-success" id="btn-import">
+                            <i class="fas fa-upload mr-1"></i> Import
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
     </div>
 
     <script>
@@ -477,6 +525,32 @@
                 var url = "{{ route('admin.transactions.export.pdf') }}?" + $('#filter-form').serialize();
                 window.location.href = url;
             };
+
+            // Import Modal
+            window.showImportModal = function() {
+                $('#importModal').modal('show');
+            };
+
+            // Custom file input
+            $('#import-file').on('change', function() {
+                var fileName = $(this).val().split('\\').pop();
+                $(this).next('.custom-file-label').html(fileName);
+            });
+
+            // Import form submit
+            $('#import-form').on('submit', function(e) {
+                var fileInput = $('#import-file')[0];
+                if (!fileInput.files || !fileInput.files[0]) {
+                    e.preventDefault();
+                    if (typeof iziToast !== "undefined") {
+                        iziToast.error({ title: 'Error', message: 'Pilih file terlebih dahulu', position: 'topRight' });
+                    } else {
+                        alert('Pilih file terlebih dahulu');
+                    }
+                    return;
+                }
+                $('#btn-import').addClass('btn-progress').attr('disabled', true);
+            });
 
             // Delete transaction
             window.deleteTransaction = function(id) {

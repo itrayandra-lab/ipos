@@ -279,6 +279,8 @@ Route::prefix('admin')->middleware(['auth', 'role:super_admin,store_manager,fina
             Route::get('print', [TransactionAdmin::class , 'print']);
             Route::get('export/excel', [TransactionAdmin::class , 'exportExcel'])->name('admin.transactions.export.excel');
             Route::get('export/pdf', [TransactionAdmin::class , 'exportPdf'])->name('admin.transactions.export.pdf');
+            Route::get('import/template', [TransactionAdmin::class , 'downloadTemplate'])->name('admin.transactions.import.template');
+            Route::post('import', [TransactionAdmin::class , 'import'])->name('admin.transactions.import');
             Route::get('show/{id}', [TransactionAdmin::class , 'show'])->name('admin.transactions.show');
             Route::get('edit/{id}', [TransactionAdmin::class , 'edit'])->name('admin.transactions.edit');
             Route::put('{id}', [TransactionAdmin::class , 'update'])->name('admin.transactions.update');

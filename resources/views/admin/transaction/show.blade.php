@@ -291,12 +291,12 @@
                                         <tr>
                                             <td>{{ $no++ }}</td>
                                             <td>
-                                                <div class="font-weight-bold">{{ $item->product->name }}</div>
-                                                @if($item->product->merek)
+                                                <div class="font-weight-bold">{{ $item->product?->name ?? 'Produk tidak ditemukan' }}</div>
+                                                @if($item->product && $item->product->merek)
                                                     <small class="text-muted">{{ $item->product->merek->name }}</small>
                                                 @endif
                                             </td>
-                                            <td><span class="badge badge-light">{{ $item->batch ? $item->batch->batch_no : '-' }}</span></td>
+                                            <td><span class="badge badge-light">{{ $item->batch?->batch_no ?? '-' }}</span></td>
                                             <td class="text-center">{{ $item->qty }}</td>
                                             <td class="text-right">Rp {{ number_format($item->price, 0, ',', '.') }}</td>
                                             <td class="text-right font-weight-bold">Rp {{ number_format($item->subtotal, 0, ',', '.') }}</td>
