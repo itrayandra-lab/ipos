@@ -15,6 +15,7 @@ class GoodsReceiptItem extends Model
         'product_name',
         'description',
         'satuan',
+        'batch_no',
         'quantity_ordered',
         'quantity_received',
         'quantity_difference',

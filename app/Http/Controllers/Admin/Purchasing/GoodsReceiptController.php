@@ -7,8 +7,8 @@ use App\Models\GoodsReceipt;
 use App\Models\GoodsReceiptItem;
 use App\Models\PurchaseOrder;
 use App\Models\Supplier;
-use App\Models\Batch; // Menggunakan Batch model yang ada untuk stock
-use App\Models\ProductBatch; // Jika ada model ini untuk stok batch
+use App\Models\Product;
+use App\Models\ProductVariant;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Validator;
@@ -93,11 +93,116 @@ class GoodsReceiptController extends Controller
     public function getPoItems(Request $request)
     {
         $po = PurchaseOrder::with('items')->findOrFail($request->po_id);
+        $items = $po->items->map(function ($item) {
+            $data = $item->toArray();
+            $data['display_name'] = $item->product_name;
+
+            if ($item->product) {
+                $parts = [];
+                if ($item->product->merek) {
+                    $parts[] = $item->product->merek->name;
+                }
+                $parts[] = $item->product->name;
+                if ($item->description) {
+                    $parts[] = $item->description;
+                }
+                $data['display_name'] = implode(' ', $parts);
+            }
+
+            return $data;
+        });
+
         return response()->json([
             'supplier_id' => $po->supplier_id,
             'warehouse_id' => $po->warehouse_id,
-            'items' => $po->items
+            'items' => $items
         ]);
+    }
+
+    public function getProducts(Request $request)
+    {
+        $search = $request->search;
+        $products = Product::with(['merek', 'variants.netto'])
+            ->where(function ($q) use ($search) {
+                $q->where('name', 'like', "%{$search}%")
+                  ->orWhereHas('merek', function ($mq) use ($search) {
+                      $mq->where('name', 'like', "%{$search}%");
+                  })
+                  ->orWhereHas('variants', function ($vq) use ($search) {
+                      $vq->where('sku_code', 'like', "%{$search}%");
+                  });
+            })
+            ->limit(20)
+            ->get();
+
+        $results = [];
+        foreach ($products as $product) {
+            $brand = ($product->merek && $product->merek->name) ? $product->merek->name : '';
+
+            if ($product->variants->count() > 0) {
+                foreach ($product->variants as $variant) {
+                    $nettoText = '';
+                    if ($variant->netto) {
+                        $nettoText = trim($variant->netto->netto_value . ' ' . $variant->netto->satuan);
+                    }
+
+                    $pName = $product->name;
+                    $vName = ($variant->variant_name && $variant->variant_name !== 'Default') ? $variant->variant_name : '';
+
+                    $parts = [];
+                    if ($brand) $parts[] = $brand;
+
+                    if ($vName) {
+                        if (stripos($vName, $pName) !== false) {
+                            $parts[] = $vName;
+                        } else {
+                            $parts[] = $pName;
+                            $parts[] = $vName;
+                        }
+                    } else {
+                        $parts[] = $pName;
+                    }
+
+                    $currentText = implode(' - ', $parts);
+
+                    if ($nettoText) {
+                        $cleanCurrent = strtolower(str_replace(' ', '', $currentText));
+                        $cleanNetto = strtolower(str_replace(' ', '', $nettoText));
+                        if (strpos($cleanCurrent, $cleanNetto) === false) {
+                            $parts[] = $nettoText;
+                        }
+                    }
+
+                    $name = implode(' ', array_filter($parts));
+                    $name = preg_replace('/\s+/', ' ', $name);
+
+                    $results[] = [
+                        'id' => $variant->id,
+                        'text' => $name,
+                        'product_id' => $product->id,
+                        'variant_id' => $variant->id,
+                        'product_name' => $product->name,
+                        'variant_name' => $variant->variant_name ?? '',
+                        'description' => $nettoText,
+                        'satuan' => $variant->netto->satuan ?? '',
+                    ];
+                }
+            } else {
+                $name = trim($brand . ' ' . $product->name);
+                $results[] = [
+                    'id' => 'p_' . $product->id,
+                    'text' => $name,
+                    'product_id' => $product->id,
+                    'variant_id' => null,
+                    'product_name' => $product->name,
+                    'variant_name' => '',
+                    'description' => '',
+                    'satuan' => '',
+                ];
+            }
+        }
+
+        return response()->json($results);
     }
 
     public function store(Request $request)
@@ -122,7 +227,7 @@ class GoodsReceiptController extends Controller
 
             $gr = GoodsReceipt::create([
                 'sj_number' => GoodsReceipt::generateSJNumber(),
-                'purchase_order_id' => $request->purchase_order_id,
+                'purchase_order_id' => $request->purchase_order_id ?: null,
                 'supplier_id' => $request->supplier_id,
                 'warehouse_id' => $request->warehouse_id,
                 'delivery_note_number' => $request->delivery_note_number,
@@ -130,61 +235,27 @@ class GoodsReceiptController extends Controller
                 'received_date' => $request->received_date,
                 'received_by' => Auth::id(),
                 'notes' => $request->notes,
-                'status' => 'confirmed', // Langsung confirmed untuk update stok
+                'status' => 'confirmed',
             ]);
 
             foreach ($request->items as $item) {
-                $grItem = GoodsReceiptItem::create([
+                $batchNo = $item['batch_no'] ?? null;
+                GoodsReceiptItem::create([
                     'goods_receipt_id' => $gr->id,
                     'purchase_order_item_id' => $item['purchase_order_item_id'] ?? null,
                     'product_name' => $item['product_name'],
                     'description' => $item['description'],
                     'satuan' => $item['satuan'] ?? null,
+                    'batch_no' => $batchNo,
                     'quantity_ordered' => $item['qty_ordered'] ?? 0,
                     'quantity_received' => $item['qty_received'],
                     'quantity_difference' => $item['qty_received'] - ($item['qty_ordered'] ?? 0),
                     'notes' => $item['item_notes'] ?? null,
                 ]);
-
-                // Update Stock logic
-                // Cari variant_id berdasarkan item if linked to product
-                $poItem = null;
-                if (!empty($item['purchase_order_item_id'])) {
-                    $poItem = \App\Models\PurchaseOrderItem::find($item['purchase_order_item_id']);
-                }
-
-                if ($poItem && $poItem->product_id) {
-                    // Cari variant pertama atau bdasarkan description match
-                    // Untuk simplifikasi, kita asumsikan variant ID tersimpan di PO Item jika ada link ke product
-                    // Namun di PO Item kita hanya simpan product_id. 
-                    // Sebaiknya kita cek ProductVariant.
-
-                    $variant = \App\Models\ProductVariant::whereHas('netto', function ($q) use ($poItem) {
-                        $q->where('product_id', $poItem->product_id);
-                    })->where('variant_name', $poItem->description)->first();
-
-                    if ($variant) {
-                        // Create Batch baru (Stok baru masuk)
-                        \App\Models\ProductBatch::create([
-                            'product_id' => $poItem->product_id,
-                            'product_variant_id' => $variant->id,
-                            'warehouse_id' => $request->warehouse_id,
-                            'batch_no' => $request->delivery_note_number,
-                            'qty' => $item['qty_received'],
-                            'buy_price' => $poItem->unit_price,
-                            'expiry_date' => null, // User bisa input ini nanti
-                        ]);
-                    }
-                }
-            }
-
-            // Update PO status if all items received
-            if ($request->purchase_order_id) {
-                PurchaseOrder::where('id', $request->purchase_order_id)->update(['status' => 'received']);
             }
 
             DB::commit();
-            return response()->json(['status' => 'success', 'message' => 'Penerimaan Barang berhasil dikonfirmasi dan stok telah diperbarui', 'redirect' => route('admin.purchasing.goods_receipts.index')]);
+            return response()->json(['status' => 'success', 'message' => 'Penerimaan Barang berhasil dikonfirmasi', 'redirect' => route('admin.purchasing.goods_receipts.index')]);
 
         }
         catch (\Exception $e) {
@@ -224,22 +295,8 @@ class GoodsReceiptController extends Controller
 
             $gr = GoodsReceipt::with('items')->findOrFail($id);
 
-            // Reverse old stock (hapus batch lama terkait GR ini)
-            foreach ($gr->items as $oldItem) {
-                if ($oldItem->purchase_order_item_id) {
-                    $poItem = \App\Models\PurchaseOrderItem::find($oldItem->purchase_order_item_id);
-                    if ($poItem && $poItem->product_id) {
-                        \App\Models\ProductBatch::where('batch_no', $gr->delivery_note_number)
-                            ->where('product_id', $poItem->product_id)
-                            ->where('warehouse_id', $gr->warehouse_id)
-                            ->delete();
-                    }
-                }
-            }
-
-            // Update GR metadata
             $gr->update([
-                'purchase_order_id' => $request->purchase_order_id,
+                'purchase_order_id' => $request->purchase_order_id ?: null,
                 'supplier_id' => $request->supplier_id,
                 'warehouse_id' => $request->warehouse_id,
                 'delivery_note_number' => $request->delivery_note_number,
@@ -248,46 +305,22 @@ class GoodsReceiptController extends Controller
                 'notes' => $request->notes,
             ]);
 
-            // Hapus items lama
             $gr->items()->delete();
 
-            // Buat items baru dan update stok
             foreach ($request->items as $item) {
-                $grItem = GoodsReceiptItem::create([
+                $batchNo = $item['batch_no'] ?? null;
+                GoodsReceiptItem::create([
                     'goods_receipt_id' => $gr->id,
                     'purchase_order_item_id' => $item['purchase_order_item_id'] ?? null,
                     'product_name' => $item['product_name'],
                     'description' => $item['description'],
                     'satuan' => $item['satuan'] ?? null,
+                    'batch_no' => $batchNo,
                     'quantity_ordered' => $item['qty_ordered'] ?? 0,
                     'quantity_received' => $item['qty_received'],
                     'quantity_difference' => $item['qty_received'] - ($item['qty_ordered'] ?? 0),
                     'notes' => $item['item_notes'] ?? null,
                 ]);
-
-                // Update Stock logic
-                $poItem = null;
-                if (!empty($item['purchase_order_item_id'])) {
-                    $poItem = \App\Models\PurchaseOrderItem::find($item['purchase_order_item_id']);
-                }
-
-                if ($poItem && $poItem->product_id) {
-                    $variant = \App\Models\ProductVariant::whereHas('netto', function ($q) use ($poItem) {
-                        $q->where('product_id', $poItem->product_id);
-                    })->where('variant_name', $poItem->description)->first();
-
-                    if ($variant) {
-                        \App\Models\ProductBatch::create([
-                            'product_id' => $poItem->product_id,
-                            'product_variant_id' => $variant->id,
-                            'warehouse_id' => $request->warehouse_id,
-                            'batch_no' => $request->delivery_note_number,
-                            'qty' => $item['qty_received'],
-                            'buy_price' => $poItem->unit_price,
-                            'expiry_date' => null,
-                        ]);
-                    }
-                }
             }
 
             DB::commit();
@@ -305,30 +338,11 @@ class GoodsReceiptController extends Controller
 
             $gr = GoodsReceipt::with('items')->findOrFail($id);
 
-            // Reverse stock (hapus batch terkait)
-            foreach ($gr->items as $item) {
-                if ($item->purchase_order_item_id) {
-                    $poItem = \App\Models\PurchaseOrderItem::find($item->purchase_order_item_id);
-                    if ($poItem && $poItem->product_id) {
-                        \App\Models\ProductBatch::where('batch_no', $gr->delivery_note_number)
-                            ->where('product_id', $poItem->product_id)
-                            ->where('warehouse_id', $gr->warehouse_id)
-                            ->delete();
-                    }
-                }
-            }
-
-            // Kembalikan status PO jika ada
-            if ($gr->purchase_order_id) {
-                \App\Models\PurchaseOrder::where('id', $gr->purchase_order_id)->update(['status' => 'submitted']);
-            }
-
-            // Hapus items dan GR
             $gr->items()->delete();
             $gr->delete();
 
             DB::commit();
-            return response()->json(['success' => true, 'message' => 'Penerimaan Barang berhasil dihapus dan stok dikembalikan.']);
+            return response()->json(['success' => true, 'message' => 'Penerimaan Barang berhasil dihapus.']);
         } catch (\Exception $e) {
             DB::rollBack();
             return response()->json(['success' => false, 'message' => 'Gagal menghapus: ' . $e->getMessage()], 500);

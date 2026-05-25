@@ -82,31 +82,43 @@
 
         $(document).on('click', '.btn-delete', function() {
             let id = $(this).data('id');
-            swal({
+            Swal.fire({
                 title: 'Hapus Penerimaan Barang?',
                 text: 'Stok barang terkait akan dikembalikan. Data tidak bisa dikembalikan!',
                 icon: 'warning',
-                buttons: {
-                    cancel: 'Batal',
-                    confirm: { text: 'Ya, Hapus', className: 'btn-danger' }
-                },
-                dangerMode: true,
-            }).then((confirm) => {
-                if (confirm) {
+                showCancelButton: true,
+                confirmButtonColor: '#d33',
+                cancelButtonColor: '#3085d6',
+                confirmButtonText: 'Ya, Hapus',
+                cancelButtonText: 'Batal'
+            }).then((result) => {
+                if (result.isConfirmed) {
                     $.ajax({
                         url: "{{ route('admin.purchasing.goods_receipts.destroy', '') }}/" + id,
                         method: 'DELETE',
                         data: { _token: '{{ csrf_token() }}' },
                         success: function(res) {
                             if (res.success) {
-                                swal('Berhasil', res.message, 'success');
+                                Swal.fire({
+                                    icon: 'success',
+                                    title: 'Berhasil',
+                                    text: res.message
+                                });
                                 table.ajax.reload();
                             } else {
-                                swal('Error', res.message, 'error');
+                                Swal.fire({
+                                    icon: 'error',
+                                    title: 'Error',
+                                    text: res.message
+                                });
                             }
                         },
                         error: function(err) {
-                            swal('Error', err.responseJSON?.message || 'Gagal menghapus data', 'error');
+                            Swal.fire({
+                                icon: 'error',
+                                title: 'Error',
+                                text: err.responseJSON?.message || 'Gagal menghapus data'
+                            });
                         }
                     });
                 }
