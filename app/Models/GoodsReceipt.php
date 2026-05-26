@@ -53,23 +53,21 @@ class GoodsReceipt extends Model
         return $this->hasMany(GoodsReceiptItem::class);
     }
 
-    // Auto-generate SJ number: SJ/BL/YYYY/MM/XXXX
-    public static function generateSJNumber()
+    // Auto-generate GR number: GR/MMYY/XXX (reset every month)
+    public static function generateGRNumber()
     {
-        $year = date('Y');
-        $month = date('m');
-        $prefix = "SJ/BL/{$year}/{$month}/";
+        $prefix = 'GR/' . date('my') . '/';
 
-        $lastSJ = self::where('sj_number', 'like', $prefix . '%')
+        $lastGR = self::where('sj_number', 'like', $prefix . '%')
             ->orderBy('sj_number', 'desc')
             ->first();
 
-        if ($lastSJ) {
-            $lastNumber = intval(substr($lastSJ->sj_number, -4));
-            $newNumber = str_pad($lastNumber + 1, 4, '0', STR_PAD_LEFT);
+        if ($lastGR) {
+            $lastNumber = intval(substr($lastGR->sj_number, -3));
+            $newNumber = str_pad($lastNumber + 1, 3, '0', STR_PAD_LEFT);
         }
         else {
-            $newNumber = '0001';
+            $newNumber = '001';
         }
 
         return $prefix . $newNumber;

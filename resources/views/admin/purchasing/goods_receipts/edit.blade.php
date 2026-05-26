@@ -133,7 +133,7 @@
                                 <div class="row">
                                     <div class="col-md-4">
                                         <div class="form-group">
-                                            <label>No. SJ Internal</label>
+                                            <label>No. Penerimaan Barang (GR)</label>
                                             <input type="text" value="{{ $gr->sj_number }}" class="form-control" readonly>
                                         </div>
                                     </div>

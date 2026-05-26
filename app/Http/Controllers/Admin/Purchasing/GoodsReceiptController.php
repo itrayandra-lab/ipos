@@ -6,9 +6,11 @@ use App\Http\Controllers\Controller;
 use App\Models\GoodsReceipt;
 use App\Models\GoodsReceiptItem;
 use App\Models\PurchaseOrder;
+use App\Models\PurchaseOrderItem;
 use App\Models\Supplier;
 use App\Models\Product;
 use App\Models\ProductVariant;
+use App\Models\ProductBatch;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Validator;
@@ -83,11 +85,11 @@ class GoodsReceiptController extends Controller
 
     public function create()
     {
-        $sj_number = GoodsReceipt::generateSJNumber();
+        $gr_number = GoodsReceipt::generateGRNumber();
         $pos = PurchaseOrder::whereIn('status', ['submitted', 'approved'])->get();
         $suppliers = Supplier::where('status', 'active')->get();
         $warehouses = \App\Models\Warehouse::where('status', 'active')->get();
-        return view('admin.purchasing.goods_receipts.create', compact('sj_number', 'pos', 'suppliers', 'warehouses'))->with('sb', 'GoodsReceipt');
+        return view('admin.purchasing.goods_receipts.create', compact('gr_number', 'pos', 'suppliers', 'warehouses'))->with('sb', 'GoodsReceipt');
     }
 
     public function getPoItems(Request $request)
@@ -226,7 +228,7 @@ class GoodsReceiptController extends Controller
             DB::beginTransaction();
 
             $gr = GoodsReceipt::create([
-                'sj_number' => GoodsReceipt::generateSJNumber(),
+                'sj_number' => GoodsReceipt::generateGRNumber(),
                 'purchase_order_id' => $request->purchase_order_id ?: null,
                 'supplier_id' => $request->supplier_id,
                 'warehouse_id' => $request->warehouse_id,
@@ -238,9 +240,26 @@ class GoodsReceiptController extends Controller
                 'status' => 'confirmed',
             ]);
 
+            $poId = null;
+
             foreach ($request->items as $item) {
                 $batchNo = $item['batch_no'] ?? null;
-                GoodsReceiptItem::create([
+
+                $productId = null;
+                $variantId = null;
+
+                if (!empty($item['purchase_order_item_id'])) {
+                    $poItem = PurchaseOrderItem::with('product')->find($item['purchase_order_item_id']);
+                    if ($poItem) {
+                        $productId = $poItem->product_id;
+                        $poId = $poItem->purchase_order_id;
+                    }
+                } elseif (!empty($item['product_id'])) {
+                    $productId = $item['product_id'];
+                    $variantId = $item['variant_id'] ?? null;
+                }
+
+                $grItem = GoodsReceiptItem::create([
                     'goods_receipt_id' => $gr->id,
                     'purchase_order_item_id' => $item['purchase_order_item_id'] ?? null,
                     'product_name' => $item['product_name'],
@@ -252,6 +271,54 @@ class GoodsReceiptController extends Controller
                     'quantity_difference' => $item['qty_received'] - ($item['qty_ordered'] ?? 0),
                     'notes' => $item['item_notes'] ?? null,
                 ]);
+
+                if ($productId) {
+                    $buyPrice = !empty($item['buy_price']) ? $item['buy_price'] : 0;
+
+                    if ($buyPrice <= 0 && $variantId) {
+                        $variant = ProductVariant::find($variantId);
+                        if ($variant && $variant->product_hpp > 0) {
+                            $buyPrice = $variant->product_hpp;
+                        }
+                    }
+
+                    ProductBatch::create([
+                        'goods_receipt_item_id' => $grItem->id,
+                        'product_id' => $productId,
+                        'product_variant_id' => $variantId,
+                        'warehouse_id' => $gr->warehouse_id,
+                        'batch_no' => $batchNo ?: 'GR-' . $grItem->id,
+                        'qty' => (int)$item['qty_received'],
+                        'buy_price' => $buyPrice,
+                    ]);
+                }
+            }
+
+            // Update PO status
+            if ($poId) {
+                $po = PurchaseOrder::with('items')->find($poId);
+                if ($po) {
+                    $allFullyReceived = true;
+                    $anyReceived = false;
+
+                    foreach ($po->items as $poItem) {
+                        $totalReceived = GoodsReceiptItem::where('purchase_order_item_id', $poItem->id)->sum('quantity_received');
+                        if ($totalReceived > 0) {
+                            $anyReceived = true;
+                        }
+                        if ($totalReceived < $poItem->quantity) {
+                            $allFullyReceived = false;
+                        }
+                    }
+
+                    if ($allFullyReceived && $anyReceived) {
+                        $po->update(['status' => 'received']);
+                    } elseif ($anyReceived) {
+                        $po->update(['status' => 'partial']);
+                    } else {
+                        $po->update(['status' => 'approved']);
+                    }
+                }
             }
 
             DB::commit();
@@ -295,6 +362,32 @@ class GoodsReceiptController extends Controller
 
             $gr = GoodsReceipt::with('items')->findOrFail($id);
 
+            // Delete old ProductBatch entries linked to this GR
+            $poId = null;
+            foreach ($gr->items as $oldItem) {
+                if ($oldItem->purchase_order_item_id) {
+                    $poItem = PurchaseOrderItem::find($oldItem->purchase_order_item_id);
+                    if ($poItem) $poId = $poItem->purchase_order_id;
+                }
+                // Remove old FK-linked batches
+                ProductBatch::where('goods_receipt_item_id', $oldItem->id)->delete();
+                // Remove old manual batches (no FK)
+                $oldProductId = null;
+                if ($oldItem->purchase_order_item_id) {
+                    $pi = PurchaseOrderItem::find($oldItem->purchase_order_item_id);
+                    if ($pi) $oldProductId = $pi->product_id;
+                }
+                if ($oldProductId && $oldItem->batch_no) {
+                    ProductBatch::where('product_id', $oldProductId)
+                        ->where('batch_no', $oldItem->batch_no)
+                        ->where('warehouse_id', $gr->warehouse_id)
+                        ->whereNull('goods_receipt_item_id')
+                        ->delete();
+                }
+            }
+
+            $gr->items()->delete();
+
             $gr->update([
                 'purchase_order_id' => $request->purchase_order_id ?: null,
                 'supplier_id' => $request->supplier_id,
@@ -305,11 +398,26 @@ class GoodsReceiptController extends Controller
                 'notes' => $request->notes,
             ]);
 
-            $gr->items()->delete();
+            $newPoId = null;
 
             foreach ($request->items as $item) {
                 $batchNo = $item['batch_no'] ?? null;
-                GoodsReceiptItem::create([
+
+                $productId = null;
+                $variantId = null;
+
+                if (!empty($item['purchase_order_item_id'])) {
+                    $poItem = PurchaseOrderItem::with('product')->find($item['purchase_order_item_id']);
+                    if ($poItem) {
+                        $productId = $poItem->product_id;
+                        $newPoId = $poItem->purchase_order_id;
+                    }
+                } elseif (!empty($item['product_id'])) {
+                    $productId = $item['product_id'];
+                    $variantId = $item['variant_id'] ?? null;
+                }
+
+                $grItem = GoodsReceiptItem::create([
                     'goods_receipt_id' => $gr->id,
                     'purchase_order_item_id' => $item['purchase_order_item_id'] ?? null,
                     'product_name' => $item['product_name'],
@@ -321,6 +429,55 @@ class GoodsReceiptController extends Controller
                     'quantity_difference' => $item['qty_received'] - ($item['qty_ordered'] ?? 0),
                     'notes' => $item['item_notes'] ?? null,
                 ]);
+
+                if ($productId) {
+                    $buyPrice = !empty($item['buy_price']) ? $item['buy_price'] : 0;
+
+                    if ($buyPrice <= 0 && $variantId) {
+                        $variant = ProductVariant::find($variantId);
+                        if ($variant && $variant->product_hpp > 0) {
+                            $buyPrice = $variant->product_hpp;
+                        }
+                    }
+
+                    ProductBatch::create([
+                        'goods_receipt_item_id' => $grItem->id,
+                        'product_id' => $productId,
+                        'product_variant_id' => $variantId,
+                        'warehouse_id' => $gr->warehouse_id,
+                        'batch_no' => $batchNo ?: 'GR-' . $grItem->id,
+                        'qty' => (int)$item['qty_received'],
+                        'buy_price' => $buyPrice,
+                    ]);
+                }
+            }
+
+            // Update PO status
+            $poId = $poId ?: $newPoId;
+            if ($poId) {
+                $po = PurchaseOrder::with('items')->find($poId);
+                if ($po) {
+                    $allFullyReceived = true;
+                    $anyReceived = false;
+
+                    foreach ($po->items as $poItem) {
+                        $totalReceived = GoodsReceiptItem::where('purchase_order_item_id', $poItem->id)->sum('quantity_received');
+                        if ($totalReceived > 0) {
+                            $anyReceived = true;
+                        }
+                        if ($totalReceived < $poItem->quantity) {
+                            $allFullyReceived = false;
+                        }
+                    }
+
+                    if ($allFullyReceived && $anyReceived) {
+                        $po->update(['status' => 'received']);
+                    } elseif ($anyReceived) {
+                        $po->update(['status' => 'partial']);
+                    } else {
+                        $po->update(['status' => 'approved']);
+                    }
+                }
             }
 
             DB::commit();
@@ -338,8 +495,61 @@ class GoodsReceiptController extends Controller
 
             $gr = GoodsReceipt::with('items')->findOrFail($id);
 
+            $poId = null;
+
+            // Clean up ProductBatch entries before deleting items
+            foreach ($gr->items as $item) {
+                if ($item->purchase_order_item_id) {
+                    $poItem = PurchaseOrderItem::find($item->purchase_order_item_id);
+                    if ($poItem) $poId = $poItem->purchase_order_id;
+                }
+
+                ProductBatch::where('goods_receipt_item_id', $item->id)->delete();
+
+                // Also clean up old manual batches where FK was null
+                $productId = null;
+                if ($item->purchase_order_item_id) {
+                    $pi = PurchaseOrderItem::find($item->purchase_order_item_id);
+                    if ($pi) $productId = $pi->product_id;
+                }
+                if ($productId && $item->batch_no) {
+                    ProductBatch::where('product_id', $productId)
+                        ->where('batch_no', $item->batch_no)
+                        ->where('warehouse_id', $gr->warehouse_id)
+                        ->whereNull('goods_receipt_item_id')
+                        ->delete();
+                }
+            }
+
             $gr->items()->delete();
             $gr->delete();
+
+            // Update PO status
+            if ($poId) {
+                $po = PurchaseOrder::with('items')->find($poId);
+                if ($po) {
+                    $allFullyReceived = true;
+                    $anyReceived = false;
+
+                    foreach ($po->items as $poItem) {
+                        $totalReceived = GoodsReceiptItem::where('purchase_order_item_id', $poItem->id)->sum('quantity_received');
+                        if ($totalReceived > 0) {
+                            $anyReceived = true;
+                        }
+                        if ($totalReceived < $poItem->quantity) {
+                            $allFullyReceived = false;
+                        }
+                    }
+
+                    if ($allFullyReceived && $anyReceived) {
+                        $po->update(['status' => 'received']);
+                    } elseif ($anyReceived) {
+                        $po->update(['status' => 'partial']);
+                    } else {
+                        $po->update(['status' => 'approved']);
+                    }
+                }
+            }
 
             DB::commit();
             return response()->json(['success' => true, 'message' => 'Penerimaan Barang berhasil dihapus.']);

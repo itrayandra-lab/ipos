@@ -9,11 +9,11 @@
             <div class="section-header-back">
                 <a href="{{ route('admin.purchasing.goods_receipts.index') }}" class="btn btn-icon"><i class="fas fa-arrow-left"></i></a>
             </div>
-            <h1>Surat Penerimaan Barang #{{ $gr->sj_number }}</h1>
+            <h1>Penerimaan Barang #{{ $gr->sj_number }}</h1>
             <div class="section-header-breadcrumb">
                 <div class="breadcrumb-item"><a href="#">Pembelian</a></div>
                 <div class="breadcrumb-item"><a href="{{ route('admin.purchasing.goods_receipts.index') }}">Penerimaan Barang</a></div>
-                <div class="breadcrumb-item">Detail SJ</div>
+                <div class="breadcrumb-item">Detail GR</div>
             </div>
         </div>
 
@@ -23,8 +23,8 @@
                     <div class="row">
                         <div class="col-lg-12">
                             <div class="invoice-title">
-                                <h2>Penerimaan Barang (SJ Internal)</h2>
-                                <div class="invoice-number">SJ #{{ $gr->sj_number }}</div>
+                                <h2>Penerimaan Barang</h2>
+                                <div class="invoice-number">GR #{{ $gr->sj_number }}</div>
                             </div>
                             <hr>
                             <div class="row">
@@ -103,7 +103,7 @@
                 <hr>
                 <div class="text-md-right">
                     <div class="float-lg-left mb-lg-0 mb-3">
-                        <button class="btn btn-primary btn-icon icon-left" onclick="window.print()"><i class="fas fa-print"></i> Cetak SJ Internal</button>
+                        <button class="btn btn-primary btn-icon icon-left" onclick="window.print()"><i class="fas fa-print"></i> Cetak GR</button>
                     </div>
                     <button class="btn btn-secondary btn-icon icon-left" onclick="location.reload()"><i class="fas fa-undo"></i> Sinkron Ulang</button>
                 </div>

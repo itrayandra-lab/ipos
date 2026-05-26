@@ -22,6 +22,11 @@ class GoodsReceiptItem extends Model
         'notes',
     ];
 
+    public function productBatches()
+    {
+        return $this->hasMany(ProductBatch::class, 'goods_receipt_item_id');
+    }
+
     // Relationships
     public function goodsReceipt()
     {

@@ -109,6 +109,7 @@
     .bg-soft-submitted { background: #e0f2fe; color: #0284c7; }
     .bg-soft-approved { background: #dcfce7; color: #16a34a; }
     .bg-soft-received { background: #ecfdf5; color: #10b981; border: 1px solid #10b981; }
+    .bg-soft-partial { background: #fef3c7; color: #d97706; border: 1px solid #d97706; }
     .bg-soft-cancelled { background: #fee2e2; color: #dc2626; }
 
     .po-number {
@@ -291,6 +292,7 @@
                             'draft': 'bg-soft-draft',
                             'submitted': 'bg-soft-submitted',
                             'approved': 'bg-soft-approved',
+                            'partial': 'bg-soft-partial',
                             'received': 'bg-soft-received',
                             'cancelled': 'bg-soft-cancelled'
                         };
@@ -329,17 +331,16 @@
         $(document).on('click', '.btn-delete', function(e) {
             e.preventDefault();
             let id = $(this).data('id');
-            swal({
+            Swal.fire({
                 title: "Hapus PO ini?",
                 text: "Tindakan ini tidak dapat dibatalkan!",
                 icon: "warning",
-                buttons: {
-                    cancel: "Batal",
-                    confirm: { text: "Ya, Hapus!", className: "btn-danger" }
-                },
-                dangerMode: true,
-            }).then((willDelete) => {
-                if (willDelete) {
+                showCancelButton: true,
+                confirmButtonText: "Ya, Hapus!",
+                cancelButtonText: "Batal",
+                confirmButtonColor: "#dc3545",
+            }).then((result) => {
+                if (result.isConfirmed) {
                     $.ajax({
                         url: "{{ route('admin.purchasing.purchase_orders.delete') }}",
                         method: "POST",

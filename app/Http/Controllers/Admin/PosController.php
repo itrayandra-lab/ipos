@@ -505,7 +505,7 @@ class PosController extends Controller
                         } else {
                             $batch = ProductBatch::find($itemData['product_batch_id']);
                             if ($batch) {
-                                // $batch->decrement('qty', $itemData['qty']);
+                                $batch->decrement('qty', $itemData['qty']);
                             }
                             $product = Product::find($itemData['product_id']);
                             if ($product) {

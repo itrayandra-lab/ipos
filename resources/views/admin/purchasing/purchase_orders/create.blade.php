@@ -330,7 +330,7 @@
                     calculateTotal();
                 });
             } else {
-                swal('Gagal', 'Minimal harus ada 1 item produk', 'error');
+                Swal.fire('Gagal', 'Minimal harus ada 1 item produk', 'error');
             }
         });
 
@@ -346,8 +346,13 @@
         $('#discount_type, #discount_value, #tax_enable').on('change input', calculateTotal);
 
         $('#tax_enable').on('change', function() {
-            if ($(this).is(':checked')) $('#tax_percentage_container').fadeIn();
-            else $('#tax_percentage_container').fadeOut();
+            if ($(this).is(':checked')) {
+                $('#tax_percentage_container').fadeIn();
+                $('#tax_percentage').val(11);
+            } else {
+                $('#tax_percentage_container').fadeOut();
+                $('#tax_percentage').val(0);
+            }
         });
     });
 
@@ -357,7 +362,8 @@
             <tr style="display:none;">
                 <td class="text-center font-weight-bold text-muted">${$('#table-items tbody tr').length + 1}</td>
                 <td>
-                    <select name="items[${rowCount}][product_name]" class="form-control product-select" required></select>
+                    <select class="form-control product-select-display"></select>
+                    <input type="hidden" name="items[${rowCount}][product_name]" class="product-name-hidden">
                     <input type="hidden" name="items[${rowCount}][product_id]" class="product-id-hidden">
                 </td>
                 <td>
@@ -384,7 +390,7 @@
         let $row = $(html);
         $('#table-items tbody').append($row);
         $row.fadeIn(300);
-        initProductSelect2($row.find('.product-select'));
+        initProductSelect2($row.find('.product-select-display'));
     }
 
     function initProductSelect2(element) {
@@ -403,8 +409,14 @@
         }).on('select2:select', function (e) {
             let data = e.params.data;
             let row = $(this).closest('tr');
+            // Isi hidden input product_name dan product_id
+            row.find('.product-name-hidden').val(data.text || data.id);
             row.find('.product-id-hidden').val(data.product_id || '');
             row.find('.price-input').val(formatNumberId(data.price || 0));
+            // Isi deskripsi otomatis dari netto
+            if (data.description) {
+                row.find('input[name*="[description]"]').val(data.description);
+            }
             calculateTotal();
         });
     }
@@ -449,17 +461,36 @@
             iziToast.warning({ title: 'Peringatan', message: 'Harap pilih supplier terlebih dahulu', position: 'topRight' });
             return;
         }
+        if (!$('#warehouse_id').val()) {
+            iziToast.warning({ title: 'Peringatan', message: 'Harap pilih gudang penerimaan', position: 'topRight' });
+            return;
+        }
+
+        // Validasi: semua baris produk harus sudah dipilih
+        let allFilled = true;
+        $('.product-name-hidden').each(function() {
+            if (!$(this).val().trim()) {
+                allFilled = false;
+                return false;
+            }
+        });
+        if (!allFilled) {
+            iziToast.warning({ title: 'Peringatan', message: 'Harap pilih produk untuk semua baris item', position: 'topRight' });
+            return;
+        }
 
         let form = $('#form-po');
         let btn = $('#btn-save-po');
 
-        swal({
+        Swal.fire({
             title: "Simpan & Ajukan PO?",
             text: "Setelah diajukan, PO akan masuk ke tahap verifikasi.",
             icon: "info",
-            buttons: ["Batal", "Ya, Ajukan!"],
-        }).then((confirm) => {
-            if (confirm) {
+            showCancelButton: true,
+            confirmButtonText: "Ya, Ajukan!",
+            cancelButtonText: "Batal"
+        }).then((result) => {
+            if (result.isConfirmed) {
                 btn.addClass('btn-progress').attr('disabled', true);
                 $.LoadingOverlay("show");
 
@@ -477,15 +508,18 @@
                     success: function (res) {
                         $.LoadingOverlay("hide");
                         if (res.status === 'success') {
-                            swal('Berhasil', res.message, 'success').then(() => {
-                                window.location.href = res.redirect;
-                            });
+                            Swal.fire({ title: 'Berhasil!', text: res.message, icon: 'success', timer: 1500, showConfirmButton: false })
+                                .then(() => { window.location.href = res.redirect; });
+                        } else {
+                            btn.removeClass('btn-progress').attr('disabled', false);
+                            Swal.fire('Gagal', res.message, 'error');
                         }
                     },
                     error: function (err) {
                         $.LoadingOverlay("hide");
                         btn.removeClass('btn-progress').attr('disabled', false);
-                        swal('Gagal', err.responseJSON?.message || 'Terjadi kesalahan sistem', 'error');
+                        let msg = err.responseJSON?.message || err.responseJSON?.errors ? JSON.stringify(err.responseJSON.errors) : 'Terjadi kesalahan sistem';
+                        Swal.fire('Gagal', msg, 'error');
                     }
                 });
             }

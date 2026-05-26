@@ -1,6 +1,6 @@
 @extends('master')
 
-@section('title', 'Surat Penerimaan Barang')
+@section('title', 'Penerimaan Barang (GR)')
 
 @section('content')
 <div class="main-content">
@@ -23,7 +23,7 @@
                 <div class="col-12">
                     <div class="card">
                         <div class="card-header">
-                            <h4>Daftar Surat Penerimaan Barang (SJ Internal)</h4>
+                            <h4>Daftar Penerimaan Barang (GR)</h4>
                         </div>
                         <div class="card-body">
                             <div class="table-responsive">
@@ -31,8 +31,8 @@
                                     <thead>
                                         <tr>
                                             <th>No</th>
-                                            <th>No. SJ Intern</th>
-                                            <th>No. Surat Jalan Supplier</th>
+                                            <th>No. GR</th>
+                                            <th>No. Surat Jalan</th>
                                             <th>No. PO</th>
                                             <th>Supplier</th>
                                             <th>Tanggal Terima</th>

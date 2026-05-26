@@ -206,7 +206,7 @@ class PurchaseOrderController extends Controller
                 'supplier_id' => $request->supplier_id,
                 'warehouse_id' => $request->warehouse_id,
                 'po_date' => $request->po_date,
-                'expected_delivery_date' => $request->expected_delivery_date,
+                'expected_delivery_date' => $request->expected_delivery_date ?: null,
                 'subtotal' => $request->subtotal,
                 'discount_type' => $request->discount_type,
                 'discount_value' => $request->discount_value,
@@ -214,7 +214,7 @@ class PurchaseOrderController extends Controller
                 'tax_percentage' => $request->tax_percentage,
                 'tax_amount' => $request->tax_amount,
                 'total' => $request->total,
-                'notes' => $request->notes,
+                'notes' => $request->notes ?: null,
                 'status' => 'submitted',
                 'created_by' => Auth::id(),
             ]);
@@ -279,7 +279,7 @@ class PurchaseOrderController extends Controller
                 'supplier_id' => $request->supplier_id,
                 'warehouse_id' => $request->warehouse_id,
                 'po_date' => $request->po_date,
-                'expected_delivery_date' => $request->expected_delivery_date,
+                'expected_delivery_date' => $request->expected_delivery_date ?: null,
                 'subtotal' => $request->subtotal,
                 'discount_type' => $request->discount_type,
                 'discount_value' => $request->discount_value,
@@ -287,7 +287,7 @@ class PurchaseOrderController extends Controller
                 'tax_percentage' => $request->tax_percentage,
                 'tax_amount' => $request->tax_amount,
                 'total' => $request->total,
-                'notes' => $request->notes,
+                'notes' => $request->notes ?: null,
             ]);
 
             // Simple update: Delete old items and re-create them

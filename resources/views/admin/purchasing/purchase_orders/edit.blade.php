@@ -464,10 +464,11 @@
         let btn = $('#btn-save-po');
 
         Swal.fire({
-            title: "Simpan Perubahan PO?",
+            title: "Simpan Perubahan?",
+            text: "Pastikan data PO sudah benar.",
             icon: "info",
             showCancelButton: true,
-            confirmButtonText: "Ya, Simpan",
+            confirmButtonText: "Ya, Simpan!",
             cancelButtonText: "Batal"
         }).then((result) => {
             if (result.isConfirmed) {

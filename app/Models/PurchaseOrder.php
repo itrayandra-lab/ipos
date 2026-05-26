@@ -23,6 +23,8 @@ class PurchaseOrder extends Model
         'total',
         'notes',
         'status',
+        'payment_status',
+        'paid_amount',
         'created_by',
         'warehouse_id',
     ];
