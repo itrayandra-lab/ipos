@@ -227,6 +227,7 @@
                     
                     @if($user->hasPermission('access_finance_menu') || $user->hasPermission('access_finance_settlement'))
                     <li class="{{ $sb == 'FinanceSettlement' ? 'active' : '' }}"><a class="nav-link" href="{{ route('admin.finance.settlement.index') }}">Pelunasan Supplier</a></li>
+                    <li><a class="nav-link" href="{{ route('admin.finance.settlement.payment_history') }}">Riwayat Pelunasan</a></li>
                     @endif
                     
                     @if($user->hasPermission('access_finance_menu') || $user->hasPermission('access_fund_requests'))
