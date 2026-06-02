@@ -290,17 +290,20 @@ class PurchaseOrderController extends Controller
                 'notes' => $request->notes ?: null,
             ]);
 
-            // Simple update: Delete old items and re-create them
-            PurchaseOrderItem::where('purchase_order_id', $po->id)->delete();
+            // Update items in-place to preserve IDs (GR items reference purchase_order_item_id)
+            $existingItems = $po->items()->orderBy('id')->get();
+            $existingCount = $existingItems->count();
 
-            foreach ($request->items as $item) {
+            // Re-index to 0-based (form HTML uses 1-based indexing from rowCount++)
+            $items = array_values($request->items);
+
+            foreach ($items as $i => $item) {
                 $productId = null;
                 if (!empty($item['product_id']) && is_numeric($item['product_id'])) {
                     $productId = $item['product_id'];
                 }
 
-                PurchaseOrderItem::create([
-                    'purchase_order_id' => $po->id,
+                $data = [
                     'product_id' => $productId,
                     'product_name' => $item['product_name'],
                     'description' => $item['description'],
@@ -308,7 +311,20 @@ class PurchaseOrderController extends Controller
                     'quantity' => $item['qty'],
                     'unit_price' => $item['price'],
                     'total' => $item['qty'] * $item['price'],
-                ]);
+                ];
+
+                if ($i < $existingCount) {
+                    $existingItems[$i]->update($data);
+                } else {
+                    $po->items()->create(array_merge($data, ['purchase_order_id' => $po->id]));
+                }
+            }
+
+            // Remove extra items if user deleted some rows (using 0-based index)
+            if (count($items) < $existingCount) {
+                for ($i = count($items); $i < $existingCount; $i++) {
+                    $existingItems[$i]->delete();
+                }
             }
 
             DB::commit();
@@ -322,8 +338,77 @@ class PurchaseOrderController extends Controller
 
     public function show($id)
     {
-        $po = PurchaseOrder::with(['supplier', 'creator', 'items.product.merek'])->findOrFail($id);
-        return view('admin.purchasing.purchase_orders.show', compact('po'))->with('sb', 'PurchaseOrder');
+        $po = PurchaseOrder::with([
+            'supplier',
+            'creator',
+            'items.product.merek',
+            'items.goodsReceiptItems',
+            'goodsReceipts.items',
+            'goodsReceipts.receiver'
+        ])->findOrFail($id);
+
+        $productIds = $po->items->pluck('product_id')->filter()->unique()->toArray();
+
+        $payments = collect();
+        $totalPaid = 0;
+        if (!empty($productIds)) {
+            $paymentRecords = DB::table('supplier_payment_items')
+                ->join('supplier_payments', 'supplier_payment_items.supplier_payment_id', '=', 'supplier_payments.id')
+                ->join('products', 'supplier_payment_items.product_id', '=', 'products.id')
+                ->leftJoin('users', 'supplier_payments.created_by', '=', 'users.id')
+                ->whereIn('supplier_payment_items.product_id', $productIds)
+                ->select(
+                    'supplier_payments.id as payment_id',
+                    'supplier_payments.payment_number',
+                    'supplier_payments.payment_date',
+                    'supplier_payments.total_amount as payment_total',
+                    'supplier_payments.payment_proof',
+                    'supplier_payments.notes',
+                    'supplier_payment_items.product_id',
+                    'supplier_payment_items.qty',
+                    'supplier_payment_items.buy_price',
+                    'supplier_payment_items.subtotal',
+                    'products.name as product_name',
+                    'users.name as cashier_name'
+                )
+                ->orderBy('supplier_payments.payment_date')
+                ->get();
+
+            $payments = $paymentRecords;
+            $totalPaid = $paymentRecords->sum('subtotal');
+        }
+
+        // Build merged timeline: goods receipts + payments
+        $timeline = collect();
+        foreach ($po->goodsReceipts as $gr) {
+            $timeline->push([
+                'type' => 'receipt',
+                'date' => $gr->received_date ?? $gr->created_at,
+                'label' => 'Penerimaan Barang',
+                'reference' => $gr->sj_number,
+                'details' => $gr->items->map(fn($i) => $i->product_name . ' (' . number_format($i->quantity_received, 0) . ' ' . ($i->satuan ?? 'pcs') . ')')->implode(', '),
+                'actor' => $gr->receiver->name ?? '-',
+            ]);
+        }
+        foreach ($payments->groupBy('payment_id') as $pid => $group) {
+            $first = $group->first();
+            $itemLines = $group->map(fn($i) => $i->product_name . ' (' . number_format($i->qty, 0) . ' pcs × Rp ' . number_format($i->buy_price, 0, ',', '.') . ')')->implode(', ');
+            $timeline->push([
+                'type' => 'payment',
+                'date' => $first->payment_date,
+                'label' => 'Pembayaran',
+                'reference' => $first->payment_number ?? 'PAY-' . $pid,
+                'details' => 'Rp ' . number_format($group->sum('subtotal'), 0, ',', '.') . ' — ' . $itemLines,
+                'actor' => $first->cashier_name ?? '-',
+            ]);
+        }
+        $timeline = $timeline->sortBy('date')->values();
+
+        $totalPo = (float) $po->total;
+        $outstanding = max(0, $totalPo - $totalPaid);
+        $progressPct = $totalPo > 0 ? min(100, round(($totalPaid / $totalPo) * 100)) : 0;
+
+        return view('admin.purchasing.purchase_orders.show', compact('po', 'payments', 'totalPaid', 'outstanding', 'progressPct', 'timeline'))->with('sb', 'PurchaseOrder');
     }
 
     public function print($id)

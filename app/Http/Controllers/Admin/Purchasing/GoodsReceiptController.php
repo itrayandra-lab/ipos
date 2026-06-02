@@ -86,7 +86,7 @@ class GoodsReceiptController extends Controller
     public function create()
     {
         $gr_number = GoodsReceipt::generateGRNumber();
-        $pos = PurchaseOrder::whereIn('status', ['submitted', 'approved'])->get();
+        $pos = PurchaseOrder::whereIn('status', ['submitted', 'approved', 'partial'])->get();
         $suppliers = Supplier::where('status', 'active')->get();
         $warehouses = \App\Models\Warehouse::where('status', 'active')->get();
         return view('admin.purchasing.goods_receipts.create', compact('gr_number', 'pos', 'suppliers', 'warehouses'))->with('sb', 'GoodsReceipt');
@@ -275,6 +275,15 @@ class GoodsReceiptController extends Controller
                 if ($productId) {
                     $buyPrice = !empty($item['buy_price']) ? $item['buy_price'] : 0;
 
+                    if ($buyPrice <= 0) {
+                        if (!empty($item['purchase_order_item_id'])) {
+                            $poItem = \App\Models\PurchaseOrderItem::find($item['purchase_order_item_id']);
+                            if ($poItem && $poItem->unit_price > 0) {
+                                $buyPrice = $poItem->unit_price;
+                            }
+                        }
+                    }
+
                     if ($buyPrice <= 0 && $variantId) {
                         $variant = ProductVariant::find($variantId);
                         if ($variant && $variant->product_hpp > 0) {
@@ -334,7 +343,7 @@ class GoodsReceiptController extends Controller
     public function edit($id)
     {
         $gr = GoodsReceipt::with(['supplier', 'purchaseOrder', 'receiver', 'items'])->findOrFail($id);
-        $pos = PurchaseOrder::whereIn('status', ['submitted', 'approved', 'received'])->get();
+        $pos = PurchaseOrder::whereIn('status', ['submitted', 'approved', 'partial', 'received'])->get();
         $suppliers = Supplier::where('status', 'active')->get();
         $warehouses = \App\Models\Warehouse::where('status', 'active')->get();
         return view('admin.purchasing.goods_receipts.edit', compact('gr', 'pos', 'suppliers', 'warehouses'))->with('sb', 'GoodsReceipt');
@@ -432,6 +441,15 @@ class GoodsReceiptController extends Controller
 
                 if ($productId) {
                     $buyPrice = !empty($item['buy_price']) ? $item['buy_price'] : 0;
+
+                    if ($buyPrice <= 0) {
+                        if (!empty($item['purchase_order_item_id'])) {
+                            $poItem = \App\Models\PurchaseOrderItem::find($item['purchase_order_item_id']);
+                            if ($poItem && $poItem->unit_price > 0) {
+                                $buyPrice = $poItem->unit_price;
+                            }
+                        }
+                    }
 
                     if ($buyPrice <= 0 && $variantId) {
                         $variant = ProductVariant::find($variantId);

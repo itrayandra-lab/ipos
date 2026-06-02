@@ -25,54 +25,68 @@ class SettlementController extends Controller
 
     public function data(Request $request)
     {
-        $query = $this->getFilteredQuery($request);
+        try {
+            $query = $this->getFilteredQuery($request);
+            $summary = $this->getSummary($request);
 
-        return DataTables::of($query)
-            ->addIndexColumn()
-            ->editColumn('product_name', function($row) {
-                $merekName = trim($row->merek_name ?? '');
-                $productName = trim($row->product_name ?? '');
-                $variantName = trim($row->variant_name ?? '');
+            \Log::debug('Settlement search params', $request->only(['start_date', 'end_date', 'supplier_id', 'search']));
 
-                $originalParts = array_filter([$merekName, $productName, $variantName]);
-                $finalParts = [];
-                foreach ($originalParts as $p1) {
-                    $isSubPart = false;
-                    foreach ($originalParts as $p2) {
-                        if ($p1 !== $p2 && stripos($p2, $p1) !== false && strlen($p2) > strlen($p1)) {
-                            $isSubPart = true;
-                            break;
+            return DataTables::of($query)
+                ->addIndexColumn()
+                ->editColumn('product_name', function($row) {
+                    $merekName = trim($row->merek_name ?? '');
+                    $productName = trim($row->product_name ?? '');
+                    $variantName = trim($row->variant_name ?? '');
+
+                    $originalParts = array_filter([$merekName, $productName, $variantName]);
+                    $finalParts = [];
+                    foreach ($originalParts as $p1) {
+                        $isSubPart = false;
+                        foreach ($originalParts as $p2) {
+                            if ($p1 !== $p2 && stripos($p2, $p1) !== false && strlen($p2) > strlen($p1)) {
+                                $isSubPart = true;
+                                break;
+                            }
+                        }
+                        if (!$isSubPart) {
+                            $finalParts[] = $p1;
                         }
                     }
-                    if (!$isSubPart) {
-                        $finalParts[] = $p1;
-                    }
-                }
-                $labelText = implode(' ', array_unique($finalParts));
-                return '<div class="font-weight-600">' . $labelText . '</div>';
-            })
-            ->editColumn('buy_price', function ($row) {
-                return 'Rp ' . number_format($row->buy_price, 0, ',', '.');
-            })
-            ->editColumn('total_cost', function ($row) {
-                return 'Rp ' . number_format($row->total_cost, 0, ',', '.');
-            })
-            ->addColumn('raw_total_cost', function ($row) {
-                return $row->total_cost;
-            })
-            ->addColumn('action', function($row) {
-                return '<button type="button" class="btn btn-info btn-sm btn-detail" 
-                            data-product-id="'.$row->product_id.'" 
-                            data-variant-id="'.$row->product_variant_id.'"
-                            data-buy-price="'.$row->buy_price.'"
-                            data-product-name="'.e($row->product_name).'"
-                            data-variant-name="'.e($row->variant_name).'">
-                            <i class="fas fa-eye"></i> Detail
-                        </button>';
-            })
-            ->rawColumns(['product_name', 'action'])
-            ->with('summary', $this->getSummary($request))
-            ->make(true);
+                    $labelText = implode(' ', array_unique($finalParts));
+                    return '<div class="font-weight-600">' . $labelText . '</div>';
+                })
+                ->editColumn('buy_price', function ($row) {
+                    return 'Rp ' . number_format($row->buy_price, 0, ',', '.');
+                })
+                ->editColumn('total_cost', function ($row) {
+                    return 'Rp ' . number_format($row->total_cost, 0, ',', '.');
+                })
+                ->addColumn('raw_buy_price', function ($row) {
+                    return $row->buy_price;
+                })
+                ->addColumn('raw_total_cost', function ($row) {
+                    return $row->total_cost;
+                })
+                ->addColumn('action', function($row) {
+                    return '<button type="button" class="btn btn-info btn-sm btn-detail" 
+                                data-product-id="'.$row->product_id.'" 
+                                data-variant-id="'.$row->product_variant_id.'"
+                                data-buy-price="'.$row->buy_price.'"
+                                data-product-name="'.e($row->product_name).'"
+                                data-variant-name="'.e($row->variant_name).'">
+                                <i class="fas fa-eye"></i> Detail
+                            </button>';
+                })
+                ->rawColumns(['product_name', 'action'])
+                ->with('summary', $summary)
+                ->make(true);
+        } catch (\Exception $e) {
+            \Log::error('Settlement data error: ' . $e->getMessage(), [
+                'trace' => $e->getTraceAsString(),
+                'request' => $request->all()
+            ]);
+            return response()->json(['error' => $e->getMessage()], 500);
+        }
     }
 
     private function getSummary(Request $request)
@@ -122,17 +136,29 @@ class SettlementController extends Controller
             ->leftJoin('product_variants', 'transaction_items.product_variant_id', '=', 'product_variants.id')
             ->join('transactions', 'transaction_items.transaction_id', '=', 'transactions.id');
 
-        // Filter by date
-        if ($request->has('start_date') && !empty($request->start_date)) {
-            $query->where('transactions.created_at', '>=', Carbon::parse($request->start_date)->startOfDay());
-        }
-        if ($request->has('end_date') && !empty($request->end_date)) {
-            $query->where('transactions.created_at', '<=', Carbon::parse($request->end_date)->endOfDay());
-        }
+        // When search is active, skip date/supplier filters so search works on all data
+        $search = $request->input('search.value');
 
-        // Filter by supplier
-        if ($request->has('supplier_id') && !empty($request->supplier_id)) {
-            $query->where('products.supplier_id', $request->supplier_id);
+        if (!$search) {
+            if ($request->has('start_date') && !empty($request->start_date)) {
+                $query->where('transactions.created_at', '>=', Carbon::parse($request->start_date)->startOfDay());
+            }
+            if ($request->has('end_date') && !empty($request->end_date)) {
+                $query->where('transactions.created_at', '<=', Carbon::parse($request->end_date)->endOfDay());
+            }
+
+            if ($request->has('supplier_id') && !empty($request->supplier_id)) {
+                $query->where('products.supplier_id', $request->supplier_id);
+            }
+        } else {
+            $keyword = '%' . $search . '%';
+            $query->where(function ($q) use ($keyword) {
+                $q->where('products.name', 'like', $keyword)
+                  ->orWhere('suppliers.name', 'like', $keyword)
+                  ->orWhere('merek.name', 'like', $keyword)
+                  ->orWhere('product_variants.variant_name', 'like', $keyword)
+                  ->orWhere('product_variants.sku_code', 'like', $keyword);
+            });
         }
 
         // Bundling Logic: Show components, hide bundle parents
@@ -192,13 +218,13 @@ class SettlementController extends Controller
         $query = DB::table('supplier_payments')
             ->select(
                 'supplier_payments.id',
+                'supplier_payments.payment_number',
                 'supplier_payments.payment_date',
                 'supplier_payments.total_amount',
                 'supplier_payments.payment_proof',
                 'supplier_payments.notes',
                 'suppliers.name as supplier_name',
-                'users.name as cashier_name',
-                DB::raw('(SELECT SUM(qty) FROM supplier_payment_items WHERE supplier_payment_id = supplier_payments.id) as total_qty')
+                'users.name as cashier_name'
             )
             ->leftJoin('suppliers', 'supplier_payments.supplier_id', '=', 'suppliers.id')
             ->leftJoin('users', 'supplier_payments.created_by', '=', 'users.id');
@@ -250,8 +276,8 @@ class SettlementController extends Controller
                 'transactions.created_at',
                 'transaction_items.qty',
                 DB::raw('COALESCE(NULLIF(transaction_items.buy_price, 0), product_variants.product_hpp, 0) as buy_price'),
+                DB::raw('transaction_items.qty * COALESCE(NULLIF(transaction_items.buy_price, 0), product_variants.product_hpp, 0) as total_hpp'),
                 'transaction_items.price',
-                'transaction_items.subtotal',
                 'transactions.source',
                 'users.name as cashier_name'
             )
@@ -348,7 +374,27 @@ class SettlementController extends Controller
                 $paymentProofPath = $request->file('payment_proof')->store('supplier_payments', 'public');
             }
 
+            $payDate = $request->payment_date;
+            $month = date('m', strtotime($payDate));
+            $year  = date('y', strtotime($payDate));
+            $prefix = "PAY{$month}{$year}-";
+
+            $lastPayment = DB::table('supplier_payments')
+                ->where('payment_number', 'like', $prefix . '%')
+                ->orderBy('payment_number', 'desc')
+                ->first();
+
+            if ($lastPayment) {
+                $lastNum = (int) substr($lastPayment->payment_number, -3);
+                $newNum = str_pad($lastNum + 1, 3, '0', STR_PAD_LEFT);
+            } else {
+                $newNum = '001';
+            }
+
+            $paymentNumber = $prefix . $newNum;
+
             $paymentId = DB::table('supplier_payments')->insertGetId([
+                'payment_number' => $paymentNumber,
                 'supplier_id' => $request->supplier_id,
                 'payment_date' => $request->payment_date,
                 'total_amount' => 0,

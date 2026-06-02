@@ -177,6 +177,7 @@ Route::prefix('admin')->middleware(['auth', 'role:super_admin,store_manager,fina
                     Route::post('/get-netto', [\App\Http\Controllers\Admin\ManageMaster\StockController::class , 'getNetto']);
                     Route::post('/update-netto', [\App\Http\Controllers\Admin\ManageMaster\StockController::class , 'updateNetto']);
                     Route::post('/add-netto', [\App\Http\Controllers\Admin\ManageMaster\StockController::class , 'addNetto']);
+                    Route::get('/expired', [\App\Http\Controllers\Admin\ManageMaster\StockController::class , 'expired']);
                 }
                 );
 

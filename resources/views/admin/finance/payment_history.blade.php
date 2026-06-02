@@ -133,8 +133,8 @@
                                     <tr>
                                         <th width="10px">#</th>
                                         <th>Supplier</th>
+                                        <th>No. Pembayaran</th>
                                         <th>Tanggal Bayar</th>
-                                        <th class="text-center">Total Qty</th>
                                         <th class="text-right">Total Nominal</th>
                                         <th>Petugas</th>
                                         <th>Bukti</th>
@@ -155,16 +155,17 @@
         <div class="modal-dialog modal-lg" role="document">
             <div class="modal-content">
                 <div class="modal-header">
-                    <h5 class="modal-title">Detail Pembayaran</h5>
+                    <h5 class="modal-title" id="detailPaymentModalLabel">Detail Pembayaran</h5>
                     <button type="button" class="close" data-dismiss="modal" aria-label="Close">
                         <span aria-hidden="true">&times;</span>
                     </button>
                 </div>
                 <div class="modal-body">
                     <div class="row mb-3" id="payment-info-header">
-                        <div class="col-md-4"><strong>Supplier:</strong> <span id="detail-supplier"></span></div>
-                        <div class="col-md-4"><strong>Tanggal:</strong> <span id="detail-date"></span></div>
-                        <div class="col-md-4"><strong>Petugas:</strong> <span id="detail-cashier"></span></div>
+                        <div class="col-md-3"><strong>No. Bayar:</strong> <span id="detail-number" class="font-weight-bold"></span></div>
+                        <div class="col-md-3"><strong>Supplier:</strong> <span id="detail-supplier"></span></div>
+                        <div class="col-md-3"><strong>Tanggal:</strong> <span id="detail-date"></span></div>
+                        <div class="col-md-3"><strong>Petugas:</strong> <span id="detail-cashier"></span></div>
                     </div>
                     <div class="table-responsive">
                         <table class="table table-sm table-bordered">
@@ -212,13 +213,12 @@
                 columns: [
                     { data: 'DT_RowIndex', name: 'DT_RowIndex', orderable: false, searchable: false },
                     { data: 'supplier_name', name: 'supplier_name' },
-                    { data: 'payment_date', name: 'payment_date' },
-                    { 
-                        data: 'total_qty', name: 'total_qty', className: 'text-center',
+                    { data: 'payment_number', name: 'payment_number', defaultContent: '-',
                         render: function(data) {
-                            return data || 0;
+                            return '<span class="font-weight-bold">' + (data || '-') + '</span>';
                         }
                     },
+                    { data: 'payment_date', name: 'payment_date' },
                     { data: 'total_amount', name: 'total_amount', className: 'text-right' },
                     { data: 'cashier_name', name: 'cashier_name', defaultContent: '-' },
                     { data: 'payment_proof_link', name: 'payment_proof_link', className: 'text-center', orderable: false },
@@ -229,7 +229,7 @@
                     },
                     { data: 'action', name: 'action', orderable: false, searchable: false, className: 'text-center' }
                 ],
-                order: [[2, 'desc']]
+                order: [[3, 'desc']]
             });
 
             $('#filter-form').on('submit', function(e) {
@@ -247,6 +247,8 @@
                     method: "GET",
                     success: function(res) {
                         if (res.status === 'success') {
+                            $('#detailPaymentModalLabel').text('Detail Pembayaran: ' + (res.payment.payment_number || '#' + res.payment.id));
+                            $('#detail-number').text(res.payment.payment_number || '-');
                             $('#detail-supplier').text(res.payment.supplier_name || '-');
                             $('#detail-date').text(res.payment.payment_date ? new Date(res.payment.payment_date).toLocaleDateString('id-ID') : '-');
                             $('#detail-cashier').text(res.payment.cashier_name || '-');

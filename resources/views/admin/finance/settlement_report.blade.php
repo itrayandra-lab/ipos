@@ -411,20 +411,20 @@
                 <div class="row align-items-end">
                     <div class="col-md-3 mb-3">
                         <label>Tanggal Mulai</label>
-                        <input type="date" class="form-control" id="start_date" name="start_date" value="{{ date('Y-m-01') }}">
+                        <input type="date" class="form-control" id="start_date" name="start_date" value="{{ request('start_date', date('Y-m-01')) }}">
                     </div>
                     <div class="col-md-3 mb-3">
                         <label>Tanggal Selesai</label>
-                        <input type="date" class="form-control" id="end_date" name="end_date" value="{{ date('Y-m-d') }}">
+                        <input type="date" class="form-control" id="end_date" name="end_date" value="{{ request('end_date', date('Y-m-d')) }}">
                     </div>
                     <div class="col-md-3 mb-3">
                         <label>Supplier / Pabrik</label>
-                        <select class="form-control select2" id="supplier_id" name="supplier_id">
-                            <option value="">Semua Supplier</option>
-                            @foreach($suppliers as $s)
-                                <option value="{{ $s->id }}">{{ $s->name }}</option>
-                            @endforeach
-                        </select>
+                            <select class="form-control select2" id="supplier_id" name="supplier_id">
+                                <option value="">Semua Supplier</option>
+                                @foreach($suppliers as $s)
+                                    <option value="{{ $s->id }}" {{ request('supplier_id') == $s->id ? 'selected' : '' }}>{{ $s->name }}</option>
+                                @endforeach
+                            </select>
                     </div>
                     <div class="col-md-3 mb-3">
                         <button type="submit" class="btn-filter-apply">
@@ -620,6 +620,7 @@ $(document).ready(function() {
         responsive: true,
         processing: true,
         serverSide: true,
+
         ajax: {
             url: "{{ route('admin.finance.settlement.data') }}",
             type: "GET",
@@ -649,7 +650,7 @@ $(document).ready(function() {
             { data: 'DT_RowIndex', name: 'DT_RowIndex', orderable: false, searchable: false },
             {
                 // col 2 — product name  (server sends plain text via ->editColumn, we render it)
-                data: 'product_name', name: 'product_name',
+                data: 'product_name', searchable: false,
                 render: function(data, type, row) {
                     // data is the server-rendered HTML string (may contain <div> wrapper)
                     // Strip any outer wrapper and rebuild cleanly
@@ -663,7 +664,7 @@ $(document).ready(function() {
             },
             {
                 // col 3 — supplier badge
-                data: 'supplier_name', name: 'supplier_name',
+                data: 'supplier_name', searchable: false,
                 render: function(data) {
                     if (data) {
                         return '<span class="badge-supplier">' + $('<div>').text(data).html() + '</span>';
@@ -672,17 +673,17 @@ $(document).ready(function() {
                 }
             },
             // col 4 — HPP satuan
-            { data: 'buy_price', name: 'buy_price', className: 'text-right hpp-text' },
+            { data: 'buy_price', name: 'buy_price', className: 'text-right hpp-text', searchable: false },
             {
                 // col 5 — qty pill
-                data: 'total_qty', name: 'total_qty', className: 'text-center',
+                data: 'total_qty', name: 'total_qty', className: 'text-center', searchable: false,
                 render: function(data) {
                     return '<span class="qty-pill">' + data + '</span>';
                 }
             },
             {
                 // col 6 — total cost
-                data: 'total_cost', name: 'total_cost', className: 'text-right',
+                data: 'total_cost', name: 'total_cost', className: 'text-right', searchable: false,
                 render: function(data) {
                     return '<span class="cost-text">' + data + '</span>';
                 }
@@ -693,11 +694,13 @@ $(document).ready(function() {
                 render: function(data, type, row) {
                     var pid  = encodeURIComponent(row.product_id || '');
                     var vid  = encodeURIComponent(row.product_variant_id || '');
-                    var pname = $('<div>').text(row.product_name || '').html();
+                    var plainName = $('<div>').html(row.product_name || '').text();
+                    var pname = $('<div>').text(plainName).html();
                     var vname = $('<div>').text(row.variant_name || '').html();
                     return '<button type="button" class="btn-detail-row btn-detail"'
                         + ' data-product-id="' + row.product_id + '"'
                         + ' data-variant-id="' + (row.product_variant_id || '') + '"'
+                        + ' data-buy-price="' + (row.raw_buy_price || 0) + '"'
                         + ' data-product-name="' + pname + '"'
                         + ' data-variant-name="' + vname + '">'
                         + '<i class="fas fa-eye"></i> Detail'
@@ -728,13 +731,14 @@ $(document).ready(function() {
        ============================ */
     table.on('xhr', function() {
         const json    = table.ajax.json();
+        if (!json || !json.summary) return;
         const summary = json.summary;
 
         $('#summary-total-qty').text(
-            new Intl.NumberFormat('id-ID').format(summary.total_qty) + ' pcs'
+            new Intl.NumberFormat('id-ID').format(summary.total_qty || 0) + ' pcs'
         );
         $('#summary-total-cost').text(
-            'Rp ' + new Intl.NumberFormat('id-ID').format(summary.total_cost)
+            'Rp ' + new Intl.NumberFormat('id-ID').format(summary.total_cost || 0)
         );
 
         if (summary.supplier) {
@@ -888,13 +892,12 @@ $(document).ready(function() {
                 const variantId = $(this).data('variant-id');
                 const buyPrice = $(this).data('buy-price');
                 const productName = $(this).data('product-name');
-                const variantName = $(this).data('variant-name');
                 const startDate = $('#start_date').val();
                 const endDate = $('#end_date').val();
 
-                const hppText = 'Rp ' + new Intl.NumberFormat('id-ID').format(buyPrice);
-                $('#detailModalLabel').html(`Detail: ${productName} ${variantName ? '(' + variantName + ')' : ''} <span class="badge badge-info ml-2">HPP: ${hppText}</span>`);
+                $('#detailModalLabel').text(`Detail: ${productName}`);
                 $('#detail-sales-tbody').html('<tr><td colspan="6" class="text-center">Loading...</td></tr>');
+                $('#detail-payments-tbody').html('<tr><td colspan="6" class="text-center py-3 text-muted"><i class="fas fa-spinner fa-spin mr-1"></i> Loading...</td></tr>');
                 $('#detailModal').modal('show');
 
                 $.ajax({
@@ -908,6 +911,7 @@ $(document).ready(function() {
                         end_date: endDate
                     },
                     success: function(response) {
+                        let totalSalesHpp = 0;
                         let htmlSales = '';
                         if (!response.sales || response.sales.length === 0) {
                             htmlSales = '<tr><td colspan="6" class="text-center">Tidak ada transaksi ditemukan.</td></tr>';
@@ -917,81 +921,58 @@ $(document).ready(function() {
                                     day: '2-digit', month: '2-digit', year: 'numeric',
                                     hour: '2-digit', minute: '2-digit'
                                 });
+                                totalSalesHpp += parseFloat(item.total_hpp || 0);
                                 htmlSales += `
                                     <tr>
                                         <td>${index + 1}</td>
                                         <td>
-                                            <div class="font-weight-600 text-primary">${item.transaction_code || '#' + item.id}</div>
+                                            <div class="font-weight-700 text-primary">${item.transaction_code || '#' + item.id}</div>
                                             <div class="small text-muted">${item.invoice_number || ''}</div>
                                         </td>
                                         <td>${date}</td>
-                                        <td class="text-center">${item.qty}</td>
+                                        <td class="text-center"><span class="qty-pill">${item.qty}</span></td>
                                         <td class="text-right">Rp ${new Intl.NumberFormat('id-ID').format(item.buy_price)}</td>
-                                        <td class="text-right">Rp ${new Intl.NumberFormat('id-ID').format(item.subtotal)}</td>
-                                    </tr>
-                                `;
+                                        <td class="text-right font-weight-700 text-danger">Rp ${new Intl.NumberFormat('id-ID').format(item.total_hpp)}</td>
+                                    </tr>`;
                             });
+                            htmlSales += `<tr style="background:var(--slate-50);">
+                                <td colspan="5" class="text-right font-weight-700">Total HPP Belum Lunas</td>
+                                <td class="text-right font-weight-800 text-danger">Rp ${new Intl.NumberFormat('id-ID').format(totalSalesHpp)}</td>
+                            </tr>`;
                         }
                         $('#detail-sales-tbody').html(htmlSales);
+
+                        let htmlPayments = '';
+                        if (!response.payments || response.payments.length === 0) {
+                            htmlPayments = `<tr><td colspan="6" class="text-center py-3 text-muted"><i class="fas fa-inbox mr-1"></i> Belum ada riwayat pembayaran.</td></tr>`;
+                        } else {
+                            response.payments.forEach((item, index) => {
+                                const date = new Date(item.payment_date).toLocaleDateString('id-ID', {
+                                    day:'2-digit', month:'2-digit', year:'numeric'
+                                });
+                                htmlPayments += `
+                                    <tr>
+                                        <td>${index + 1}</td>
+                                        <td>
+                                            <div class="font-weight-700">PAY-${item.id}</div>
+                                            ${item.payment_proof ? `<a href="/storage/${item.payment_proof}" target="_blank" class="small text-info"><i class="fas fa-file-invoice mr-1"></i>Lihat Bukti</a>` : ''}
+                                        </td>
+                                        <td>${date}</td>
+                                        <td class="text-center"><span class="qty-pill">${item.qty}</span></td>
+                                        <td class="text-right">Rp ${new Intl.NumberFormat('id-ID').format(item.buy_price)}</td>
+                                        <td class="text-right font-weight-700" style="color:var(--teal-700)">Rp ${new Intl.NumberFormat('id-ID').format(item.subtotal)}</td>
+                                    </tr>`;
+                            });
+                        }
+                        $('#detail-payments-tbody').html(htmlPayments);
                     },
                     error: function() {
-                        $('#detail-sales-tbody').html('<tr><td colspan="6" class="text-center text-danger">Gagal mengambil data.</td></tr>');
+                        const errRow = cols => `<tr><td colspan="${cols}" class="text-center text-danger py-3"><i class="fas fa-exclamation-circle mr-1"></i>Gagal mengambil data.</td></tr>`;
+                        $('#detail-sales-tbody').html(errRow(6));
+                        $('#detail-payments-tbody').html(errRow(6));
                     }
                 });
             });
-                        totalSalesHpp += parseFloat(item.subtotal || 0);
-                        htmlSales += `
-                            <tr>
-                                <td>${index + 1}</td>
-                                <td>
-                                    <div class="font-weight-700 text-primary">${item.transaction_code || '#' + item.id}</div>
-                                    <div class="small text-muted">${item.invoice_number || ''}</div>
-                                </td>
-                                <td>${date}</td>
-                                <td class="text-center"><span class="qty-pill">${item.qty}</span></td>
-                                <td class="text-right">Rp ${new Intl.NumberFormat('id-ID').format(item.buy_price)}</td>
-                                <td class="text-right font-weight-700 text-danger">Rp ${new Intl.NumberFormat('id-ID').format(item.subtotal)}</td>
-                            </tr>`;
-                    });
-                    htmlSales += `<tr style="background:var(--slate-50);">
-                        <td colspan="5" class="text-right font-weight-700">Total HPP Belum Lunas</td>
-                        <td class="text-right font-weight-800 text-danger">Rp ${new Intl.NumberFormat('id-ID').format(totalSalesHpp)}</td>
-                    </tr>`;
-                }
-                $('#detail-sales-tbody').html(htmlSales);
-
-                // Payment rows
-                let htmlPayments = '';
-                if (!response.payments || response.payments.length === 0) {
-                    htmlPayments = `<tr><td colspan="6" class="text-center py-3 text-muted"><i class="fas fa-inbox mr-1"></i> Belum ada riwayat pembayaran.</td></tr>`;
-                } else {
-                    response.payments.forEach((item, index) => {
-                        const date = new Date(item.payment_date).toLocaleDateString('id-ID', {
-                            day:'2-digit', month:'2-digit', year:'numeric'
-                        });
-                        htmlPayments += `
-                            <tr>
-                                <td>${index + 1}</td>
-                                <td>
-                                    <div class="font-weight-700">PAY-${item.id}</div>
-                                    ${item.payment_proof ? `<a href="/storage/${item.payment_proof}" target="_blank" class="small text-info"><i class="fas fa-file-invoice mr-1"></i>Lihat Bukti</a>` : ''}
-                                </td>
-                                <td>${date}</td>
-                                <td class="text-center"><span class="qty-pill">${item.qty}</span></td>
-                                <td class="text-right">Rp ${new Intl.NumberFormat('id-ID').format(item.buy_price)}</td>
-                                <td class="text-right font-weight-700" style="color:var(--teal-700)">Rp ${new Intl.NumberFormat('id-ID').format(item.subtotal)}</td>
-                            </tr>`;
-                    });
-                }
-                $('#detail-payments-tbody').html(htmlPayments);
-            },
-            error: function() {
-                const errRow = cols => `<tr><td colspan="${cols}" class="text-center text-danger py-3"><i class="fas fa-exclamation-circle mr-1"></i>Gagal mengambil data.</td></tr>`;
-                $('#detail-sales-tbody').html(errRow(6));
-                $('#detail-payments-tbody').html(errRow(6));
-            }
-        });
-    });
 
     /* ============================
        TOAST HELPER

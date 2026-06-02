@@ -247,7 +247,7 @@
                                                     <input type="text" name="items[{{ $index }}][buy_price]" value="{{ number_format($buyPrice, 0, ',', '.') }}" class="form-control buy-price-input text-center" {{ $item->purchase_order_item_id ? 'readonly' : '' }}>
                                                 </td>
                                                 <td>
-                                                    <input type="hidden" name="items[{{ $index }}][qty_ordered]" value="{{ $item->quantity_ordered }}">
+                                                    <input type="hidden" name="items[{{ $index }}][qty_ordered]" value="{{ $item->purchaseOrderItem?->quantity ?? $item->quantity_ordered }}">
                                                     <input type="text" name="items[{{ $index }}][qty_received]" value="{{ number_format($item->quantity_received, 0, ',', '.') }}" class="form-control qty-received-input text-center" required>
                                                 </td>
                                                 <td>

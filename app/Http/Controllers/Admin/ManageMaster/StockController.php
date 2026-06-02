@@ -17,12 +17,32 @@ class StockController extends Controller
         $user = auth()->user();
         $products = Product::with('merek')->orderBy('name')->get();
 
-        $userWarehouses = $user->warehouses;
-        $warehouses = $userWarehouses->isNotEmpty()
-            ? $userWarehouses
+        $userWarehouseIds = $user->warehouses->pluck('id')->toArray();
+
+        $warehouses = $user->warehouses->isNotEmpty()
+            ? $user->warehouses
             : \App\Models\Warehouse::orderBy('type')->orderBy('name')->get();
 
-        return view('admin.manage_master.stock.index', compact('products', 'warehouses'))->with('sb', 'Stock');
+        $batches = ProductBatch::withSum('transactionItems', 'qty')
+            ->withSum('supplierReturnItems', 'qty')
+            ->when($userWarehouseIds, function ($q) use ($userWarehouseIds) {
+                $q->whereIn('warehouse_id', $userWarehouseIds);
+            })
+            ->get();
+
+        $totalSku = $batches->unique('product_id')->count();
+        $totalUnits = $batches->sum(function ($b) {
+            return max(0, (int)$b->qty - (int)($b->transaction_items_sum_qty ?? 0) - (int)($b->supplier_return_items_sum_qty ?? 0));
+        });
+        $lowStockCount = $batches->filter(function ($b) {
+            $cur = (int)$b->qty - (int)($b->transaction_items_sum_qty ?? 0) - (int)($b->supplier_return_items_sum_qty ?? 0);
+            return $cur > 0 && $cur < 10;
+        })->count();
+        $nearExpiredCount = $batches->filter(function ($b) {
+            return $b->expiry_date && $b->expiry_date->isFuture() && $b->expiry_date->lte(now()->addDays(30));
+        })->count();
+
+        return view('admin.manage_master.stock.index', compact('products', 'warehouses', 'totalSku', 'totalUnits', 'lowStockCount', 'nearExpiredCount'))->with('sb', 'Stock');
     }
 
     public function getall(Request $request)
@@ -31,7 +51,6 @@ class StockController extends Controller
         $user = auth()->user();
         $userWarehouseIds = $user->warehouses->pluck('id')->toArray();
 
-        // Query dengan Join agar kolom nama bisa dicari oleh Datatables
         $batches = ProductBatch::query()
             ->when($userWarehouseIds, function ($q) use ($userWarehouseIds) {
                 $q->whereIn('product_batches.warehouse_id', $userWarehouseIds);
@@ -46,8 +65,11 @@ class StockController extends Controller
             ->selectRaw('MAX(product_nettos.netto_value) as netto_value, MAX(product_nettos.satuan) as satuan')
             ->selectRaw('SUM(product_batches.qty) as initial_qty')
             ->selectRaw('COUNT(product_batches.id) as aggregated_batch_count')
+            ->selectRaw('MIN(product_batches.expiry_date) as nearest_expiry')
+            ->selectRaw('COALESCE(AVG(product_batches.buy_price), 0) as avg_buy_price')
             ->selectRaw('SUM((SELECT COALESCE(SUM(qty), 0) FROM transaction_items WHERE product_batch_id = product_batches.id)) as sold_qty')
             ->selectRaw('SUM((SELECT COALESCE(SUM(qty), 0) FROM supplier_return_items WHERE product_batch_id = product_batches.id)) as returned_qty')
+            ->selectRaw('MAX(products.min_stock_alert) as min_stock_alert')
             ->groupBy(
                 'product_batches.product_id',
                 'product_batches.product_variant_id',
@@ -68,20 +90,35 @@ class StockController extends Controller
             ->addColumn('warehouse_name', function ($row) {
                 return $row->w_name;
             })
-            ->addColumn('netto', function ($row) {
-                return $row->netto_value ? $row->netto_value . $row->satuan : '-';
-            })
             ->addColumn('batch_count', function($row) {
                 return $row->aggregated_batch_count;
+            })
+            ->addColumn('netto', function ($row) {
+                return $row->netto_value ? $row->netto_value . $row->satuan : '-';
             })
             ->addColumn('total_current_stock', function ($row) {
                 return (int)($row->initial_qty - $row->sold_qty - $row->returned_qty);
             })
+            ->addColumn('stock_status', function ($row) {
+                $stock = (int)($row->initial_qty - $row->sold_qty - $row->returned_qty);
+                if ($stock <= 0) return 'habis';
+                $min = max(1, (int)($row->min_stock_alert ?? 10));
+                if ($stock < $min) return 'kritis';
+                if ($stock < $min * 3) return 'menipis';
+                return 'aman';
+            })
+            ->addColumn('stock_value', function ($row) {
+                $stock = (int)($row->initial_qty - $row->sold_qty - $row->returned_qty);
+                return $stock * (float)$row->avg_buy_price;
+            })
+            ->addColumn('expiry_info', function ($row) {
+                return $row->nearest_expiry ? $row->nearest_expiry : null;
+            })
             ->addColumn('action', function ($row) {
                 $url = url('admin/manage-master/stock/detail-audit') . '?product_id=' . $row->product_id . '&variant_id=' . $row->product_variant_id . '&warehouse_id=' . $row->warehouse_id;
                 return '
-                    <a href="' . $url . '" class="btn btn-primary btn-sm btn-detail">
-                        <i class="fas fa-eye"></i> Detail
+                    <a href="' . $url . '" class="btn btn-detail-icon" title="Lihat Detail">
+                        <i class="fas fa-chevron-right"></i>
                     </a>
                 ';
             })
@@ -401,5 +438,27 @@ class StockController extends Controller
         $warehouseId = $request->warehouse_id;
 
         return view('admin.manage_master.stock.detail', compact('productId', 'variantId', 'warehouseId'))->with('sb', 'Stock');
+    }
+
+    public function expired()
+    {
+        $user = auth()->user();
+        $userWarehouseIds = $user->warehouses->pluck('id')->toArray();
+
+        $batches = ProductBatch::with(['product.merek', 'variant', 'warehouse'])
+            ->whereDate('expiry_date', '<=', now())
+            ->where('qty', '>', 0)
+            ->when($userWarehouseIds, function ($q) use ($userWarehouseIds) {
+                $q->whereIn('warehouse_id', $userWarehouseIds);
+            })
+            ->orderBy('expiry_date')
+            ->get();
+
+        $userWarehouses = $user->warehouses;
+        $warehouses = $userWarehouses->isNotEmpty()
+            ? $userWarehouses
+            : \App\Models\Warehouse::orderBy('type')->orderBy('name')->get();
+
+        return view('admin.manage_master.stock.expired', compact('batches', 'warehouses'))->with('sb', 'Stock');
     }
 }

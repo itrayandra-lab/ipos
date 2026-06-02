@@ -76,7 +76,7 @@
                                             <td>{{ $item->description }}</td>
                                             <td class="text-center">{{ $item->satuan }}</td>
                                             <td class="text-center">{{ $item->batch_no ?: '-' }}</td>
-                                            <td class="text-center">{{ rtrim(rtrim(number_format($item->quantity_ordered, 2, ',', '.'), '0'), ',') }}</td>
+                                            <td class="text-center">{{ rtrim(rtrim(number_format($item->purchaseOrderItem?->quantity ?? $item->quantity_ordered, 2, ',', '.'), '0'), ',') }}</td>
                                             <td class="text-center font-weight-bold">{{ rtrim(rtrim(number_format($item->quantity_received, 2, ',', '.'), '0'), ',') }}</td>
                                             <td class="text-center">
                                                 @if($item->quantity_difference == 0)
