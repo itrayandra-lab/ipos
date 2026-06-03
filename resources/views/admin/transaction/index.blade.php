@@ -440,7 +440,11 @@
                         name: 'transaction_code',
                         render: function(data, type, row) {
                             let code = data || '#'+row.id;
-                            return `<span style="font-family:monospace;font-size:12px;font-weight:600;color:#475569">${code}</span>`;
+                            let invoiceHtml = '';
+                            if (row.invoice_number) {
+                                invoiceHtml = `<div class="label-sub mt-1"><span class="badge-soft badge-soft-success mr-1">INV</span>${row.invoice_number}</div>`;
+                            }
+                            return `<div><span style="font-family:monospace;font-size:12px;font-weight:600;color:#475569">${code}</span>${invoiceHtml}</div>`;
                         }
                     },
                     { data: 'user.name', name: 'user.name' },
@@ -453,7 +457,10 @@
                             if(row.payment_status == 'paid' || row.payment_status == 'completed') cls = 'badge-soft-success';
                             if(row.payment_status == 'pending' || row.payment_status == 'credit') cls = 'badge-soft-warning';
                             if(row.payment_status == 'canceled' || row.payment_status == 'failed') cls = 'badge-soft-danger';
-                            return `<div class="cell-merged"><span class="amount-text">${data}</span><span class="badge-soft ${cls}" style="align-self:flex-start">${label}</span></div>`;
+                            let invoiceBadge = row.invoice_number
+                                ? `<span class="badge-soft badge-soft-info" style="align-self:flex-start">INVOICE</span>`
+                                : '';
+                            return `<div class="cell-merged"><span class="amount-text">${data}</span><span class="badge-soft ${cls}" style="align-self:flex-start">${label}</span>${invoiceBadge}</div>`;
                         }
                     },
                     {
