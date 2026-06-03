@@ -9,6 +9,13 @@ class StockMovement extends Model
 {
     use HasFactory;
 
+    protected $casts = [
+        'shipped_at' => 'datetime',
+        'received_at' => 'datetime',
+        'created_at' => 'datetime',
+        'updated_at' => 'datetime',
+    ];
+
     protected $fillable = [
         'reference_number',
         'from_warehouse_id',
