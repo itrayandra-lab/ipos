@@ -33,6 +33,9 @@ class SettlementController extends Controller
 
             return DataTables::of($query)
                 ->addIndexColumn()
+                ->orderColumn('buy_price', 'COALESCE(NULLIF(transaction_items.buy_price, 0), product_variants.product_hpp, 0) $1')
+                ->orderColumn('total_qty', 'SUM(transaction_items.qty) $1')
+                ->orderColumn('total_cost', 'SUM(transaction_items.qty * COALESCE(NULLIF(transaction_items.buy_price, 0), product_variants.product_hpp, 0)) $1')
                 ->editColumn('product_name', function($row) {
                     $merekName = trim($row->merek_name ?? '');
                     $productName = trim($row->product_name ?? '');
@@ -179,8 +182,7 @@ class SettlementController extends Controller
             'suppliers.name',
             'product_variants.variant_name', 
             'product_variants.sku_code'
-        )
-        ->orderBy('total_qty', 'desc');
+        );
     }
 
     public function exportExcel(Request $request)

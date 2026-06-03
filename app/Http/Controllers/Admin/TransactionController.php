@@ -210,8 +210,8 @@ class TransactionController extends Controller
     {
         $transactions = $this->getFilteredTransactions($request);
         $totalSum = $transactions->sum('total_amount');
-        // Use the print view but without the onload print
-        $pdf = \Barryvdh\DomPDF\Facade\Pdf::loadView('admin.transaction.print_pdf', compact('transactions', 'totalSum'));
+        // Use container binding to avoid hard dependency on facade class alias.
+        $pdf = app('dompdf.wrapper')->loadView('admin.transaction.print_pdf', compact('transactions', 'totalSum'));
         return $pdf->download('Laporan-Transaksi-' . date('d-m-Y') . '.pdf');
     }
 
