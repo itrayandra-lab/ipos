@@ -291,6 +291,11 @@ class PosController extends Controller
 
         try {
             return DB::transaction(function() use ($request) {
+                $authUser = auth()->user();
+                if (!$authUser) {
+                    throw new \Exception('Sesi login tidak valid. Silakan login ulang.');
+                }
+
                 $mainWarehouse = \App\Models\Warehouse::where('type', 'main')->first();
                 $warehouseId = $mainWarehouse ? $mainWarehouse->id : 1;
                 $whCode = $mainWarehouse ? ($mainWarehouse->code ?? '') : '';
@@ -456,7 +461,7 @@ class PosController extends Controller
 
                 $transaction = Transaction::create([
                     'transaction_code' => \App\Services\TransactionCodeService::generate($request->created_at ? \Carbon\Carbon::parse($request->created_at) : now(), $whCode),
-                    'user_id' => auth()->id(),
+                    'user_id' => $authUser->id,
                     'customer_id' => $request->customer_id,
                     'customer_name' => $request->customer_name,
                     'customer_phone' => $request->customer_phone,
@@ -531,7 +536,8 @@ class PosController extends Controller
                     'success' => true, 
                     'message' => 'Transaksi berhasil disimpan',
                     'transaction_id' => $transaction->id,
-                    'invoice_number' => $transaction->invoice_number
+                    'invoice_number' => $transaction->invoice_number,
+                    'cashier_name' => $authUser->name
                 ]);
             });
         } catch (\Exception $e) {

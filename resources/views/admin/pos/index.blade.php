@@ -417,6 +417,14 @@
                         <span>Total Belanja:</span>
                         <strong id="final-total-text">Rp 0</strong>
                     </div>
+                    <div class="d-flex justify-content-between mb-1">
+                        <span>Kasir / Sales (Login):</span>
+                        <strong id="cashier-name-text">{{ auth()->user()->name ?? '-' }}</strong>
+                    </div>
+                    <div class="d-flex justify-content-between mb-1">
+                        <span>No. Invoice:</span>
+                        <strong id="invoice-number-text">-</strong>
+                    </div>
                     <div class="d-flex justify-content-between">
                         <span>Kembalian:</span>
                         <strong class="text-success h4 mb-0" id="text-change">Rp 0</strong>
@@ -937,6 +945,8 @@
                     if (res.success) {
                         localStorage.removeItem('pos_cart');
                         $('#final-total-text').text($('#cart-total').text());
+                        $('#cashier-name-text').text(res.cashier_name || '{{ auth()->user()->name ?? "-" }}');
+                        $('#invoice-number-text').text(res.invoice_number || '-');
                         
                         let printUrl = '{{ $posRoutes["receipt"] }}/' + res.transaction_id;
                         $('#btn-print-receipt').attr('href', printUrl);
