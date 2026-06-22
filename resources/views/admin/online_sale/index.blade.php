@@ -206,6 +206,12 @@
                                     <input type="file" name="payment_receipt" class="form-control form-control-premium">
                                 </div>
                             </div>
+                            <div class="col-md-3">
+                                <div class="form-group">
+                                    <label class="form-label-custom">Biaya Admin Marketplace (Rp)</label>
+                                    <input type="number" name="discount" id="marketplace-discount" class="form-control form-control-premium discount-input" placeholder="0" value="0" min="0">
+                                </div>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -249,6 +255,10 @@
                                 <div class="d-flex justify-content-between align-items-center mb-3">
                                     <span class="text-muted font-weight-bold">SUBTOTAL</span>
                                     <span class="subtotal-label" id="label-subtotal">Rp 0</span>
+                                </div>
+                                <div class="d-flex justify-content-between align-items-center mb-3" id="discount-row" style="display:none;">
+                                    <span class="text-muted font-weight-bold">Biaya Admin Marketplace</span>
+                                    <span class="text-danger font-weight-bold">- Rp <span id="label-discount">0</span></span>
                                 </div>
                                 <div class="d-flex justify-content-between align-items-center border-top pt-3">
                                     <span class="h6 mb-0 font-weight-bold text-dark">TOTAL AKHIR</span>
@@ -356,8 +366,19 @@
             total += sub;
         });
 
+        const discount = parseFloat($('#marketplace-discount').val()) || 0;
+        const grandTotal = Math.max(0, total - discount);
+
         $('#label-subtotal').text('Rp ' + formatNumber(total));
-        $('#label-grand-total').text('Rp ' + formatNumber(total));
+
+        if (discount > 0) {
+            $('#discount-row').show();
+            $('#label-discount').text(formatNumber(discount));
+        } else {
+            $('#discount-row').hide();
+        }
+
+        $('#label-grand-total').text('Rp ' + formatNumber(grandTotal));
     }
 
     $(document).ready(function() {
@@ -371,7 +392,7 @@
             recalc();
         });
 
-        $(document).on('input', '.qty-input, .price-input', recalc);
+        $(document).on('input', '.qty-input, .price-input, .discount-input', recalc);
 
         $(document).on('change', '.batch-dropdown, #source-select, #warehouse-select', function() {
             const elId = $(this).attr('id');
