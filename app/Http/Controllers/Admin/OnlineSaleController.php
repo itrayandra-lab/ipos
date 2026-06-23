@@ -49,13 +49,24 @@ class OnlineSaleController extends Controller
             ->whereHas('product', fn($q) => $q->where('status', 'Y'))
             ->get();
 
-        $batchList = $batches->map(fn($b) => [
-            'id' => $b->id,
-            'text' => ($b->product->merek->name ?? '') . ' - ' . $b->product->name . ' (' . ($b->variant->netto ?? '-') . ') - ' . $b->batch_no,
-            'stock' => $b->qty,
-            'warehouse_id' => $b->warehouse_id,
-            'prices' => $channels->pluck('slug')->mapWithKeys(fn($s) => [$s => \App\Services\PricingService::calculate($b, $s)])->toArray(),
-        ]);
+        $batchList = $batches->map(function($b) use ($channels) {
+            $merekName = $b->product->merek->name ?? '';
+            $productName = $b->product->name ?? '';
+            $nettoValue = $b->variant && $b->variant->netto ? ($b->variant->netto->netto_value ?? '') : '';
+            $satuan = $b->variant && $b->variant->netto ? ($b->variant->netto->satuan ?? '') : '';
+            $batchNo = $b->batch_no;
+            
+            $parts = array_filter([$merekName, $productName, $nettoValue . ($satuan ? ' ' . $satuan : '')]);
+            $text = implode(' ', $parts) . ' - ' . $batchNo;
+            
+            return [
+                'id' => $b->id,
+                'text' => $text,
+                'stock' => $b->qty,
+                'warehouse_id' => $b->warehouse_id,
+                'prices' => $channels->pluck('slug')->mapWithKeys(fn($s) => [$s => \App\Services\PricingService::calculate($b, $s)])->toArray(),
+            ];
+        });
 
         return view('admin.online_sale.index', compact(
             'customers', 'merek', 'categories', 'affiliates', 'channels', 'batchList', 'warehouses', 'defaultWarehouseId'
@@ -312,10 +323,10 @@ class OnlineSaleController extends Controller
                 $stock = $batch->qty;
                 $expiredDate = $batch->expiry_date ? $batch->expiry_date->format('d/m/Y') : 'No Exp';
                 
-                // Format: Merek + Produk + Netto + Satuan + (batch + stok + Expired date)
-                $parts = array_filter([$merekName, $productName, $nettoValue, $satuan]);
+                // Format: Merek + Produk + Netto + Satuan - Batch (Stok + Expired date)
+                $parts = array_filter([$merekName, $productName, $nettoValue . ($satuan ? ' ' . $satuan : '')]);
                 $labelText = implode(' ', $parts);
-                $fullText = $labelText . ' (' . $batchNo . ' - Stok: ' . $stock . ' - Exp: ' . $expiredDate . ')';
+                $fullText = $labelText . ' - ' . $batchNo . ' (Stok: ' . $stock . ' - Exp: ' . $expiredDate . ')';
 
                 $prices = [
                     'offline' => \App\Services\PricingService::calculate($batch, 'offline'),

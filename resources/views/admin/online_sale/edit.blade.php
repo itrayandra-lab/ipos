@@ -151,6 +151,22 @@
         </div>
 
         <div class="section-body">
+            @if(session('error'))
+                <div class="alert alert-danger alert-dismissible fade show" role="alert">
+                    {{ session('error') }}
+                    <button type="button" class="close" data-dismiss="alert">&times;</button>
+                </div>
+            @endif
+            @if($errors->any())
+                <div class="alert alert-danger alert-dismissible fade show" role="alert">
+                    <ul class="mb-0">
+                        @foreach($errors->all() as $e)
+                            <li>{{ $e }}</li>
+                        @endforeach
+                    </ul>
+                    <button type="button" class="close" data-dismiss="alert">&times;</button>
+                </div>
+            @endif
             <form action="{{ route('admin.online_sale.update', $transaction->id) }}" method="POST" enctype="multipart/form-data" id="online-sale-form">
                 @csrf
                 
@@ -188,6 +204,12 @@
                                 <div class="form-group">
                                     <label class="form-label-custom">Update Bukti Bayar (Opsional)</label>
                                     <input type="file" name="payment_receipt" class="form-control form-control-premium">
+                                </div>
+                            </div>
+                            <div class="col-md-3">
+                                <div class="form-group">
+                                    <label class="form-label-custom">Tanggal Transaksi</label>
+                                    <input type="date" name="transaction_date" class="form-control form-control-premium" value="{{ old('transaction_date', optional($transaction->created_at)->format('Y-m-d')) }}">
                                 </div>
                             </div>
                             <div class="col-md-3">
