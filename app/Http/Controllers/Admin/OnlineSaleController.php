@@ -28,7 +28,10 @@ class OnlineSaleController extends Controller
         if ($user->isSuperAdmin() || $user->isStoreManager()) {
             $warehouses = \App\Models\Warehouse::where('status', 'active')->orderBy('name')->get();
         } else {
-            $warehouses = $user->warehouses()->where('status', 'active')->orderBy('name')->get();
+            $warehouses = $user->warehouses()
+                ->where('warehouses.status', 'active')
+                ->orderBy('warehouses.name')
+                ->get();
         }
 
         $defaultWarehouseId = null;
@@ -105,7 +108,7 @@ class OnlineSaleController extends Controller
         $user = auth()->user();
         $allowedWarehouseIds = ($user->isSuperAdmin() || $user->isStoreManager())
             ? \App\Models\Warehouse::where('status', 'active')->pluck('id')->toArray()
-            : $user->warehouses()->pluck('id')->toArray();
+            : $user->warehouses()->pluck('warehouses.id')->toArray();
 
         if (!in_array((int) $request->warehouse_id, $allowedWarehouseIds)) {
             $msg = 'Anda tidak memiliki akses ke gudang tersebut';
