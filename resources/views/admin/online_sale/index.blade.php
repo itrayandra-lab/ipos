@@ -304,6 +304,7 @@
 @push('scripts')
 <script>
     const batchData = @json($batchList);
+    const defaultWarehouseId = @json($defaultWarehouseId);
     let itemIndex = 0;
 
     function formatNumber(n) {
@@ -318,7 +319,11 @@
     }
 
     function selectedWarehouseId() {
-        return parseInt($('#warehouse-select').val()) || 0;
+        const $select = $('#warehouse-select');
+        if ($select.length > 0) {
+            return parseInt($select.val()) || 0;
+        }
+        return parseInt(defaultWarehouseId) || 0;
     }
 
     function buildBatchOptions() {

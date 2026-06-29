@@ -42,6 +42,10 @@ class OnlineSaleController extends Controller
         }
 
         $allWarehouseIds = $warehouses->pluck('id')->toArray();
+        // Ensure defaultWarehouseId is included in case $warehouses is empty
+        if ($defaultWarehouseId && !in_array($defaultWarehouseId, $allWarehouseIds)) {
+            $allWarehouseIds[] = $defaultWarehouseId;
+        }
 
         $batches = ProductBatch::with(['product.merek', 'variant.netto', 'warehouse'])
             ->whereIn('warehouse_id', $allWarehouseIds)
