@@ -22,7 +22,7 @@ class OnlineSaleController extends Controller
         $merek = \App\Models\Merek::orderBy('name', 'asc')->get();
         $categories = \App\Models\Category::orderBy('name', 'asc')->get();
         $affiliates = \App\Models\Affiliate::where('is_active', true)->get();
-        $channels = \App\Models\ChannelSetting::where('slug', '!=', 'offline')->get();
+        $channels = \App\Models\ChannelSetting::whereNotIn('slug', ['offline', 'offline-store'])->get();
 
         $user = auth()->user();
         if ($user->isSuperAdmin() || $user->isStoreManager()) {
@@ -105,6 +105,15 @@ class OnlineSaleController extends Controller
             return redirect()->back()->withErrors($validator)->withInput();
         }
 
+        $onlineSources = \App\Models\ChannelSetting::whereNotIn('slug', ['offline', 'offline-store'])->pluck('slug')->toArray();
+        if (!in_array($request->source, $onlineSources)) {
+            $msg = 'Source tidak valid untuk penjualan online';
+            if ($request->ajax()) {
+                return response()->json(['success' => false, 'message' => $msg], 422);
+            }
+            return redirect()->back()->with('error', $msg)->withInput();
+        }
+
         $user = auth()->user();
         $allowedWarehouseIds = ($user->isSuperAdmin() || $user->isStoreManager())
             ? \App\Models\Warehouse::where('status', 'active')->pluck('id')->toArray()
@@ -153,7 +162,7 @@ class OnlineSaleController extends Controller
                         'product_id' => $product->id,
                         'product_variant_id' => $batch->product_variant_id,
                         'product_batch_id' => $batch->id,
-                        'buy_price' => $batch->buy_price,
+                        'buy_price' => $batch->buy_price ?? 0,
                         'qty' => $item['qty'],
                         'price' => $price,
                         'subtotal' => $subtotal,
@@ -221,7 +230,8 @@ class OnlineSaleController extends Controller
 
     public function getall(Request $request)
     {
-        $query = Transaction::where('source', '!=', 'offline')
+        $onlineSources = \App\Models\ChannelSetting::whereNotIn('slug', ['offline', 'offline-store'])->pluck('slug')->toArray();
+        $query = Transaction::whereIn('source', $onlineSources)
             ->with(['items.product', 'items.batch']);
 
         if ($request->has('source') && !empty($request->source)) {
@@ -299,7 +309,8 @@ class OnlineSaleController extends Controller
 
     public function edit($id)
     {
-        $transaction = Transaction::where('source', '!=', 'offline')->with('items.product', 'items.batch')->findOrFail($id);
+        $onlineSources = \App\Models\ChannelSetting::whereNotIn('slug', ['offline', 'offline-store'])->pluck('slug')->toArray();
+        $transaction = Transaction::whereIn('source', $onlineSources)->with('items.product', 'items.batch')->findOrFail($id);
 
         // Reuse product list logic from index
         $products = Product::where('status', 'Y')
@@ -309,7 +320,7 @@ class OnlineSaleController extends Controller
         }])
             ->get();
 
-        $channels = \App\Models\ChannelSetting::all();
+        $channels = \App\Models\ChannelSetting::whereNotIn('slug', ['offline', 'offline-store'])->get();
 
         $batchList = [];
         foreach ($products as $product) {
@@ -373,7 +384,12 @@ class OnlineSaleController extends Controller
             return redirect()->back()->withErrors($validator)->withInput();
         }
 
-        $transaction = Transaction::where('source', '!=', 'offline')->with('items')->findOrFail($id);
+        $onlineSources = \App\Models\ChannelSetting::whereNotIn('slug', ['offline', 'offline-store'])->pluck('slug')->toArray();
+        if (!in_array($request->source, $onlineSources)) {
+            return redirect()->back()->with('error', 'Source tidak valid untuk penjualan online')->withInput();
+        }
+
+        $transaction = Transaction::whereIn('source', $onlineSources)->with('items')->findOrFail($id);
 
         try {
             $receiptPath = $transaction->payment_receipt;
@@ -414,7 +430,7 @@ class OnlineSaleController extends Controller
                         'product_id' => $product->id,
                         'product_variant_id' => $batch->product_variant_id,
                         'product_batch_id' => $batch->id,
-                        'buy_price' => $batch->buy_price,
+                        'buy_price' => $batch->buy_price ?? 0,
                         'qty' => $item['qty'],
                         'price' => $price,
                         'subtotal' => $subtotal,
@@ -447,7 +463,8 @@ class OnlineSaleController extends Controller
 
     public function destroy($id)
     {
-        $transaction = Transaction::where('source', '!=', 'offline')->with('items')->findOrFail($id);
+        $onlineSources = \App\Models\ChannelSetting::whereNotIn('slug', ['offline', 'offline-store'])->pluck('slug')->toArray();
+        $transaction = Transaction::whereIn('source', $onlineSources)->with('items')->findOrFail($id);
 
         try {
             DB::transaction(function () use ($transaction) {

@@ -60,6 +60,14 @@ class TransactionController extends Controller
             ->pluck('total', 'payment_status')
             ->toArray();
 
+        $revenue = Transaction::select(
+            DB::raw('COALESCE(SUM(CASE WHEN payment_status = "paid" THEN total_amount ELSE 0 END), 0) as paid'),
+            DB::raw('COALESCE(SUM(CASE WHEN payment_status = "pending" THEN total_amount ELSE 0 END), 0) as pending'),
+            DB::raw('COALESCE(SUM(CASE WHEN payment_status = "unpaid" THEN total_amount ELSE 0 END), 0) as unpaid'),
+            DB::raw('COALESCE(SUM(CASE WHEN payment_status = "credit" THEN total_amount ELSE 0 END), 0) as credit'),
+            DB::raw('COALESCE(SUM(total_amount), 0) as total')
+        )->first();
+
         $warehouses = collect();
         if ($user->isSuperAdmin() || $user->isStoreManager()) {
             $warehouses = Warehouse::orderBy('name')->get();
@@ -70,6 +78,7 @@ class TransactionController extends Controller
         return view('admin.transaction.index')->with([
             'sb' => 'Transaction',
             'counts' => $counts,
+            'revenue' => $revenue,
             'warehouses' => $warehouses,
         ]);
     }
@@ -110,16 +119,19 @@ class TransactionController extends Controller
             $query->where('transactions.delivery_type', $request->delivery_type);
         }
 
-        if ($request->has('payment_status') && !empty($request->payment_status)) {
-            $query->where('transactions.payment_status', $request->payment_status);
+        if ($request->filled('payment_status')) {
+            $statuses = is_array($request->payment_status) ? $request->payment_status : [$request->payment_status];
+            $query->whereIn('transactions.payment_status', $statuses);
         }
 
-        if ($request->has('source') && !empty($request->source)) {
-            $query->where('transactions.source', $request->source);
+        if ($request->filled('source')) {
+            $sources = is_array($request->source) ? $request->source : [$request->source];
+            $query->whereIn('transactions.source', $sources);
         }
 
-        if ($request->has('warehouse_id') && !empty($request->warehouse_id)) {
-            $query->where('transactions.warehouse_id', $request->warehouse_id);
+        if ($request->filled('warehouse_id')) {
+            $warehouses = is_array($request->warehouse_id) ? $request->warehouse_id : [$request->warehouse_id];
+            $query->whereIn('transactions.warehouse_id', $warehouses);
         }
 
         if ($request->has('start_date') && !empty($request->start_date)) {
@@ -184,6 +196,56 @@ class TransactionController extends Controller
             })
             ->rawColumns(['action'])
             ->make(true);
+    }
+
+    public function getRevenue(Request $request)
+    {
+        $query = Transaction::query();
+
+        $user = auth()->user();
+        if (!$user->isSuperAdmin() && !$user->isStoreManager()) {
+            $warehouseIds = $user->warehouses()->pluck('warehouses.id')->toArray();
+            if (!empty($warehouseIds)) {
+                $query->whereIn('warehouse_id', $warehouseIds);
+            } else {
+                $query->whereNull('warehouse_id');
+            }
+        }
+
+        if ($request->filled('warehouse_id')) {
+            $warehouses = is_array($request->warehouse_id) ? $request->warehouse_id : [$request->warehouse_id];
+            $query->whereIn('warehouse_id', $warehouses);
+        }
+
+        if ($request->filled('source')) {
+            $sources = is_array($request->source) ? $request->source : [$request->source];
+            $query->whereIn('source', $sources);
+        }
+
+        if ($request->filled('payment_status')) {
+            $statuses = is_array($request->payment_status) ? $request->payment_status : [$request->payment_status];
+            $query->whereIn('payment_status', $statuses);
+        }
+
+        if ($request->filled('start_date')) {
+            $startDate = Carbon::createFromFormat('Y-m-d', $request->start_date)->startOfDay();
+            $query->where('created_at', '>=', $startDate);
+        }
+
+        if ($request->filled('end_date')) {
+            $endDate = Carbon::createFromFormat('Y-m-d', $request->end_date)->endOfDay();
+            $query->where('created_at', '<=', $endDate);
+        }
+
+        $revenue = $query->select(
+            DB::raw('COALESCE(SUM(CASE WHEN payment_status = "paid" THEN total_amount ELSE 0 END), 0) as paid'),
+            DB::raw('COALESCE(SUM(CASE WHEN payment_status = "pending" THEN total_amount ELSE 0 END), 0) as pending'),
+            DB::raw('COALESCE(SUM(CASE WHEN payment_status = "unpaid" THEN total_amount ELSE 0 END), 0) as unpaid'),
+            DB::raw('COALESCE(SUM(CASE WHEN payment_status = "credit" THEN total_amount ELSE 0 END), 0) as credit'),
+            DB::raw('COALESCE(SUM(total_amount), 0) as total')
+        )->first();
+
+        return response()->json($revenue);
     }
 
     public function show($id)
@@ -262,15 +324,22 @@ class TransactionController extends Controller
             $query->where('delivery_type', $request->delivery_type);
         }
 
-        if ($request->has('payment_status') && !empty($request->payment_status)) {
-            $query->where('payment_status', $request->payment_status);
+        if ($request->filled('payment_status')) {
+            $statuses = is_array($request->payment_status) ? $request->payment_status : [$request->payment_status];
+            $query->whereIn('payment_status', $statuses);
         }
 
-        if ($request->has('source') && !empty($request->source)) {
-            $query->where('source', $request->source);
+        if ($request->filled('source')) {
+            $sources = is_array($request->source) ? $request->source : [$request->source];
+            $query->whereIn('source', $sources);
         }
 
-        if ($request->has('start_date') && !empty($request->start_date)) {
+        if ($request->filled('warehouse_id')) {
+            $warehouses = is_array($request->warehouse_id) ? $request->warehouse_id : [$request->warehouse_id];
+            $query->whereIn('warehouse_id', $warehouses);
+        }
+
+        if ($request->filled('start_date')) {
             $startDate = Carbon::createFromFormat('Y-m-d', $request->start_date)->startOfDay();
             $query->where('created_at', '>=', $startDate);
         }

@@ -211,50 +211,75 @@
                     .bg-soft-warning { background: #fef9c3; color: #ca8a04; }
                     .bg-soft-danger { background: #fee2e2; color: #dc2626; }
                     .bg-soft-info { background: #e0f2fe; color: #0284c7; }
+                    .bg-soft-primary { background: #e0e7ff; color: #4338ca; }
+                    .bg-soft-teal { background: #ccfbf1; color: #0d9488; }
+                    .stat-value-rev {
+                        font-size: 16px;
+                        font-weight: 800;
+                        color: #1e293b;
+                        line-height: 1;
+                    }
                 </style>
 
-                <div class="row mb-4">
+                <div class="row mb-3">
+                    <div class="col-lg-12 mb-3">
+                        <div class="stat-card" style="border-left: 4px solid #0d9488; background: linear-gradient(135deg, #f0fdfa, #ccfbf1); padding: 20px 24px;">
+                            <div class="stat-icon bg-soft-teal" style="width: 52px; height: 52px; font-size: 24px; border-radius: 14px;">
+                                <i class="fas fa-wallet"></i>
+                            </div>
+                            <div>
+                                <div class="stat-label" style="font-size: 13px; letter-spacing: 1px;">Total Revenue</div>
+                                <div class="stat-value-rev" id="rev-total" style="font-size: 26px; font-weight: 900;">Rp {{ number_format($revenue->total ?? 0, 0, ',', '.') }}</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="row mb-3">
                     <div class="col-lg-3 col-md-6 col-sm-12 mb-3">
-                        <div class="stat-card">
-                            <div class="stat-icon bg-soft-success">
+                        <div class="stat-card" style="border-left: 4px solid #16a34a; padding: 18px 20px;">
+                            <div class="stat-icon bg-soft-success" style="width: 44px; height: 44px; font-size: 18px;">
                                 <i class="fas fa-check-circle"></i>
                             </div>
-                            <div>
-                                <div class="stat-label">Total Paid</div>
-                                <div class="stat-value">{{ $counts['paid'] ?? 0 }}</div>
+                            <div style="flex:1;">
+                                <div class="stat-label">Paid</div>
+                                <div class="stat-value-rev" id="rev-paid" style="font-size:17px;">Rp {{ number_format($revenue->paid ?? 0, 0, ',', '.') }}</div>
+                                <div style="font-size:11px;color:#94a3b8;font-weight:600;margin-top:2px;">{{ $counts['paid'] ?? 0 }} Transaksi</div>
                             </div>
                         </div>
                     </div>
                     <div class="col-lg-3 col-md-6 col-sm-12 mb-3">
-                        <div class="stat-card">
-                            <div class="stat-icon bg-soft-warning">
-                                <i class="fas fa-clock"></i>
-                            </div>
-                            <div>
-                                <div class="stat-label">Pending</div>
-                                <div class="stat-value">{{ $counts['pending'] ?? 0 }}</div>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="col-lg-3 col-md-6 col-sm-12 mb-3">
-                        <div class="stat-card">
-                            <div class="stat-icon bg-soft-danger">
+                        <div class="stat-card" style="border-left: 4px solid #dc2626; padding: 18px 20px;">
+                            <div class="stat-icon bg-soft-danger" style="width: 44px; height: 44px; font-size: 18px;">
                                 <i class="fas fa-exclamation-circle"></i>
                             </div>
-                            <div>
+                            <div style="flex:1;">
                                 <div class="stat-label">Unpaid</div>
-                                <div class="stat-value">{{ $counts['unpaid'] ?? 0 }}</div>
+                                <div class="stat-value-rev" id="rev-unpaid" style="font-size:17px;">Rp {{ number_format($revenue->unpaid ?? 0, 0, ',', '.') }}</div>
+                                <div style="font-size:11px;color:#94a3b8;font-weight:600;margin-top:2px;">{{ $counts['unpaid'] ?? 0 }} Transaksi</div>
                             </div>
                         </div>
                     </div>
                     <div class="col-lg-3 col-md-6 col-sm-12 mb-3">
-                        <div class="stat-card">
-                            <div class="stat-icon bg-soft-info">
+                        <div class="stat-card" style="border-left: 4px solid #ca8a04; padding: 18px 20px;">
+                            <div class="stat-icon bg-soft-warning" style="width: 44px; height: 44px; font-size: 18px;">
+                                <i class="fas fa-clock"></i>
+                            </div>
+                            <div style="flex:1;">
+                                <div class="stat-label">Pending</div>
+                                <div class="stat-value-rev" id="rev-pending" style="font-size:17px;">Rp {{ number_format($revenue->pending ?? 0, 0, ',', '.') }}</div>
+                                <div style="font-size:11px;color:#94a3b8;font-weight:600;margin-top:2px;">{{ $counts['pending'] ?? 0 }} Transaksi</div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-lg-3 col-md-6 col-sm-12 mb-3">
+                        <div class="stat-card" style="border-left: 4px solid #0284c7; padding: 18px 20px;">
+                            <div class="stat-icon bg-soft-info" style="width: 44px; height: 44px; font-size: 18px;">
                                 <i class="fas fa-credit-card"></i>
                             </div>
-                            <div>
-                                <div class="stat-label">Credit (DP)</div>
-                                <div class="stat-value">{{ $counts['credit'] ?? 0 }}</div>
+                            <div style="flex:1;">
+                                <div class="stat-label">Credit / DP</div>
+                                <div class="stat-value-rev" id="rev-credit" style="font-size:17px;">Rp {{ number_format($revenue->credit ?? 0, 0, ',', '.') }}</div>
+                                <div style="font-size:11px;color:#94a3b8;font-weight:600;margin-top:2px;">{{ $counts['credit'] ?? 0 }} Transaksi</div>
                             </div>
                         </div>
                     </div>
@@ -296,33 +321,66 @@
                             <form id="filter-form">
                                 <div class="row align-items-end">
                                     <div class="col-md-2 mb-3">
-                                        <label for="warehouse_filter" class="form-label">Cabang</label>
-                                        <select class="form-control form-control-custom" id="warehouse_filter" name="warehouse_id">
-                                            <option value="">Semua Cabang</option>
-                                            @foreach($warehouses as $wh)
-                                                <option value="{{ $wh->id }}">{{ $wh->name }}</option>
-                                            @endforeach
-                                        </select>
+                                        <label class="form-label">Cabang</label>
+                                        <div class="dropdown" id="warehouse-dropdown">
+                                            <button class="form-control form-control-custom dropdown-toggle text-left d-flex align-items-center justify-content-between" type="button" id="warehouse_filter_btn" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false" style="height: 40px; padding: 6px 12px;">
+                                                <span id="warehouse_filter_text">Semua Cabang</span>
+                                            </button>
+                                            <div class="dropdown-menu" aria-labelledby="warehouse_filter_btn" style="width: 100%; max-height: 250px; overflow-y: auto; padding: 8px 0; border-radius: 8px; border: 1px solid #e2e8f0; box-shadow: 0 10px 30px rgba(0,0,0,0.1);">
+                                                @foreach($warehouses as $wh)
+                                                    <label class="dropdown-item d-flex align-items-center" style="padding: 8px 16px; margin: 0; cursor: pointer; font-size: 13px; font-weight: 500; color: #1e293b;">
+                                                        <input type="checkbox" class="mr-2 warehouse-checkbox" name="warehouse_id[]" value="{{ $wh->id }}" style="width: 16px; height: 16px; accent-color: #0d9488;">
+                                                        {{ $wh->name }}
+                                                    </label>
+                                                @endforeach
+                                            </div>
+                                        </div>
                                     </div>
                                     <div class="col-md-2 mb-3">
-                                        <label for="source_filter" class="form-label">Saluran</label>
-                                        <select class="form-control form-control-custom" id="source_filter" name="source">
-                                            <option value="">Semua Saluran</option>
-                                            <option value="offline">Offline</option>
-                                            @foreach(\App\Models\ChannelSetting::orderBy('name')->get() as $channel)
-                                                <option value="{{ $channel->slug }}">{{ $channel->name }}</option>
-                                            @endforeach
-                                        </select>
+                                        <label class="form-label">Saluran</label>
+                                        <div class="dropdown" id="source-dropdown">
+                                            <button class="form-control form-control-custom dropdown-toggle text-left d-flex align-items-center justify-content-between" type="button" id="source_filter_btn" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false" style="height: 40px; padding: 6px 12px;">
+                                                <span id="source_filter_text">Semua Saluran</span>
+                                            </button>
+                                            <div class="dropdown-menu" aria-labelledby="source_filter_btn" style="width: 100%; max-height: 250px; overflow-y: auto; padding: 8px 0; border-radius: 8px; border: 1px solid #e2e8f0; box-shadow: 0 10px 30px rgba(0,0,0,0.1);">
+                                                @foreach(\App\Models\ChannelSetting::orderBy('name')->get() as $channel)
+                                                    <label class="dropdown-item d-flex align-items-center" style="padding: 8px 16px; margin: 0; cursor: pointer; font-size: 13px; font-weight: 500; color: #1e293b;">
+                                                        <input type="checkbox" class="mr-2 source-checkbox" name="source[]" value="{{ $channel->slug }}" style="width: 16px; height: 16px; accent-color: #0d9488;">
+                                                        {{ $channel->name }}
+                                                    </label>
+                                                @endforeach
+                                            </div>
+                                        </div>
                                     </div>
                                     <div class="col-md-2 mb-3">
-                                        <label for="payment_status" class="form-label">Status Pembayaran</label>
-                                        <select class="form-control form-control-custom" id="payment_status" name="payment_status">
-                                            <option value="">Semua Status</option>
-                                            <option value="pending">Pending</option>
-                                            <option value="paid">Paid / Lunas</option>
-                                            <option value="credit">Credit / Piutang</option>
-                                            <option value="canceled">Canceled</option>
-                                        </select>
+                                        <label class="form-label">Status Pembayaran</label>
+                                        <div class="dropdown" id="status-dropdown">
+                                            <button class="form-control form-control-custom dropdown-toggle text-left d-flex align-items-center justify-content-between" type="button" id="payment_status_btn" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false" style="height: 40px; padding: 6px 12px;">
+                                                <span id="payment_status_text">Semua Status</span>
+                                            </button>
+                                            <div class="dropdown-menu" aria-labelledby="payment_status_btn" style="width: 100%; max-height: 250px; overflow-y: auto; padding: 8px 0; border-radius: 8px; border: 1px solid #e2e8f0; box-shadow: 0 10px 30px rgba(0,0,0,0.1);">
+                                                <label class="dropdown-item d-flex align-items-center" style="padding: 8px 16px; margin: 0; cursor: pointer; font-size: 13px; font-weight: 500; color: #1e293b;">
+                                                    <input type="checkbox" class="mr-2 status-checkbox" name="payment_status[]" value="paid" style="width: 16px; height: 16px; accent-color: #0d9488;">
+                                                    Paid / Lunas
+                                                </label>
+                                                <label class="dropdown-item d-flex align-items-center" style="padding: 8px 16px; margin: 0; cursor: pointer; font-size: 13px; font-weight: 500; color: #1e293b;">
+                                                    <input type="checkbox" class="mr-2 status-checkbox" name="payment_status[]" value="pending" style="width: 16px; height: 16px; accent-color: #0d9488;">
+                                                    Pending
+                                                </label>
+                                                <label class="dropdown-item d-flex align-items-center" style="padding: 8px 16px; margin: 0; cursor: pointer; font-size: 13px; font-weight: 500; color: #1e293b;">
+                                                    <input type="checkbox" class="mr-2 status-checkbox" name="payment_status[]" value="credit" style="width: 16px; height: 16px; accent-color: #0d9488;">
+                                                    Credit / Piutang
+                                                </label>
+                                                <label class="dropdown-item d-flex align-items-center" style="padding: 8px 16px; margin: 0; cursor: pointer; font-size: 13px; font-weight: 500; color: #1e293b;">
+                                                    <input type="checkbox" class="mr-2 status-checkbox" name="payment_status[]" value="unpaid" style="width: 16px; height: 16px; accent-color: #0d9488;">
+                                                    Unpaid
+                                                </label>
+                                                <label class="dropdown-item d-flex align-items-center" style="padding: 8px 16px; margin: 0; cursor: pointer; font-size: 13px; font-weight: 500; color: #1e293b;">
+                                                    <input type="checkbox" class="mr-2 status-checkbox" name="payment_status[]" value="canceled" style="width: 16px; height: 16px; accent-color: #0d9488;">
+                                                    Canceled
+                                                </label>
+                                            </div>
+                                        </div>
                                     </div>
                                     <div class="col-md-2 mb-3">
                                         <label for="start_date" class="form-label">Tanggal Mulai</label>
@@ -344,7 +402,7 @@
                             </form>
                         </div>
                     </div>
-                    <div class="card-body p-0">
+                    <div class="card-body" style="padding: 16px 20px;">
                         <div class="table-responsive">
                             <table class="table table-premium table-hover mb-0" id="transaction-table" style="width: 100%;">
                                 <thead>
@@ -416,6 +474,33 @@
 
     <script>
         $(document).ready(function() {
+            function getChecked(classname) {
+                var vals = [];
+                $(classname + ':checked').each(function() {
+                    vals.push($(this).val());
+                });
+                return vals;
+            }
+
+            function updateDropdownText(checkboxClass, textId, emptyLabel, label) {
+                var checked = $(checkboxClass + ':checked').length;
+                if (checked === 0) {
+                    $(textId).text(emptyLabel);
+                } else {
+                    $(textId).text(checked + ' ' + label);
+                }
+            }
+
+            $('.source-checkbox').on('change', function() {
+                updateDropdownText('.source-checkbox', '#source_filter_text', 'Semua Saluran', 'Saluran');
+            });
+            $('.warehouse-checkbox').on('change', function() {
+                updateDropdownText('.warehouse-checkbox', '#warehouse_filter_text', 'Semua Cabang', 'Cabang');
+            });
+            $('.status-checkbox').on('change', function() {
+                updateDropdownText('.status-checkbox', '#payment_status_text', 'Semua Status', 'Status');
+            });
+
             // DataTable initialization
             var table = $('#transaction-table').DataTable({
                 responsive: true,
@@ -425,10 +510,12 @@
                     url: "{{ url('admin/transactions/all') }}",
                     type: "GET",
                     data: function(d) {
-                        d.warehouse_id = $('#warehouse_filter').val();
-                        d.delivery_type = $('#delivery_type').val();
-                        d.payment_status = $('#payment_status').val();
-                        d.source = $('#source_filter').val();
+                        var wh = getChecked('.warehouse-checkbox');
+                        d.warehouse_id = wh.length ? wh : '';
+                        var st = getChecked('.status-checkbox');
+                        d.payment_status = st.length ? st : '';
+                        var src = getChecked('.source-checkbox');
+                        d.source = src.length ? src : '';
                         d.start_date = $('#start_date').val();
                         d.end_date = $('#end_date').val();
                     }
@@ -498,21 +585,55 @@
                 ]
             });
 
+            function loadRevenue() {
+                var wh = getChecked('.warehouse-checkbox');
+                var st = getChecked('.status-checkbox');
+                var src = getChecked('.source-checkbox');
+                $.ajax({
+                    url: "{{ url('admin/transactions/revenue') }}",
+                    type: "GET",
+                    data: {
+                        warehouse_id: wh.length ? wh : '',
+                        source: src.length ? src : '',
+                        payment_status: st.length ? st : '',
+                        start_date: $('#start_date').val(),
+                        end_date: $('#end_date').val()
+                    },
+                    success: function(res) {
+                        function fmt(n) {
+                            return 'Rp ' + Number(n).toLocaleString('id-ID');
+                        }
+                        $('#rev-total').text(fmt(res.total || 0));
+                        $('#rev-paid').text(fmt(res.paid || 0));
+                        $('#rev-unpaid').text(fmt(res.unpaid || 0));
+                        $('#rev-pending').text(fmt(res.pending || 0));
+                        $('#rev-credit').text(fmt(res.credit || 0));
+                    }
+                });
+            }
+
+            // Load initial revenue
+            loadRevenue();
+
             // Handle filter form submission
             $('#filter-form').on('submit', function(e) {
                 e.preventDefault();
                 table.draw();
+                loadRevenue();
             });
 
             // Reset filter
             window.resetFilter = function() {
-                $('#warehouse_filter').val('');
-                $('#delivery_type').val('');
-                $('#payment_status').val('');
-                $('#source_filter').val('');
+                $('.warehouse-checkbox').prop('checked', false);
+                $('.status-checkbox').prop('checked', false);
+                $('.source-checkbox').prop('checked', false);
+                updateDropdownText('.warehouse-checkbox', '#warehouse_filter_text', 'Semua Cabang', 'Cabang');
+                updateDropdownText('.status-checkbox', '#payment_status_text', 'Semua Status', 'Status');
+                updateDropdownText('.source-checkbox', '#source_filter_text', 'Semua Saluran', 'Saluran');
                 $('#start_date').val('');
                 $('#end_date').val('');
                 table.draw();
+                loadRevenue();
             };
 
             // Print data

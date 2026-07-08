@@ -277,6 +277,7 @@ Route::prefix('admin')->middleware(['auth', 'role:super_admin,store_manager,fina
         Route::prefix('transactions')->group(function () {
             Route::get('/', [TransactionAdmin::class , 'index'])->name('admin.transactions.index');
             Route::get('all', [TransactionAdmin::class , 'getall']);
+            Route::get('revenue', [TransactionAdmin::class , 'getRevenue']);
             Route::get('print', [TransactionAdmin::class , 'print']);
             Route::get('export/excel', [TransactionAdmin::class , 'exportExcel'])->name('admin.transactions.export.excel');
             Route::get('export/pdf', [TransactionAdmin::class , 'exportPdf'])->name('admin.transactions.export.pdf');
