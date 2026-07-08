@@ -144,10 +144,10 @@ class SettlementController extends Controller
 
         if (!$search) {
             if ($request->has('start_date') && !empty($request->start_date)) {
-                $query->where('transactions.created_at', '>=', Carbon::parse($request->start_date)->startOfDay());
+                $query->where('transactions.transaction_date', '>=', Carbon::parse($request->start_date)->startOfDay());
             }
             if ($request->has('end_date') && !empty($request->end_date)) {
-                $query->where('transactions.created_at', '<=', Carbon::parse($request->end_date)->endOfDay());
+                $query->where('transactions.transaction_date', '<=', Carbon::parse($request->end_date)->endOfDay());
             }
 
             if ($request->has('supplier_id') && !empty($request->supplier_id)) {
@@ -275,7 +275,7 @@ class SettlementController extends Controller
                 'transactions.id',
                 'transactions.transaction_code',
                 'transactions.invoice_number',
-                'transactions.created_at',
+                'transactions.transaction_date',
                 'transaction_items.qty',
                 DB::raw('COALESCE(NULLIF(transaction_items.buy_price, 0), product_variants.product_hpp, 0) as buy_price'),
                 DB::raw('transaction_items.qty * COALESCE(NULLIF(transaction_items.buy_price, 0), product_variants.product_hpp, 0) as total_hpp'),
@@ -300,13 +300,13 @@ class SettlementController extends Controller
         }
 
         if ($startDate) {
-            $query->where('transactions.created_at', '>=', Carbon::parse($startDate)->startOfDay());
+            $query->where('transactions.transaction_date', '>=', Carbon::parse($startDate)->startOfDay());
         }
         if ($endDate) {
-            $query->where('transactions.created_at', '<=', Carbon::parse($endDate)->endOfDay());
+            $query->where('transactions.transaction_date', '<=', Carbon::parse($endDate)->endOfDay());
         }
 
-        $sales = $query->orderBy('transactions.created_at', 'desc')->get();
+        $sales = $query->orderBy('transactions.transaction_date', 'desc')->get();
 
         return response()->json([
             'sales' => $sales

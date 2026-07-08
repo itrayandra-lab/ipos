@@ -31,7 +31,7 @@ class CustomerController extends Controller
                 'customers.email',
                 DB::raw('COUNT(transactions.id) as total_transactions'),
                 DB::raw('SUM(transactions.total_amount) as total_spending'),
-                DB::raw('MAX(transactions.created_at) as last_transaction')
+                DB::raw('MAX(transactions.transaction_date) as last_transaction')
             )
             ->groupBy('customers.id', 'customers.name', 'customers.phone', 'customers.email');
 
@@ -154,7 +154,7 @@ class CustomerController extends Controller
                 DB::raw('COUNT(transactions.id) as total_transactions'),
                 DB::raw('SUM(transactions.total_amount) as total_spending'),
                 DB::raw('AVG(transactions.total_amount) as avg_transaction'),
-                DB::raw('MAX(transactions.created_at) as last_transaction')
+                DB::raw('MAX(transactions.transaction_date) as last_transaction')
             )
             ->where('customers.id', $id)
             ->groupBy('customers.id')

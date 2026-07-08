@@ -54,7 +54,7 @@
                             <div class="col-md-4">
                                 <div class="form-group">
                                     <label>Tanggal</label>
-                                    <input type="date" name="transaction_date" class="form-control" value="{{ $transaction->created_at->format('Y-m-d') }}" required>
+                                    <input type="date" name="transaction_date" class="form-control" value="{{ $transaction->transaction_date ? $transaction->transaction_date->format('Y-m-d') : date('Y-m-d') }}" required>
                                 </div>
                             </div>
                             <div class="col-md-4">

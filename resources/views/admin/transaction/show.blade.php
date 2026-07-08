@@ -62,7 +62,7 @@
                                             @endif
                                             <tr>
                                                 <th>Tanggal</th>
-                                                <td>{{ $transaction->created_at->format('d/m/Y H:i') }}</td>
+                                                <td>{{ $transaction->transaction_date ? $transaction->transaction_date->format('d/m/Y') : '-' }}</td>
                                             </tr>
                                             <tr>
                                                 <th>Kasir / Pengguna</th>
@@ -236,7 +236,7 @@
                                                 <tbody>
                                                     @forelse($transaction->payments as $payment)
                                                         <tr>
-                                                            <td>{{ $payment->payment_date ? \Carbon\Carbon::parse($payment->payment_date)->format('d/m/Y') : $transaction->created_at->format('d/m/Y') }}</td>
+                                                            <td>{{ $payment->payment_date ? \Carbon\Carbon::parse($payment->payment_date)->format('d/m/Y') : ($transaction->transaction_date ? $transaction->transaction_date->format('d/m/Y') : '-') }}</td>
                                                             <td><span class="badge badge-light text-uppercase">{{ $payment->payment_method }}</span></td>
                                                             <td>{{ $payment->bank_name ?? '-' }}</td>
                                                             <td class="text-right">Rp {{ number_format($payment->cash_received ?? $payment->amount, 0, ',', '.') }}</td>

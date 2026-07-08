@@ -40,11 +40,12 @@ class Transaction extends Model
         'affiliate_id',
         'affiliate_fee_total',
         'affiliate_fee_mode',
-        'created_at',
+        'transaction_date',
         'warehouse_id',
     ];
 
     protected $casts = [
+        'transaction_date' => 'date',
         'created_at' => 'datetime',
         'updated_at' => 'datetime',
         'due_date' => 'datetime',

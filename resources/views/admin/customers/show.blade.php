@@ -94,7 +94,7 @@
                                         <tbody>
                                             @foreach($transactions as $trx)
                                             <tr>
-                                                <td>{{ $trx->created_at->format('d/m/Y H:i') }}</td>
+                                                <td>{{ $trx->transaction_date ? $trx->transaction_date->format('d/m/Y') : '-' }}</td>
                                                 <td class="font-weight-bold">Rp {{ number_format($trx->total_amount) }}</td>
                                                 <td><span class="badge badge-light text-uppercase">{{ $trx->payment_method }}</span></td>
                                                 <td class="text-center"><a href="{{ url('admin/transactions/show/'.$trx->id) }}" class="btn btn-sm btn-outline-primary">Lihat Transaksi</a></td>

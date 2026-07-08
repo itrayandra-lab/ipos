@@ -206,6 +206,7 @@
                                     <th>No. Invoice</th>
                                     <th>Tanggal</th>
                                     <th>Customer</th>
+                                    <th>Gudang</th>
                                     <th>Total</th>
                                     <th>Status</th>
                                     <th>Aksi</th>
@@ -245,6 +246,13 @@
                 },
                 { data: 'created_at', name: 'created_at' },
                 { data: 'customer_name', name: 'customer_name' },
+                { 
+                    data: 'warehouse_name',
+                    name: 'warehouses.name',
+                    render: function(data) {
+                        return `<span class="badge badge-light">${data}</span>`;
+                    }
+                },
                 { 
                     data: 'total_amount', 
                     name: 'total_amount',

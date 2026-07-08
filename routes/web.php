@@ -328,7 +328,7 @@ Route::prefix('admin')->middleware(['auth', 'role:super_admin,store_manager,fina
             Route::delete('expense-categories/{id}', [App\Http\Controllers\Admin\Finance\ExpenseCategoryController::class, 'destroy'])->name('admin.finance.expense_categories.destroy');
 
             // Reports
-            Route::get('reports', function() { return view('admin.finance.reports.index')->with('sb', 'FinanceReport'); })->name('admin.finance.reports.index');
+            Route::get('reports', [\App\Http\Controllers\Admin\Finance\SalesReportController::class, 'index'])->name('admin.finance.reports.index');
 
             // Fund Requests
             Route::prefix('fund-requests')->controller(\App\Http\Controllers\Admin\Finance\FundRequestController::class)->group(function () {

@@ -182,7 +182,7 @@
                                 {{ ucfirst($transaction->payment_status) }}
                             @endif
                         </td>
-                        <td>{{ $transaction->created_at->format('d-m-Y') }}</td>
+                        <td>{{ $transaction->transaction_date ? $transaction->transaction_date->format('d-m-Y') : '-' }}</td>
                     </tr>
                 @endforeach
             </tbody>

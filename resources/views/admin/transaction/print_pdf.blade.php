@@ -115,7 +115,7 @@
                         <td align="right">{{ number_format($transaction->discount, 0, ',', '.') }}</td>
                         <td align="right" class="total-amount">{{ number_format($transaction->total_amount, 0, ',', '.') }}</td>
                         <td align="center">{{ ucfirst($transaction->payment_status) }}</td>
-                        <td align="center">{{ $transaction->created_at->format('d-m-Y') }}</td>
+                        <td align="center">{{ $transaction->transaction_date ? $transaction->transaction_date->format('d-m-Y') : '-' }}</td>
                     </tr>
                 @endforeach
             </tbody>

@@ -234,7 +234,7 @@
                     @endif
                 </div>
                 <div class="company-contact">
-                    <h2>KONTAK</h2>
+                    <h2>{{ $transaction->warehouse->name ?? 'KONTAK' }}</h2>
                     <p><strong>{{ $setting->address ?? 'Alamat Perusahaan' }}</strong></p>
                     <p>{{ $setting->email ?? 'email@perusahaan.com' }}</p>
                     <p>{{ $setting->phone ?? '021-1234567' }}</p>
@@ -249,7 +249,7 @@
                 <h1>INVOICE</h1>
                 <div class="invoice-details">
                     <p><strong>No. Invoice:</strong> {{ $transaction->invoice_number ?? 'INV-'.$transaction->id }}</p>
-                    <p><strong>Tanggal Invoice:</strong> {{ \Carbon\Carbon::parse($transaction->created_at)->format('d/m/Y') }}</p>
+                    <p><strong>Tanggal Invoice:</strong> {{ $transaction->transaction_date ? $transaction->transaction_date->format('d/m/Y') : '-' }}</p>
                     @if($transaction->due_date)
                     <p><strong>Jatuh Tempo:</strong> {{ \Carbon\Carbon::parse($transaction->due_date)->format('d/m/Y') }}</p>
                     @endif

@@ -364,7 +364,7 @@ class StockController extends Controller
                     'ref_no' => $item->transaction->invoice_number ?? $item->transaction->transaction_code ?? '-',
                     'destination' => $item->transaction->customer ? $item->transaction->customer->name : 'Customer Umum',
                     'qty' => $item->qty,
-                    'date' => $item->transaction->created_at ? $item->transaction->created_at->format('Y-m-d H:i') : '-',
+                    'date' => $item->transaction->transaction_date ? $item->transaction->transaction_date->format('Y-m-d') : '-',
                     'batch_no' => $item->batch->batch_no ?? '-',
                     'print_url' => route('admin.sales.invoices.print', $item->transaction_id)
                 ];

@@ -177,7 +177,7 @@
             </div>
             <div class="info-row">
                 <span class="info-label">Tanggal</span>
-                <span class="info-value">{{ \Carbon\Carbon::parse($transaction->created_at)->format('d/m/Y H:i') }}</span>
+                <span class="info-value">{{ $transaction->transaction_date ? $transaction->transaction_date->format('d/m/Y') : '-' }}</span>
             </div>
             <div class="info-row">
                 <span class="info-label">Kasir</span>
@@ -231,7 +231,7 @@
         <div class="footer">
             <p>Terima kasih atas pembelian Anda</p>
             <p>Barang yang sudah dibeli tidak dapat ditukar</p>
-            <p style="margin-top: 10px; font-size: 9px;">{{ \Carbon\Carbon::parse($transaction->created_at)->format('d/m/Y H:i:s') }}</p>
+            <p style="margin-top: 10px; font-size: 9px;">{{ $transaction->transaction_date ? $transaction->transaction_date->format('d/m/Y') : '-' }}</p>
         </div>
     </div>
 

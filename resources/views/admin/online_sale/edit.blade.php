@@ -209,7 +209,7 @@
                             <div class="col-md-3">
                                 <div class="form-group">
                                     <label class="form-label-custom">Tanggal Transaksi</label>
-                                    <input type="date" name="transaction_date" class="form-control form-control-premium" value="{{ old('transaction_date', optional($transaction->created_at)->format('Y-m-d')) }}">
+                                    <input type="date" name="transaction_date" class="form-control form-control-premium" value="{{ old('transaction_date', $transaction->transaction_date ? $transaction->transaction_date->format('Y-m-d') : date('Y-m-d')) }}">
                                 </div>
                             </div>
                             <div class="col-md-3">

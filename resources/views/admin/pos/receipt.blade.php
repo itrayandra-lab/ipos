@@ -52,7 +52,7 @@
 
     <table style="font-size: 10px;">
         <tr>
-            <td>Tgl: {{ $transaction->created_at->format('d/m/y H:i') }}</td>
+            <td>Tgl: {{ $transaction->transaction_date ? $transaction->transaction_date->format('d/m/y') : '-' }}</td>
         </tr>
         <tr>
             <td>Ref: {{ $transaction->transaction_code ?: $transaction->midtrans_order_id }}</td>

@@ -89,7 +89,7 @@
         
         <div class="top-info">
             <p>No: {{ str_pad($transaction->id, 6, '0', STR_PAD_LEFT) }}</p>
-            <p>Tanggal: {{ \Carbon\Carbon::parse($transaction->created_at)->format('d/m/Y') }}</p>
+            <p>Tanggal: {{ $transaction->transaction_date ? $transaction->transaction_date->format('d/m/Y') : '-' }}</p>
         </div>
 
         <div class="content">

@@ -95,7 +95,7 @@ class TransactionController extends Controller
             'transactions.source',
             'transactions.warehouse_id',
             'transactions.invoice_number',
-            'transactions.created_at',
+            'transactions.transaction_date',
             'users.name as user_name',
             'warehouses.name as warehouse_name'
         )
@@ -136,12 +136,12 @@ class TransactionController extends Controller
 
         if ($request->has('start_date') && !empty($request->start_date)) {
             $startDate = Carbon::createFromFormat('Y-m-d', $request->start_date)->startOfDay();
-            $query->where('transactions.created_at', '>=', $startDate);
+            $query->where('transactions.transaction_date', '>=', $startDate);
         }
 
         if ($request->has('end_date') && !empty($request->end_date)) {
             $endDate = Carbon::createFromFormat('Y-m-d', $request->end_date)->endOfDay();
-            $query->where('transactions.created_at', '<=', $endDate);
+            $query->where('transactions.transaction_date', '<=', $endDate);
         }
 
         return DataTables::of($query)
@@ -188,8 +188,8 @@ class TransactionController extends Controller
                     </ul>
                 </div>';
             })
-            ->editColumn('created_at', function ($transaction) {
-                return Carbon::parse($transaction->created_at)->format('d-m-Y H:i');
+            ->editColumn('transaction_date', function ($transaction) {
+                return $transaction->transaction_date ? $transaction->transaction_date->format('d-m-Y') : '-';
             })
             ->editColumn('total_amount', function ($transaction) {
                 return 'Rp ' . number_format($transaction->total_amount, 0, ',', '.');
@@ -229,12 +229,12 @@ class TransactionController extends Controller
 
         if ($request->filled('start_date')) {
             $startDate = Carbon::createFromFormat('Y-m-d', $request->start_date)->startOfDay();
-            $query->where('created_at', '>=', $startDate);
+            $query->where('transaction_date', '>=', $startDate);
         }
 
         if ($request->filled('end_date')) {
             $endDate = Carbon::createFromFormat('Y-m-d', $request->end_date)->endOfDay();
-            $query->where('created_at', '<=', $endDate);
+            $query->where('transaction_date', '<=', $endDate);
         }
 
         $revenue = $query->select(
@@ -341,12 +341,12 @@ class TransactionController extends Controller
 
         if ($request->filled('start_date')) {
             $startDate = Carbon::createFromFormat('Y-m-d', $request->start_date)->startOfDay();
-            $query->where('created_at', '>=', $startDate);
+            $query->where('transaction_date', '>=', $startDate);
         }
 
         if ($request->has('end_date') && !empty($request->end_date)) {
             $endDate = Carbon::createFromFormat('Y-m-d', $request->end_date)->endOfDay();
-            $query->where('created_at', '<=', $endDate);
+            $query->where('transaction_date', '<=', $endDate);
         }
 
         return $query->orderBy('id', 'desc')->get();
@@ -480,7 +480,7 @@ class TransactionController extends Controller
                 $taxType      = $request->tax_type ?? 'none';
                 $discountType = $request->discount_type ?? 'fixed';
                 $grandTotal   = ($totalAmount + $taxAmount) - $discountVal;
-                $txDate = $request->transaction_date ? Carbon::parse($request->transaction_date) : $transaction->created_at;
+                $txDate = $request->transaction_date ? Carbon::parse($request->transaction_date) : $transaction->transaction_date;
                 
                 $transaction->update([
                     'customer_id'      => $request->customer_id,
@@ -494,7 +494,7 @@ class TransactionController extends Controller
                     'tax_amount'       => $taxAmount,
                     'payment_status'   => $request->payment_status,
                     'payment_method'   => $request->payment_method,
-                    'created_at'       => $txDate,
+                    'transaction_date' => $txDate,
                 ]);
                 
                 // Hapus items lama
@@ -704,7 +704,7 @@ class TransactionController extends Controller
                 $payment = TransactionPayment::create([
                     'transaction_id' => $transaction->id,
                     'amount'         => $transaction->total_amount,
-                    'payment_date'   => $transaction->created_at,
+                    'payment_date'   => $transaction->transaction_date,
                     'payment_method' => $transaction->payment_method ?: 'manual',
                     'notes'          => 'Otomatis via Upload Bukti (Lunas)',
                 ]);
@@ -753,10 +753,10 @@ class TransactionController extends Controller
 
         // Apply filters
         if ($request->has('start_date') && !empty($request->start_date)) {
-            $query->where('transactions.created_at', '>=', Carbon::parse($request->start_date)->startOfDay());
+            $query->where('transactions.transaction_date', '>=', Carbon::parse($request->start_date)->startOfDay());
         }
         if ($request->has('end_date') && !empty($request->end_date)) {
-            $query->where('transactions.created_at', '<=', Carbon::parse($request->end_date)->endOfDay());
+            $query->where('transactions.transaction_date', '<=', Carbon::parse($request->end_date)->endOfDay());
         }
 
         // Bundling Logic: Show components, hide bundle parents
@@ -793,10 +793,10 @@ class TransactionController extends Controller
             ->join('transactions', 'transaction_items.transaction_id', '=', 'transactions.id');
 
         if ($request->has('start_date') && !empty($request->start_date)) {
-            $query->where('transactions.created_at', '>=', Carbon::parse($request->start_date)->startOfDay());
+            $query->where('transactions.transaction_date', '>=', Carbon::parse($request->start_date)->startOfDay());
         }
         if ($request->has('end_date') && !empty($request->end_date)) {
-            $query->where('transactions.created_at', '<=', Carbon::parse($request->end_date)->endOfDay());
+            $query->where('transactions.transaction_date', '<=', Carbon::parse($request->end_date)->endOfDay());
         }
 
         // Bundling Logic: Show components, hide bundle parents

@@ -280,7 +280,7 @@ class PosController extends Controller
             'discount_manual' => 'nullable|numeric|min:0',
             'voucher_code' => 'nullable|string|exists:vouchers,code',
             'generate_invoice' => 'nullable|boolean',
-            'created_at' => 'nullable|date',
+            'transaction_date' => 'nullable|date',
             'warehouse_id' => 'required|exists:warehouses,id',
             'cash_received' => 'nullable|numeric',
         ]);
@@ -460,7 +460,7 @@ class PosController extends Controller
                 }
 
                 $transaction = Transaction::create([
-                    'transaction_code' => \App\Services\TransactionCodeService::generate($request->created_at ? \Carbon\Carbon::parse($request->created_at) : now(), $whCode),
+                    'transaction_code' => \App\Services\TransactionCodeService::generate($request->transaction_date ? \Carbon\Carbon::parse($request->transaction_date) : now(), $whCode),
                     'user_id' => $authUser->id,
                     'customer_id' => $request->customer_id,
                     'customer_name' => $request->customer_name,
@@ -478,7 +478,7 @@ class PosController extends Controller
                     'affiliate_id' => $affiliate ? $affiliate->id : null,
                     'affiliate_fee_total' => $affiliateFeeTotal,
                     'affiliate_fee_mode' => $request->affiliate_fee_mode,
-                    'created_at' => $request->created_at ? \Carbon\Carbon::parse($request->created_at)->setTimeFrom(now()) : now(),
+                    'transaction_date' => $request->transaction_date ? \Carbon\Carbon::parse($request->transaction_date) : now()->format('Y-m-d'),
                     'warehouse_id' => $warehouseId,
                 ]);
 
@@ -525,7 +525,7 @@ class PosController extends Controller
                     TransactionPayment::create([
                         'transaction_id' => $transaction->id,
                         'amount'         => $finalTotal,
-                        'payment_date'   => $transaction->created_at,
+                        'payment_date'   => $transaction->transaction_date,
                         'payment_method' => $request->payment_method,
                         'payment_receipt' => $transaction->payment_receipt,
                         'notes'          => 'Otomatis dari Kasir (POS)',

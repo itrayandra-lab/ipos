@@ -179,7 +179,7 @@
                                 </div>
                                 <div class="col-6">
                                     <label class="text-muted small text-uppercase mb-0">Tanggal</label>
-                                    <div class="font-weight-bold">{{ \Carbon\Carbon::parse($transaction->created_at)->format('d/m/Y') }}</div>
+                                    <div class="font-weight-bold">{{ $transaction->transaction_date ? $transaction->transaction_date->format('d/m/Y') : '-' }}</div>
                                 </div>
                             </div>
 
@@ -275,6 +275,7 @@
                             </div>
 
                             <div class="mb-0 border-top pt-3 text-muted small">
+                                <div>Gudang: <strong>{{ $transaction->warehouse->name ?? '-' }}</strong></div>
                                 <div>Dibuat Oleh: <strong>{{ $transaction->user->name ?? '-' }}</strong></div>
                                 @if($transaction->notes)
                                 <div class="mt-2">

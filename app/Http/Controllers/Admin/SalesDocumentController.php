@@ -31,7 +31,7 @@ class SalesDocumentController extends Controller
     public function getInvoices(Request $request)
     {
         if ($request->ajax()) {
-            $query = Transaction::with(['user', 'customer', 'payments'])
+            $query = Transaction::with(['user', 'customer', 'payments', 'warehouse'])
                 ->whereNotNull('invoice_number');
 
             if ($request->has('payment_status') && !empty($request->payment_status)) {
@@ -50,6 +50,7 @@ class SalesDocumentController extends Controller
 
             return DataTables::of($data)
                 ->addIndexColumn()
+                ->addColumn('warehouse_name', fn($row) => $row->warehouse?->name ?? 'Beautylatory')
                 ->editColumn('created_at', fn($row) => Carbon::parse($row->created_at)->format('d/m/Y H:i'))
                 ->editColumn('total_amount', fn($row) => 'Rp ' . number_format($row->total_amount, 0, ',', '.'))
                 ->editColumn('payment_status', function ($row) {
@@ -223,6 +224,7 @@ class SalesDocumentController extends Controller
                 $discountType = $request->discount_type ?? 'fixed';
                 $grandTotal   = ($totalAmount + $taxAmount) - $discountVal;
                 $txDate = $request->transaction_date ? Carbon::parse($request->transaction_date) : Carbon::now();
+                $mainWarehouseId = \App\Models\Warehouse::where('type', 'main')->value('id');
                 $transaction = Transaction::create([
                     'transaction_code' => \App\Services\TransactionCodeService::generate($txDate),
                     'user_id'          => auth()->id(),
@@ -231,7 +233,8 @@ class SalesDocumentController extends Controller
                     'customer_phone'   => $request->customer_phone,
                     'customer_address' => $request->customer_address,
                     'bank_account_id'  => $request->bank_account_id,
-                    'source'           => 'manual-invoice',
+                    'warehouse_id'     => $mainWarehouseId,
+                    'source'           => 'offline-store',
                     'transaction_type' => $request->transaction_type,
                     'is_dp'            => $request->payment_status === 'credit',
                     'down_payment'     => $request->down_payment_amount ?? 0,
@@ -272,7 +275,7 @@ class SalesDocumentController extends Controller
 
     public function showInvoice($id)
     {
-        $transaction = Transaction::with(['user', 'customer', 'items.product.merek', 'items.batch.variant', 'payments', 'bankAccount'])
+        $transaction = Transaction::with(['user', 'customer', 'items.product.merek', 'items.batch.variant', 'payments', 'bankAccount', 'warehouse'])
             ->findOrFail($id);
         $setting = StoreSetting::getActiveSetting();
         return view('admin.sales.invoice.show', compact('transaction', 'setting'))->with('sb', 'SalesInvoices');
@@ -443,7 +446,7 @@ class SalesDocumentController extends Controller
 
     public function printInvoice($id)
     {
-        $transaction = Transaction::with(['user', 'customer', 'items.product.merek', 'items.batch.variant', 'payments', 'bankAccount'])
+        $transaction = Transaction::with(['user', 'customer', 'items.product.merek', 'items.batch.variant', 'payments', 'bankAccount', 'warehouse'])
             ->findOrFail($id);
         $setting = StoreSetting::getActiveSetting();
         return view('admin.sales.invoice.print', compact('transaction', 'setting'));

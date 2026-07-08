@@ -132,7 +132,7 @@
             },
             columns: [
                 { data: 'DT_RowIndex', name: 'DT_RowIndex', orderable: false, searchable: false },
-                { data: 'created_at', name: 'created_at' },
+                { data: 'transaction_date', name: 'transaction_date' },
                 { data: 'source', name: 'source' },
                 { data: 'notes_with_receipt', name: 'notes_with_receipt' },
                 { data: 'total_items', name: 'total_items' },

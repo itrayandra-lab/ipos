@@ -185,12 +185,12 @@ class OnlineSaleController extends Controller
                     'delivery_desc' => 'Online Marketplace Sale',
                     'midtrans_order_id' => 'MARKET-' . strtoupper($request->source) . '-' . uniqid(),
                     'payment_receipt' => $receiptPath,
-                    'created_at' => $request->transaction_date ? \Carbon\Carbon::parse($request->transaction_date) : now(),
+                    'transaction_date' => $request->transaction_date ? \Carbon\Carbon::parse($request->transaction_date)->format('Y-m-d') : now()->format('Y-m-d'),
                 ]);
 
                 // Generate invoice number
                 $transaction->update([
-                    'invoice_number' => InvoiceService::generate(\Carbon\Carbon::parse($transaction->created_at)),
+                    'invoice_number' => InvoiceService::generate(\Carbon\Carbon::parse($transaction->transaction_date)),
                 ]);
 
                 foreach ($itemsToCreate as $itemData) {
@@ -239,19 +239,19 @@ class OnlineSaleController extends Controller
         }
 
         if ($request->has('start_date') && !empty($request->start_date)) {
-            $query->whereDate('created_at', '>=', $request->start_date);
+            $query->whereDate('transaction_date', '>=', $request->start_date);
         }
 
         if ($request->has('end_date') && !empty($request->end_date)) {
-            $query->whereDate('created_at', '<=', $request->end_date);
+            $query->whereDate('transaction_date', '<=', $request->end_date);
         }
 
-        $transactions = $query->latest();
+        $transactions = $query->latest('transaction_date');
 
         return DataTables::of($transactions)
             ->addIndexColumn()
-            ->editColumn('created_at', function ($trx) {
-                return $trx->created_at->format('d/m/Y H:i');
+            ->editColumn('transaction_date', function ($trx) {
+                return $trx->transaction_date ? $trx->transaction_date->format('d/m/Y') : '-';
             })
             ->editColumn('source', function ($trx) {
                 if ($trx->source == 'shopee') return '<span class="badge badge-warning">Shopee</span>';
@@ -450,7 +450,7 @@ class OnlineSaleController extends Controller
                     'discount' => $request->discount ?? 0,
                     'discount_type' => 'fixed',
                     'payment_receipt' => $receiptPath,
-                    'created_at' => $request->transaction_date,
+                    'transaction_date' => $request->transaction_date,
                 ]);
             });
 

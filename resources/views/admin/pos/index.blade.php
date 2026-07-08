@@ -911,7 +911,7 @@
                 affiliate_id: $('#affiliate-select').val(),
                 affiliate_fee_mode: $('#affiliate-mode').val(),
                 generate_invoice: $('#generate-invoice-check').is(':checked') ? 1 : 0,
-                created_at: $('#transaction-date').val(),
+                transaction_date: $('#transaction-date').val(),
                 warehouse_id: $('#filter-warehouse').val(),
                 cash_received: $('#cash-received').val(),
                 notes: '-' 

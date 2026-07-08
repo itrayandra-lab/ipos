@@ -94,7 +94,7 @@
                                     </tr>
                                     <tr>
                                         <th>Tanggal Transaksi</th>
-                                        <td>{{ $transaction->created_at->format('d-m-Y H:i') }}</td>
+                                        <td>{{ $transaction->transaction_date ? $transaction->transaction_date->format('d-m-Y') : '-' }}</td>
                                     </tr>
                                     <tr>
                                         <th>Midtrans Order ID</th>

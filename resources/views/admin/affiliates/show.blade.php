@@ -83,7 +83,7 @@
                                             @foreach($transactions as $trx)
                                             <tr>
                                                 <td>{{ $loop->iteration }}</td>
-                                                <td>{{ $trx->created_at->format('d/m/Y H:i') }}</td>
+                                                <td>{{ $trx->transaction_date ? $trx->transaction_date->format('d/m/Y') : '-' }}</td>
                                                 <td>
                                                     {{ $trx->customer_name }}<br>
                                                     <small class="text-muted">{{ $trx->customer_phone }}</small>

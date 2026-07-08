@@ -46,7 +46,7 @@
                                         <p class="font-bold text-gray-800">Informasi Order :</p>
                                         <p>
                                             Order ID : {{ $transaction->midtrans_order_id }} <br>
-                                            Tanggal : {{ \Carbon\Carbon::parse($transaction->created_at)->format('d/m/Y') }} <br>
+                                            Tanggal : {{ $transaction->transaction_date ? $transaction->transaction_date->format('d/m/Y') : '-' }} <br>
                                             Status : 
                                             <span class="@if($transaction->payment_status == 'paid') text-green-500
                                                         @elseif($transaction->payment_status == 'pending') text-yellow-500

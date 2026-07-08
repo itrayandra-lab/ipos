@@ -529,7 +529,7 @@
                             let code = data || '#'+row.id;
                             let invoiceHtml = '';
                             if (row.invoice_number) {
-                                invoiceHtml = `<div class="label-sub mt-1"><span class="badge-soft badge-soft-success mr-1">INV</span>${row.invoice_number}</div>`;
+                                invoiceHtml = `<div class="label-sub mt-1">${row.invoice_number}</div>`;
                             }
                             return `<div><span style="font-family:monospace;font-size:12px;font-weight:600;color:#475569">${code}</span>${invoiceHtml}</div>`;
                         }
@@ -547,7 +547,7 @@
                             let invoiceBadge = row.invoice_number
                                 ? `<span class="badge-soft badge-soft-info" style="align-self:flex-start">INVOICE</span>`
                                 : '';
-                            return `<div class="cell-merged"><span class="amount-text">${data}</span><span class="badge-soft ${cls}" style="align-self:flex-start">${label}</span>${invoiceBadge}</div>`;
+                            return `<div class="cell-merged" style="gap:2px"><span class="amount-text" style="font-size:13px">${data}</span><span class="badge-soft ${cls}" style="align-self:flex-start;font-size:9px;padding:1px 7px">${label}</span>${invoiceBadge}</div>`;
                         }
                     },
                     {
@@ -559,15 +559,15 @@
                                 'shopee': 'badge-soft-warning',
                                 'tokopedia': 'badge-soft-success',
                                 'tiktok': 'badge-soft-secondary',
-                                'whatsapp': 'badge-soft-info'
+                                'whatsapp': 'badge-soft-info',
+                                'offline-store': 'badge-soft-primary',
+                                'manual-invoice': 'badge-soft-primary'
                             };
+                            let displayName = (data == 'offline-store' || data == 'manual-invoice') ? 'OFFLINE STORE' : data.toUpperCase();
                             let cls = colors[data.toLowerCase()] || 'badge-soft-info';
-                            let wh = row.warehouse_name || '';
-                            let sourceHtml = `<span class="badge-soft ${cls}">${data.toUpperCase()}</span>`;
-                            if (wh) {
-                                return `<div class="cell-merged">${sourceHtml}<span class="label-sub">${wh}</span></div>`;
-                            }
-                            return sourceHtml;
+                            let wh = row.warehouse_name || 'Beautylatory';
+                            let sourceHtml = `<span class="badge-soft ${cls}">${displayName}</span>`;
+                            return `<div class="cell-merged">${sourceHtml}<span class="label-sub">${wh}</span></div>`;
                         }
                     },
                     { 
@@ -580,7 +580,7 @@
                             return `<span class="badge-soft ${cls}">${data.charAt(0).toUpperCase() + data.slice(1)}</span>`;
                         }
                     },
-                    { data: 'created_at', name: 'created_at' },
+                    { data: 'transaction_date', name: 'transaction_date' },
                     { data: 'action', name: 'action', orderable: false, searchable: false, className: 'text-center' }
                 ]
             });
