@@ -113,7 +113,18 @@
                         </div>
 
                         <div class="row mt-2">
-                            <div class="col-md-12">
+                            <div class="col-md-4">
+                                <div class="form-group">
+                                    <label>Gudang</label>
+                                    <select name="warehouse_id" class="form-control select2" required>
+                                        <option value="">Pilih Gudang...</option>
+                                        @foreach($warehouses as $wh)
+                                            <option value="{{ $wh->id }}" {{ $transaction->warehouse_id == $wh->id ? 'selected' : '' }}>{{ $wh->name }}</option>
+                                        @endforeach
+                                    </select>
+                                </div>
+                            </div>
+                            <div class="col-md-8">
                                 <div class="form-group">
                                     <label>Catatan</label>
                                     <textarea name="notes" class="form-control" rows="2">{{ $transaction->notes }}</textarea>

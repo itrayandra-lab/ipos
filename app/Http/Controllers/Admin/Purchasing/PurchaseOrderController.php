@@ -15,24 +15,68 @@ use Illuminate\Support\Facades\Auth;
 
 class PurchaseOrderController extends Controller
 {
-    public function index()
+    public function index(Request $request)
     {
-        return view('admin.purchasing.purchase_orders.index')->with('sb', 'PurchaseOrder');
+        $suppliers = Supplier::where('status', 'active')->orderBy('name')->get();
+
+        $baseQuery = PurchaseOrder::query();
+
+        if ($request->filled('supplier_id')) {
+            $baseQuery->where('supplier_id', $request->supplier_id);
+        }
+        if ($request->filled('status')) {
+            $baseQuery->where('status', $request->status);
+        }
+        if ($request->filled('start_date')) {
+            $baseQuery->whereDate('po_date', '>=', $request->start_date);
+        }
+        if ($request->filled('end_date')) {
+            $baseQuery->whereDate('po_date', '<=', $request->end_date);
+        }
+
+        $totalPembelian = (float) (clone $baseQuery)->sum('total');
+
+        $poIds = (clone $baseQuery)->pluck('id');
+
+        $totalTerbayar = 0;
+        if ($poIds->isNotEmpty()) {
+            $productIds = PurchaseOrderItem::whereIn('purchase_order_id', $poIds)
+                ->whereNotNull('product_id')
+                ->pluck('product_id')
+                ->unique()
+                ->toArray();
+
+            if (!empty($productIds)) {
+                $totalTerbayar = (float) DB::table('supplier_payment_items')
+                    ->whereIn('product_id', $productIds)
+                    ->sum('subtotal');
+            }
+        }
+
+        $sisa = max(0, $totalPembelian - $totalTerbayar);
+
+        return view('admin.purchasing.purchase_orders.index', compact(
+            'suppliers', 'totalPembelian', 'totalTerbayar', 'sisa'
+        ))->with('sb', 'PurchaseOrder');
     }
 
     public function getall(Request $request)
     {
         $query = PurchaseOrder::with(['supplier', 'creator']);
 
-        if ($request->has('status') && !empty($request->status)) {
+        if ($request->filled('supplier_id')) {
+            $query->where('supplier_id', $request->supplier_id);
+        }
+
+        if ($request->filled('status')) {
             $query->where('status', $request->status);
         }
 
-        if ($request->has('start_date') && !empty($request->start_date)) {
+        if ($request->filled('start_date')) {
             $query->whereDate('po_date', '>=', $request->start_date);
         }
 
-        if ($request->has('end_date') && !empty($request->end_date)) {
+        if ($request->filled('end_date')) {
             $query->whereDate('po_date', '<=', $request->end_date);
         }
 

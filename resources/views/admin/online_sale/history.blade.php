@@ -101,6 +101,7 @@
                             <th>Batch</th>
                             <th>Qty</th>
                             <th>Harga</th>
+                            <th>Diskon</th>
                             <th>Subtotal</th>
                         </tr>
                     </thead>
@@ -168,12 +169,14 @@
             items.forEach(function(item) {
                 let productName = item.product ? item.product.name : 'Unknown Product';
                 let batchNo = item.batch ? item.batch.batch_no : '-';
+                let disc = item.discount || 0;
                 html += `
                     <tr>
                         <td>${productName}</td>
                         <td>${batchNo}</td>
                         <td>${item.qty}</td>
                         <td>Rp${item.price.toLocaleString('id-ID')}</td>
+                        <td>Rp${disc.toLocaleString('id-ID')}</td>
                         <td>Rp${item.subtotal.toLocaleString('id-ID')}</td>
                     </tr>
                 `;

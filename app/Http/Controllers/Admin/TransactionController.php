@@ -365,6 +365,16 @@ class TransactionController extends Controller
             ->findOrFail($id);
         
         $customers = Customer::orderBy('name')->get();
+
+        $user = auth()->user();
+        if ($user->isSuperAdmin() || $user->isStoreManager()) {
+            $warehouses = Warehouse::where('status', 'active')->orderBy('name')->get();
+        } else {
+            $warehouses = $user->warehouses()
+                ->where('warehouses.status', 'active')
+                ->orderBy('warehouses.name')
+                ->get();
+        }
         
         $batches = ProductBatch::with(['product.merek', 'variant'])
             ->where('qty', '>', 0)
@@ -418,7 +428,7 @@ class TransactionController extends Controller
             ];
         }
 
-        return view('admin.transaction.edit', compact('transaction', 'customers', 'batchList'))
+        return view('admin.transaction.edit', compact('transaction', 'customers', 'batchList', 'warehouses'))
             ->with('sb', 'Transaction');
     }
 
@@ -431,6 +441,7 @@ class TransactionController extends Controller
             'customer_name' => 'nullable|string|max:150',
             'customer_phone' => 'nullable|string|max:30',
             'transaction_date' => 'nullable|date',
+            'warehouse_id' => 'required|exists:warehouses,id',
             'payment_method' => 'required|string|max:50',
             'payment_status' => 'required|in:draft,unpaid,paid,canceled,credit',
             'notes' => 'nullable|string',
@@ -486,6 +497,7 @@ class TransactionController extends Controller
                     'customer_id'      => $request->customer_id,
                     'customer_name'    => $request->customer_name,
                     'customer_phone'   => $request->customer_phone,
+                    'warehouse_id'     => $request->warehouse_id,
                     'notes'            => $request->notes,
                     'total_amount'     => $grandTotal,
                     'discount'         => $discountVal,

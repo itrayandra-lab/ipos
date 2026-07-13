@@ -125,6 +125,58 @@
     .dataTables_wrapper .dataTables_paginate {
         padding: 15px 25px !important;
     }
+
+    .stat-card {
+        background: #fff;
+        border-radius: 16px;
+        padding: 20px;
+        display: flex;
+        align-items: center;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.03);
+        transition: transform 0.2s;
+        border: 1px solid #f1f5f9;
+    }
+    .stat-card:hover {
+        transform: translateY(-5px);
+    }
+    .stat-icon {
+        width: 48px;
+        height: 48px;
+        border-radius: 12px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 20px;
+        margin-right: 15px;
+    }
+    .stat-label {
+        font-size: 11px;
+        font-weight: 700;
+        color: #94a3b8;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        margin-bottom: 2px;
+    }
+    .stat-value {
+        font-size: 22px;
+        font-weight: 800;
+        color: #1e293b;
+        line-height: 1;
+    }
+    .bg-soft-success { background: #dcfce7; color: #16a34a; }
+    .bg-soft-warning { background: #fef9c3; color: #ca8a04; }
+    .bg-soft-danger { background: #fee2e2; color: #dc2626; }
+    .bg-soft-info { background: #e0f2fe; color: #0284c7; }
+    .bg-soft-primary { background: #e0e7ff; color: #4338ca; }
+    .bg-soft-teal { background: #ccfbf1; color: #0d9488; }
+    .bg-soft-gray { background: #f1f5f9; color: #64748b; }
+    .bg-soft-orange { background: #ffedd5; color: #c2410c; }
+    .stat-value-rev {
+        font-size: 16px;
+        font-weight: 800;
+        color: #1e293b;
+        line-height: 1;
+    }
 </style>
 @endpush
 
@@ -160,6 +212,42 @@
                         </div>
                     @endif
 
+                    <div class="row mb-3">
+                        <div class="col-lg-4 col-md-12 mb-3">
+                            <div class="stat-card" style="border-left: 4px solid #0d9488; background: linear-gradient(135deg, #f0fdfa, #ccfbf1); padding: 20px 24px;">
+                                <div class="stat-icon bg-soft-teal" style="width: 52px; height: 52px; font-size: 24px; border-radius: 14px;">
+                                    <i class="fas fa-shopping-cart"></i>
+                                </div>
+                                <div>
+                                    <div class="stat-label" style="font-size: 13px; letter-spacing: 1px;">Total Pembelian</div>
+                                    <div class="stat-value-rev" style="font-size: 26px; font-weight: 900;">Rp {{ number_format($totalPembelian, 0, ',', '.') }}</div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-lg-4 col-md-6 mb-3">
+                            <div class="stat-card" style="border-left: 4px solid #16a34a; padding: 18px 20px;">
+                                <div class="stat-icon bg-soft-success" style="width: 44px; height: 44px; font-size: 18px;">
+                                    <i class="fas fa-check-circle"></i>
+                                </div>
+                                <div style="flex:1;">
+                                    <div class="stat-label">Total Terbayar</div>
+                                    <div class="stat-value-rev" style="font-size:17px;">Rp {{ number_format($totalTerbayar, 0, ',', '.') }}</div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-lg-4 col-md-6 mb-3">
+                            <div class="stat-card" style="border-left: 4px solid #dc2626; padding: 18px 20px;">
+                                <div class="stat-icon bg-soft-danger" style="width: 44px; height: 44px; font-size: 18px;">
+                                    <i class="fas fa-exclamation-circle"></i>
+                                </div>
+                                <div style="flex:1;">
+                                    <div class="stat-label">Sisa Pembayaran</div>
+                                    <div class="stat-value-rev" style="font-size:17px;">Rp {{ number_format($sisa, 0, ',', '.') }}</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
                     <div class="card">
                         <div class="card-header d-flex justify-content-between align-items-center">
                             <h4>Daftar Seluruh PO</h4>
@@ -178,26 +266,38 @@
                                     <div class="row align-items-end">
                                         <div class="col-md-3">
                                             <div class="form-group mb-md-0">
-                                                <label>Status Pesanan</label>
-                                                <select class="form-control form-control-premium" id="status" name="status">
-                                                    <option value="">Semua Status</option>
-                                                    <option value="draft">Draft</option>
-                                                    <option value="submitted">Submitted</option>
-                                                    <option value="approved">Approved</option>
-                                                    <option value="received">Received</option>
-                                                    <option value="cancelled">Cancelled</option>
+                                                <label>Supplier</label>
+                                                <select class="form-control form-control-premium select2" id="supplier_id" name="supplier_id">
+                                                    <option value="">Semua Supplier</option>
+                                                    @foreach($suppliers as $s)
+                                                        <option value="{{ $s->id }}" {{ request('supplier_id') == $s->id ? 'selected' : '' }}>{{ $s->name }}</option>
+                                                    @endforeach
                                                 </select>
                                             </div>
                                         </div>
-                                        <div class="col-md-3">
+                                        <div class="col-md-2">
                                             <div class="form-group mb-md-0">
-                                                <label>Mulai Tanggal</label>
+                                                <label>Status</label>
+                                                <select class="form-control form-control-premium" id="status" name="status">
+                                                    <option value="">Semua Status</option>
+                                                    <option value="draft">Draft</option>
+                                                    <option value="submitted">Dikirim</option>
+                                                    <option value="approved">Disetujui</option>
+                                                    <option value="partial">Sebagian</option>
+                                                    <option value="received">Diterima</option>
+                                                    <option value="cancelled">Dibatalkan</option>
+                                                </select>
+                                            </div>
+                                        </div>
+                                        <div class="col-md-2">
+                                            <div class="form-group mb-md-0">
+                                                <label>Mulai</label>
                                                 <input type="date" class="form-control form-control-premium" id="start_date" name="start_date">
                                             </div>
                                         </div>
-                                        <div class="col-md-3">
+                                        <div class="col-md-2">
                                             <div class="form-group mb-md-0">
-                                                <label>Sampai Tanggal</label>
+                                                <label>Sampai</label>
                                                 <input type="date" class="form-control form-control-premium" id="end_date" name="end_date">
                                             </div>
                                         </div>
@@ -246,6 +346,8 @@
 <script>
     let table;
     $(document).ready(function() {
+        $('#supplier_id').select2({ width: '100%' });
+
         table = $('#table-po').DataTable({
             responsive: true,
             processing: true,
@@ -253,9 +355,10 @@
             ajax: {
                 url: "{{ route('admin.purchasing.purchase_orders.getall') }}",
                 data: function(d) {
-                    d.status = $('#status').val();
-                    d.start_date = $('#start_date').val();
-                    d.end_date = $('#end_date').val();
+                    d.supplier_id = $('#supplier_id').val() || '{{ request('supplier_id') }}';
+                    d.status = $('#status').val() || '{{ request('status') }}';
+                    d.start_date = $('#start_date').val() || '{{ request('start_date') }}';
+                    d.end_date = $('#end_date').val() || '{{ request('end_date') }}';
                 }
             },
             columns: [
@@ -296,7 +399,15 @@
                             'received': 'bg-soft-received',
                             'cancelled': 'bg-soft-cancelled'
                         };
-                        return `<span class="badge badge-status ${classes[data]}">${data.toUpperCase()}</span>`;
+                        let labels = {
+                            'draft': 'DRAFT',
+                            'submitted': 'DIKIRIM',
+                            'approved': 'DISETUJUI',
+                            'partial': 'SEBAGIAN',
+                            'received': 'DITERIMA',
+                            'cancelled': 'DIBATALKAN'
+                        };
+                        return `<span class="badge badge-status ${classes[data]}">${labels[data] || data.toUpperCase()}</span>`;
                     }
                 },
                 { data: 'created_name', name: 'creator.name' },
@@ -317,15 +428,11 @@
         });
 
         $('#filter-form').on('submit', function(e) {
-            e.preventDefault();
-            table.draw();
+            // Let form submit as GET for full page reload (adaptive cards)
         });
 
         window.resetFilter = function() {
-            $('#status').val('');
-            $('#start_date').val('');
-            $('#end_date').val('');
-            table.draw();
+            window.location.href = window.location.pathname;
         };
 
         $(document).on('click', '.btn-delete', function(e) {

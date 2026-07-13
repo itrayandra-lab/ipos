@@ -105,6 +105,19 @@
         color: #0f172a !important;
     }
 
+    input[type=number]::-webkit-inner-spin-button,
+    input[type=number]::-webkit-outer-spin-button {
+        -webkit-appearance: none;
+        margin: 0;
+    }
+    input[type=number] {
+        -moz-appearance: textfield;
+    }
+
+    #items-table .input-group-text {
+        padding: 2px 6px !important;
+    }
+
     .subtotal-label {
         font-weight: 800;
         color: #0d9488;
@@ -232,9 +245,10 @@
                             <table class="table mb-0" id="items-table">
                                 <thead>
                                     <tr>
-                                        <th style="width: 45%;">Produk & Batch</th>
-                                        <th style="width: 15%;">Qty</th>
-                                        <th style="width: 20%;">Harga Satuan</th>
+                                        <th style="width: 35%;">Produk & Batch</th>
+                                        <th style="width: 12%;">Qty</th>
+                                        <th style="width: 18%;">Harga Satuan</th>
+                                        <th style="width: 15%;">Diskon</th>
                                         <th style="width: 15%;">Total</th>
                                         <th style="width: 5%;"></th>
                                     </tr>
@@ -265,6 +279,14 @@
                                                     <span class="input-group-text bg-light border-0 small">Rp</span>
                                                 </div>
                                                 <input type="number" name="items[{{ $index }}][price]" class="form-control form-control-premium price-input amount-input" value="{{ (int)$item->price }}" required min="0">
+                                            </div>
+                                        </td>
+                                        <td>
+                                            <div class="input-group">
+                                                <div class="input-group-prepend">
+                                                    <span class="input-group-text bg-light border-0 small">Rp</span>
+                                                </div>
+                                                <input type="number" name="items[{{ $index }}][discount]" class="form-control form-control-premium discount-item-input amount-input" value="{{ (int)$item->discount }}" min="0">
                                             </div>
                                         </td>
                                         <td class="text-right">
@@ -350,7 +372,8 @@
         $('.item-row').each(function() {
             const qty = parseFloat($(this).find('.qty-input').val()) || 0;
             const price = parseFloat($(this).find('.price-input').val()) || 0;
-            const sub = qty * price;
+            const disc = parseFloat($(this).find('.discount-item-input').val()) || 0;
+            const sub = Math.max(0, (qty * price) - disc);
             $(this).find('.row-subtotal').text(formatNumber(sub));
             total += sub;
         });
@@ -395,6 +418,14 @@
                             <input type="number" name="items[${idx}][price]" class="form-control form-control-premium price-input amount-input" value="0" required min="0">
                         </div>
                     </td>
+                    <td>
+                        <div class="input-group">
+                            <div class="input-group-prepend">
+                                <span class="input-group-text bg-light border-0 small">Rp</span>
+                            </div>
+                            <input type="number" name="items[${idx}][discount]" class="form-control form-control-premium discount-item-input amount-input" value="0" min="0">
+                        </div>
+                    </td>
                     <td class="text-right">
                         <strong class="text-dark">Rp <span class="row-subtotal">0</span></strong>
                     </td>
@@ -413,7 +444,7 @@
             recalc();
         });
 
-        $(document).on('input', '.qty-input, .price-input, .discount-input', recalc);
+        $(document).on('input', '.qty-input, .price-input, .discount-input, .discount-item-input', recalc);
 
         $(document).on('change', '.batch-dropdown, #source-select', function() {
             const row = $(this).closest('.item-row');

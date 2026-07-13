@@ -95,6 +95,7 @@ class OnlineSaleController extends Controller
             'items' => 'required|array|min:1',
             'items.*.product_batch_id' => 'required|exists:product_batches,id',
             'items.*.qty' => 'required|integer|min:1',
+            'items.*.discount' => 'nullable|numeric|min:0',
             'payment_receipt' => 'nullable|file|mimes:jpg,jpeg,png,pdf|max:2048',
         ]);
 
@@ -154,8 +155,9 @@ class OnlineSaleController extends Controller
 
                     // Use input price from form, fallback to pricing service if missing
                     $price = $item['price'] ?? \App\Services\PricingService::calculate($batch, $request->source);
+                    $discountItem = $item['discount'] ?? 0;
                     
-                    $subtotal = $price * $item['qty'];
+                    $subtotal = max(0, ($price * $item['qty']) - $discountItem);
                     $totalAmount += $subtotal;
 
                     $itemsToCreate[] = [
@@ -165,6 +167,7 @@ class OnlineSaleController extends Controller
                         'buy_price' => $batch->buy_price ?? 0,
                         'qty' => $item['qty'],
                         'price' => $price,
+                        'discount' => $discountItem,
                         'subtotal' => $subtotal,
                     ];
                 }
@@ -377,6 +380,7 @@ class OnlineSaleController extends Controller
             'items' => 'required|array|min:1',
             'items.*.product_batch_id' => 'required|exists:product_batches,id',
             'items.*.qty' => 'required|integer|min:1',
+            'items.*.discount' => 'nullable|numeric|min:0',
             'payment_receipt' => 'nullable|file|mimes:jpg,jpeg,png,pdf|max:2048',
         ]);
 
@@ -423,7 +427,8 @@ class OnlineSaleController extends Controller
 
                     // Use pricing service for accurate channel pricing
                     $price = $item['price'] ?? \App\Services\PricingService::calculate($batch, $request->source);
-                    $subtotal = $price * $item['qty'];
+                    $discountItem = $item['discount'] ?? 0;
+                    $subtotal = max(0, ($price * $item['qty']) - $discountItem);
                     $totalAmount += $subtotal;
 
                     $transaction->items()->create([
@@ -433,6 +438,7 @@ class OnlineSaleController extends Controller
                         'buy_price' => $batch->buy_price ?? 0,
                         'qty' => $item['qty'],
                         'price' => $price,
+                        'discount' => $discountItem,
                         'subtotal' => $subtotal,
                     ]);
 
