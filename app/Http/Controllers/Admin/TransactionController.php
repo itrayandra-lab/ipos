@@ -785,6 +785,18 @@ class TransactionController extends Controller
             ->editColumn('total_amount', function ($row) {
                 return 'Rp ' . number_format($row->total_amount, 0, ',', '.');
             })
+            ->filterColumn('product_name', function ($query, $keyword) {
+                $query->where('products.name', 'like', "%{$keyword}%");
+            })
+            ->filterColumn('variant_name', function ($query, $keyword) {
+                $query->where('product_variants.variant_name', 'like', "%{$keyword}%");
+            })
+            ->filterColumn('total_qty', function ($query, $keyword) {
+                // numeric aggregate — skip global search
+            })
+            ->filterColumn('total_amount', function ($query, $keyword) {
+                // numeric aggregate — skip global search
+            })
             ->make(true);
     }
 

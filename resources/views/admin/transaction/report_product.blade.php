@@ -191,6 +191,7 @@
                         data: 'total_qty', 
                         name: 'total_qty',
                         className: 'text-center',
+                        searchable: false,
                         render: function(data) {
                             return `<span class="qty-badge">${data}</span>`;
                         }
@@ -199,6 +200,7 @@
                         data: 'total_amount', 
                         name: 'total_amount',
                         className: 'text-right',
+                        searchable: false,
                         render: function(data) {
                             return `<span class="amount-text">${data}</span>`;
                         }

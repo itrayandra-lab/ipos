@@ -50,6 +50,7 @@ class SalesDocumentController extends Controller
 
             return DataTables::of($data)
                 ->addIndexColumn()
+                ->editColumn('customer_name', fn($row) => $row->customer ? $row->customer->name : ($row->customer_name ?? '-'))
                 ->addColumn('warehouse_name', fn($row) => $row->warehouse?->name ?? 'Beautylatory')
                 ->editColumn('created_at', fn($row) => Carbon::parse($row->created_at)->format('d/m/Y H:i'))
                 ->editColumn('total_amount', fn($row) => 'Rp ' . number_format($row->total_amount, 0, ',', '.'))

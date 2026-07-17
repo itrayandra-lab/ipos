@@ -714,6 +714,16 @@ $(document).ready(function() {
             emptyTable: '<div style="padding:20px;color:var(--slate-400);"><i class="fas fa-inbox" style="font-size:28px;margin-bottom:8px;display:block;"></i>Tidak ada data yang tersedia</div>',
             zeroRecords: '<div style="padding:20px;color:var(--slate-400);"><i class="fas fa-search" style="font-size:28px;margin-bottom:8px;display:block;"></i>Tidak ada hasil yang cocok</div>'
         }
+    }).on('error.dt', function(e, settings, techNote, message) {
+        console.error('DataTable Ajax error:', message);
+        var xhr = settings.jqXHR;
+        if (xhr && xhr.responseJSON && xhr.responseJSON.error) {
+            alert('Error: ' + xhr.responseJSON.error);
+        } else if (xhr && xhr.responseText && xhr.responseText.indexOf('<!DOCTYPE') > -1) {
+            alert('Sesi anda telah berakhir. Silakan refresh halaman dan login kembali.');
+        } else {
+            alert('Terjadi kesalahan saat memuat data. Silakan coba lagi.');
+        }
     });
 
     /* ============================

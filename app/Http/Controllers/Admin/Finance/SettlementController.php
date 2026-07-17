@@ -37,9 +37,9 @@ class SettlementController extends Controller
                 ->orderColumn('total_qty', 'SUM(transaction_items.qty) $1')
                 ->orderColumn('total_cost', 'SUM(transaction_items.qty * COALESCE(NULLIF(transaction_items.buy_price, 0), product_variants.product_hpp, 0)) $1')
                 ->editColumn('product_name', function($row) {
-                    $merekName = trim($row->merek_name ?? '');
-                    $productName = trim($row->product_name ?? '');
-                    $variantName = trim($row->variant_name ?? '');
+                    $merekName = trim((string) ($row->merek_name ?? ''));
+                    $productName = trim((string) ($row->product_name ?? ''));
+                    $variantName = trim((string) ($row->variant_name ?? ''));
 
                     $originalParts = array_filter([$merekName, $productName, $variantName]);
                     $finalParts = [];
@@ -56,34 +56,41 @@ class SettlementController extends Controller
                         }
                     }
                     $labelText = implode(' ', array_unique($finalParts));
-                    return '<div class="font-weight-600">' . $labelText . '</div>';
+                    return '<div class="font-weight-600">' . e($labelText) . '</div>';
                 })
                 ->editColumn('buy_price', function ($row) {
-                    return 'Rp ' . number_format($row->buy_price, 0, ',', '.');
+                    $price = (float) ($row->buy_price ?? 0);
+                    return 'Rp ' . number_format($price, 0, ',', '.');
                 })
                 ->editColumn('total_cost', function ($row) {
-                    return 'Rp ' . number_format($row->total_cost, 0, ',', '.');
+                    $cost = (float) ($row->total_cost ?? 0);
+                    return 'Rp ' . number_format($cost, 0, ',', '.');
                 })
                 ->addColumn('raw_buy_price', function ($row) {
-                    return $row->buy_price;
+                    return (float) ($row->buy_price ?? 0);
                 })
                 ->addColumn('raw_total_cost', function ($row) {
-                    return $row->total_cost;
+                    return (float) ($row->total_cost ?? 0);
                 })
                 ->addColumn('action', function($row) {
+                    $pid = $row->product_id ?? '';
+                    $vid = $row->product_variant_id ?? '';
+                    $bp  = (float) ($row->buy_price ?? 0);
+                    $pn  = e($row->product_name ?? '');
+                    $vn  = e($row->variant_name ?? '');
                     return '<button type="button" class="btn btn-info btn-sm btn-detail" 
-                                data-product-id="'.$row->product_id.'" 
-                                data-variant-id="'.$row->product_variant_id.'"
-                                data-buy-price="'.$row->buy_price.'"
-                                data-product-name="'.e($row->product_name).'"
-                                data-variant-name="'.e($row->variant_name).'">
+                                data-product-id="' . $pid . '" 
+                                data-variant-id="' . $vid . '"
+                                data-buy-price="' . $bp . '"
+                                data-product-name="' . $pn . '"
+                                data-variant-name="' . $vn . '">
                                 <i class="fas fa-eye"></i> Detail
                             </button>';
                 })
                 ->rawColumns(['product_name', 'action'])
                 ->with('summary', $summary)
                 ->make(true);
-        } catch (\Exception $e) {
+        } catch (\Throwable $e) {
             \Log::error('Settlement data error: ' . $e->getMessage(), [
                 'trace' => $e->getTraceAsString(),
                 'request' => $request->all()
@@ -96,13 +103,10 @@ class SettlementController extends Controller
     {
         $query = $this->getFilteredQuery($request);
         
-        // Clone the query to calculate totals without grouping/ordering of the main table
-        // Actually, since getFilteredQuery already has SUMs and GroupBy, we need to wrap it.
-        $totals = DB::table(DB::raw("({$query->toSql()}) as sub"))
-            ->mergeBindings($query)
+        $totals = DB::table($query)
             ->select(
-                DB::raw('SUM(total_qty) as grand_total_qty'),
-                DB::raw('SUM(total_cost) as grand_total_cost')
+                DB::raw('COALESCE(SUM(total_qty), 0) as grand_total_qty'),
+                DB::raw('COALESCE(SUM(total_cost), 0) as grand_total_cost')
             )
             ->first();
 
@@ -112,8 +116,8 @@ class SettlementController extends Controller
         }
 
         return [
-            'total_qty' => $totals->grand_total_qty ?? 0,
-            'total_cost' => $totals->grand_total_cost ?? 0,
+            'total_qty' => (int) ($totals->grand_total_qty ?? 0),
+            'total_cost' => (int) ($totals->grand_total_cost ?? 0),
             'supplier' => $supplier
         ];
     }

@@ -248,7 +248,9 @@
                 { data: 'customer_name', name: 'customer_name' },
                 { 
                     data: 'warehouse_name',
-                    name: 'warehouses.name',
+                    name: 'warehouse_name',
+                    searchable: false,
+                    orderable: false,
                     render: function(data) {
                         return `<span class="badge badge-light">${data}</span>`;
                     }
