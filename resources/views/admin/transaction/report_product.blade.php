@@ -112,6 +112,9 @@
                             <button type="button" class="btn btn-premium btn-sm" onclick="printReport()">
                                 <i class="fas fa-print mr-1"></i> Cetak Laporan
                             </button>
+                            <button type="button" class="btn btn-success btn-sm" onclick="exportBatch()" style="border-radius:8px;font-weight:700;">
+                                <i class="fas fa-file-excel mr-1"></i> Export Excel
+                            </button>
                         </div>
                     </div>
                     <div class="card-body pb-0">
@@ -219,6 +222,13 @@
                 var end_date = $('#end_date').val();
                 var url = "{{ url('admin/transactions/report/product/print') }}?start_date=" + start_date + "&end_date=" + end_date;
                 window.open(url, '_blank');
+            };
+
+            window.exportBatch = function() {
+                var start_date = $('#start_date').val();
+                var end_date = $('#end_date').val();
+                var url = "{{ url('admin/transactions/report/product/export-batch') }}?start_date=" + start_date + "&end_date=" + end_date;
+                window.location.href = url;
             };
         });
     </script>

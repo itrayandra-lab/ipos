@@ -835,4 +835,43 @@ class TransactionController extends Controller
 
         return view('admin.transaction.print_product', compact('items'));
     }
+
+    public function exportProductBatchReport(Request $request)
+    {
+        $query = DB::table('transaction_items')
+            ->select(
+                'transactions.transaction_date',
+                'merek.name as merek_name',
+                'products.name as product_name',
+                'product_nettos.netto_value',
+                'product_nettos.satuan',
+                'product_batches.batch_no',
+                'transaction_items.qty'
+            )
+            ->join('transactions', 'transaction_items.transaction_id', '=', 'transactions.id')
+            ->join('products', 'transaction_items.product_id', '=', 'products.id')
+            ->leftJoin('merek', 'products.merek_id', '=', 'merek.id')
+            ->leftJoin('product_variants', 'transaction_items.product_variant_id', '=', 'product_variants.id')
+            ->leftJoin('product_nettos', 'product_variants.product_netto_id', '=', 'product_nettos.id')
+            ->leftJoin('product_batches', 'transaction_items.product_batch_id', '=', 'product_batches.id');
+
+        if ($request->has('start_date') && !empty($request->start_date)) {
+            $query->where('transactions.transaction_date', '>=', Carbon::parse($request->start_date)->startOfDay());
+        }
+        if ($request->has('end_date') && !empty($request->end_date)) {
+            $query->where('transactions.transaction_date', '<=', Carbon::parse($request->end_date)->endOfDay());
+        }
+
+        $query->where(function($q) {
+            $q->where('products.is_bundle', 0)
+              ->orWhereNotNull('transaction_items.parent_item_id');
+        });
+
+        $items = $query->orderBy('transactions.transaction_date')->get();
+
+        return \Maatwebsite\Excel\Facades\Excel::download(
+            new \App\Exports\ProductBatchExport($items),
+            'Laporan-Penjualan-Per-Batch-' . date('d-m-Y') . '.xlsx'
+        );
+    }
 }

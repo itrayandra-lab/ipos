@@ -300,6 +300,7 @@ Route::prefix('admin')->middleware(['auth', 'role:super_admin,store_manager,fina
             Route::get('report/product', [TransactionAdmin::class, 'productReport'])->name('admin.transactions.report.product');
             Route::get('report/product/all', [TransactionAdmin::class, 'productReportData']);
             Route::get('report/product/print', [TransactionAdmin::class, 'printProductReport'])->name('admin.transactions.report.product.print');
+            Route::get('report/product/export-batch', [TransactionAdmin::class, 'exportProductBatchReport'])->name('admin.transactions.report.product.export_batch');
         }
         );
 
