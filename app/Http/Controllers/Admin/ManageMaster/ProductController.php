@@ -594,25 +594,33 @@ class ProductController extends Controller
 
     public function delete(Request $request)
     {
-        $product = Product::findOrFail($request->id);
+        try {
+            $product = Product::findOrFail($request->id);
 
-        Voucher::where('product_id', $request->id)->update(['status' => 'NON ACTIVE']);
+            Voucher::where('product_id', $request->id)->update(['status' => 'NON ACTIVE']);
 
-        foreach ($product->photos as $photo) {
-            if (file_exists(public_path($photo->foto))) {
-                unlink(public_path($photo->foto));
+            foreach ($product->photos as $photo) {
+                if (file_exists(public_path($photo->foto))) {
+                    unlink(public_path($photo->foto));
+                }
+                $photo->delete();
             }
-            $photo->delete();
-        }
 
-        // Clean up variants and nettos
-        foreach ($product->nettos as $netto) {
-            $netto->variants()->delete();
-            $netto->delete();
-        }
+            // Clean up variants and nettos
+            foreach ($product->nettos as $netto) {
+                $netto->variants()->delete();
+                $netto->delete();
+            }
 
-        $product->delete();
-        return response()->json(['status' => 'success', 'message' => 'Data produk berhasil dihapus'], 200);
+            $product->delete();
+            return response()->json(['status' => 'success', 'message' => 'Data produk berhasil dihapus'], 200);
+        } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
+            return response()->json(['status' => 'error', 'message' => 'Produk tidak ditemukan.'], 404);
+        } catch (\Illuminate\Database\QueryException $e) {
+            return response()->json(['status' => 'error', 'message' => 'Produk tidak dapat dihapus karena masih memiliki relasi data lain.'], 409);
+        } catch (\Exception $e) {
+            return response()->json(['status' => 'error', 'message' => 'Terjadi kesalahan saat menghapus produk: ' . $e->getMessage()], 500);
+        }
     }
 
     public function getPricing($id)

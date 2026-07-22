@@ -285,14 +285,16 @@
             $('#products-table').on('click', '.hapus[data-id]', function(e) {
                 e.preventDefault();
                 let id = $(this).data('id');
-                swal({
+                Swal.fire({
                     title: "Hapus Produk?",
                     text: "Data Produk ini akan dihapus secara permanen!",
                     icon: "warning",
-                    buttons: true,
-                    dangerMode: true,
-                }).then((willDelete) => {
-                    if (willDelete) {
+                    showCancelButton: true,
+                    confirmButtonColor: "#d33",
+                    confirmButtonText: "Ya, hapus!",
+                    cancelButtonText: "Batal"
+                }).then((result) => {
+                    if (result.isConfirmed) {
                         $.ajax({
                             data: {
                                 'id': id,
@@ -307,12 +309,20 @@
                                 $.LoadingOverlay("hide");
                             },
                             success: function(data) {
-                                swal(data.message, { icon: "success" }).then(() => {
+                                Swal.fire({
+                                    title: "Berhasil",
+                                    text: data.message,
+                                    icon: "success"
+                                }).then(() => {
                                     location.reload();
                                 });
                             },
                             error: function(err) {
-                                swal(err.responseJSON?.message || "Gagal menghapus produk", { icon: "error" });
+                                Swal.fire({
+                                    title: "Gagal",
+                                    text: err.responseJSON?.message || "Gagal menghapus produk",
+                                    icon: "error"
+                                });
                             }
                         });
                     }

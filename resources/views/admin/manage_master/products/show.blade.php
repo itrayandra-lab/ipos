@@ -89,10 +89,7 @@
                                         <div class="info-label">Merk</div>
                                         <div class="info-value">{{ $product->merek->name ?? '-' }}</div>
                                     </div>
-                                    <div class="col-6">
-                                        <div class="info-label">Slug</div>
-                                        <div class="info-value"><small class="text-muted">{{ $product->slug }}</small></div>
-                                    </div>
+
                                 </div>
                             </div>
                         </div>
@@ -118,15 +115,6 @@
                                         </ol>
                                     </nav>
                                 </div>
-                                <div class="text-right">
-                                    <div class="info-label">Total Stok</div>
-                                    <div class="h3 font-weight-bold {{ $product->stock <= $product->min_stock_alert ? 'text-danger' : 'text-success' }}">
-                                        {{ number_format($product->stock, 0, ',', '.') }}
-                                    </div>
-                                    @if($product->stock <= $product->min_stock_alert)
-                                        <span class="badge badge-warning"><i class="fas fa-exclamation-triangle"></i> Stok Rendah</span>
-                                    @endif
-                                </div>
                             </div>
 
                             <div class="mt-4">
@@ -135,7 +123,7 @@
                                     <table class="table table-hover">
                                         <thead>
                                             <tr>
-                                                <th>Varian</th>
+                                                <th>Produk</th>
                                                 <th>SKU</th>
                                                 <th class="text-right">Harga Jual</th>
                                             </tr>
@@ -145,7 +133,6 @@
                                                 <tr>
                                                     <td>
                                                         <div class="font-weight-bold">{{ $variant->variant_name }}</div>
-                                                        <small class="text-muted">{{ $variant->netto->netto_value ?? '' }} {{ $variant->netto->satuan ?? '' }}</small>
                                                     </td>
                                                     <td><code>{{ $variant->sku_code }}</code></td>
                                                     <td class="text-right font-weight-bold text-primary">Rp {{ number_format($variant->price, 0, ',', '.') }}</td>
@@ -188,13 +175,13 @@
                             @endif
 
                             <div class="mt-4">
-                                <h5 class="section-title-premium">Batch Log & Stok Real-time</h5>
+                                <h5 class="section-title-premium">Stok Realtime</h5>
                                 <div class="table-responsive">
                                     <table class="table table-sm batch-table">
                                         <thead>
                                             <tr>
                                                 <th>Batch No</th>
-                                                <th>Varian</th>
+                                                <th>Produk</th>
                                                 <th>Tgl Expired</th>
                                                 <th class="text-right">Hrg Beli</th>
                                                 <th class="text-right">Sisa Stok</th>
