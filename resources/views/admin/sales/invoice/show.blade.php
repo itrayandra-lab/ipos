@@ -190,11 +190,11 @@
                             @if($transaction->payment_status === 'credit' && $totalPaid == 0)
                             <div class="alert alert-warning py-2 px-3 mb-3">
                                 <div class="d-flex justify-content-between mb-1">
-                                    <span class="small font-weight-bold">Down Payment (DP) Tagihan</span>
-                                    <span class="font-weight-bold text-dark">Rp {{ number_format($transaction->down_payment, 0, ',', '.') }}</span>
+                                    <span class="small font-weight-bold text-white">Down Payment (DP) Tagihan</span>
+                                    <span class="font-weight-bold text-white">Rp {{ number_format($transaction->down_payment, 0, ',', '.') }}</span>
                                 </div>
-                                <hr class="my-1 border-white opacity-2" style="border-top: 1px solid rgba(0,0,0,0.1)">
-                                <div class="small text-muted italic">Silakan upload bukti bayar untuk memulai proses.</div>
+                                <hr class="my-1 border-white opacity-2" style="border-top: 1px solid rgba(255,255,255,0.3)">
+                                <div class="small text-white italic">Silakan upload bukti bayar untuk memulai proses.</div>
                             </div>
                             @endif
 
