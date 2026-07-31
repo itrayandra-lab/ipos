@@ -54,13 +54,13 @@ class TransactionController extends Controller
     {
         $user = auth()->user();
 
-        $counts = Transaction::select('payment_status', DB::raw('count(*) as total'))
+        $counts = Transaction::where('is_sample', false)->select('payment_status', DB::raw('count(*) as total'))
             ->groupBy('payment_status')
             ->get()
             ->pluck('total', 'payment_status')
             ->toArray();
 
-        $revenue = Transaction::select(
+        $revenue = Transaction::where('is_sample', false)->select(
             DB::raw('COALESCE(SUM(CASE WHEN payment_status = "paid" THEN total_amount ELSE 0 END), 0) as paid'),
             DB::raw('COALESCE(SUM(CASE WHEN payment_status = "pending" THEN total_amount ELSE 0 END), 0) as pending'),
             DB::raw('COALESCE(SUM(CASE WHEN payment_status = "unpaid" THEN total_amount ELSE 0 END), 0) as unpaid'),
@@ -96,6 +96,8 @@ class TransactionController extends Controller
             'transactions.warehouse_id',
             'transactions.invoice_number',
             'transactions.transaction_date',
+            'transactions.customer_name',
+            'transactions.is_sample',
             'users.name as user_name',
             'warehouses.name as warehouse_name'
         )
@@ -146,8 +148,54 @@ class TransactionController extends Controller
 
         return DataTables::of($query)
             ->addIndexColumn()
-            ->addColumn('user.name', function ($transaction) {
-                return $transaction->user_name;
+            ->addColumn('transaksi', function ($transaction) {
+                $code = '<span style="font-family:monospace;font-size:12px;font-weight:600;color:#475569">' . e($transaction->transaction_code ?? '#' . $transaction->id) . '</span>';
+                if ($transaction->invoice_number) {
+                    $code .= '<div style="font-size:11px;color:#0d9488;font-weight:600;margin-top:2px">' . e($transaction->invoice_number) . '</div>';
+                }
+                if ($transaction->is_sample) {
+                    $code .= '<span class="badge badge-danger" style="font-size:9px;padding:2px 6px;margin-top:3px">SAMPEL</span>';
+                }
+                return $code;
+            })
+            ->addColumn('pelanggan_kasir', function ($transaction) {
+                $customer = '<div class="font-weight-bold text-dark">' . e($transaction->customer_name ?: '-') . '</div>';
+                $kasir = '<small class="text-muted d-block">' . e($transaction->user_name) . '</small>';
+                return $customer . $kasir;
+            })
+            ->addColumn('total_bayar', function ($transaction) {
+                if ($transaction->is_sample) {
+                    return '<span class="badge badge-danger">GRATIS</span>';
+                }
+                return '<span class="amount-text">Rp ' . number_format($transaction->total_amount, 0, ',', '.') . '</span>';
+            })
+            ->addColumn('saluran_gudang', function ($transaction) {
+                $source = $transaction->source;
+                if (!$source || $source == 'offline') {
+                    $sourceHtml = '<span class="badge badge-light">Offline</span>';
+                } else {
+                    $colors = [
+                        'shopee' => 'badge-soft-warning',
+                        'tokopedia' => 'badge-soft-success',
+                        'tiktok' => 'badge-soft-secondary',
+                        'whatsapp' => 'badge-soft-info',
+                        'offline-store' => 'badge-soft-primary',
+                        'manual-invoice' => 'badge-soft-primary'
+                    ];
+                    $displayName = (in_array($source, ['offline-store', 'manual-invoice'])) ? 'OFFLINE STORE' : strtoupper($source);
+                    $cls = $colors[strtolower($source)] ?? 'badge-soft-info';
+                    $sourceHtml = '<span class="badge-soft ' . $cls . '">' . $displayName . '</span>';
+                }
+                $wh = $transaction->warehouse_name ?? 'Beautylatory';
+                return '<div>' . $sourceHtml . '</div><small class="text-muted d-block">' . e($wh) . '</small>';
+            })
+            ->addColumn('pengiriman', function ($transaction) {
+                $date = $transaction->transaction_date ? $transaction->transaction_date->format('d-m-Y') : '-';
+                $dt = $transaction->delivery_type;
+                $cls = ($dt == 'delivery') ? 'badge-soft-secondary' : 'badge-soft-info';
+                $label = ucfirst($dt ?? 'pickup');
+                $badge = '<span class="badge-soft ' . $cls . '" style="margin-top:2px">' . $label . '</span>';
+                return '<div>' . $date . '</div>' . $badge;
             })
             ->addColumn('action', function ($transaction) {
                 $role = auth()->user()->role;
@@ -188,19 +236,13 @@ class TransactionController extends Controller
                     </ul>
                 </div>';
             })
-            ->editColumn('transaction_date', function ($transaction) {
-                return $transaction->transaction_date ? $transaction->transaction_date->format('d-m-Y') : '-';
-            })
-            ->editColumn('total_amount', function ($transaction) {
-                return 'Rp ' . number_format($transaction->total_amount, 0, ',', '.');
-            })
-            ->rawColumns(['action'])
+            ->rawColumns(['transaksi', 'pelanggan_kasir', 'total_bayar', 'saluran_gudang', 'pengiriman', 'action'])
             ->make(true);
     }
 
     public function getRevenue(Request $request)
     {
-        $query = Transaction::query();
+        $query = Transaction::where('is_sample', false);
 
         $user = auth()->user();
         if (!$user->isSuperAdmin() && !$user->isStoreManager()) {
@@ -317,7 +359,7 @@ class TransactionController extends Controller
 
     private function getFilteredTransactions(Request $request)
     {
-        $query = Transaction::with(['user', 'customer', 'items.product.merek']);
+        $query = Transaction::with(['user', 'customer', 'items.product.merek'])->where('is_sample', false);
 
         // Apply filters
         if ($request->has('delivery_type') && !empty($request->delivery_type)) {
@@ -449,12 +491,15 @@ class TransactionController extends Controller
             'items.*.product_batch_id' => 'required|string',
             'items.*.qty' => 'required|integer|min:1',
             'items.*.price' => 'required|numeric|min:0',
+            'is_sample' => 'nullable|boolean',
+            'other_fees' => 'nullable|json',
         ]);
 
         try {
             DB::transaction(function () use ($request, $transaction, $id) {
                 $totalAmount   = 0;
                 $itemsToCreate = [];
+                $isSample = $request->boolean('is_sample');
                 
                 foreach ($request->items as $item) {
                     $isBundle = str_starts_with($item['product_batch_id'], 'bundle-');
@@ -482,15 +527,28 @@ class TransactionController extends Controller
                         'qty'              => $qty,
                         'price'            => $price,
                         'subtotal'         => $subtotal,
-                        'is_bundle_main'   => $isBundle
+                        'is_bundle_main'   => $isBundle,
+                        'is_sample'        => $isSample,
                     ];
                 }
                 
+                $otherFees = [];
+                $otherFeesTotal = 0;
+                if ($request->other_fees) {
+                    $otherFees = json_decode($request->other_fees, true) ?? [];
+                    foreach ($otherFees as $fee) {
+                        $otherFeesTotal += (float)($fee['amount'] ?? 0);
+                    }
+                }
                 $taxAmount    = (float) ($request->tax_amount ?? 0);
                 $discountVal  = (float) ($request->discount ?? 0);
                 $taxType      = $request->tax_type ?? 'none';
                 $discountType = $request->discount_type ?? 'fixed';
-                $grandTotal   = ($totalAmount + $taxAmount) - $discountVal;
+                $grandTotal   = ($totalAmount + $taxAmount) - $discountVal + $otherFeesTotal;
+                if ($isSample) {
+                    $grandTotal = 0;
+                    $request->merge(['payment_status' => 'paid']);
+                }
                 $txDate = $request->transaction_date ? Carbon::parse($request->transaction_date) : $transaction->transaction_date;
                 
                 $transaction->update([
@@ -499,7 +557,9 @@ class TransactionController extends Controller
                     'customer_phone'   => $request->customer_phone,
                     'warehouse_id'     => $request->warehouse_id,
                     'notes'            => $request->notes,
+                    'other_fees'       => $otherFees,
                     'total_amount'     => $grandTotal,
+                    'is_sample'        => $isSample,
                     'discount'         => $discountVal,
                     'discount_type'    => $discountType,
                     'tax_type'         => $taxType,
@@ -742,8 +802,36 @@ class TransactionController extends Controller
     }
     public function productReport()
     {
+        $sources = Transaction::where('is_sample', false)
+            ->whereNotNull('source')
+            ->distinct()
+            ->pluck('source')
+            ->toArray();
+
+        $query = Transaction::where('is_sample', false);
+
+        if (request('start_date')) {
+            $query->where('transaction_date', '>=', Carbon::parse(request('start_date'))->startOfDay());
+        }
+        if (request('end_date')) {
+            $query->where('transaction_date', '<=', Carbon::parse(request('end_date'))->endOfDay());
+        }
+        if (request('source')) {
+            $query->where('source', request('source'));
+        }
+
+        $revenue = $query->select(
+            DB::raw('COALESCE(SUM(CASE WHEN payment_status = "paid" THEN total_amount ELSE 0 END), 0) as paid'),
+            DB::raw('COALESCE(SUM(CASE WHEN payment_status = "pending" THEN total_amount ELSE 0 END), 0) as pending'),
+            DB::raw('COALESCE(SUM(CASE WHEN payment_status = "unpaid" THEN total_amount ELSE 0 END), 0) as unpaid'),
+            DB::raw('COALESCE(SUM(CASE WHEN payment_status = "credit" THEN total_amount ELSE 0 END), 0) as credit'),
+            DB::raw('COALESCE(SUM(total_amount), 0) as total')
+        )->first();
+
         return view('admin.transaction.report_product')->with([
-            'sb' => 'Transaction'
+            'sb' => 'Transaction',
+            'sources' => $sources,
+            'revenue' => $revenue,
         ]);
     }
 
@@ -755,12 +843,23 @@ class TransactionController extends Controller
                 'products.name as product_name',
                 'product_variants.variant_name',
                 'product_variants.sku_code',
+                'product_variants.product_hpp',
+                DB::raw('CASE
+                    WHEN product_variants.is_approved = 1 AND product_variants.het_online > 0 THEN product_variants.het_online
+                    WHEN product_variants.price > 0 THEN product_variants.price
+                    WHEN products.price_real > 0 THEN products.price_real
+                    ELSE products.price
+                END as selling_price'),
+                'product_nettos.netto_value',
+                'product_nettos.satuan',
                 DB::raw('SUM(transaction_items.qty) as total_qty'),
-                DB::raw('SUM(transaction_items.subtotal) as total_amount')
+                DB::raw('SUM(transaction_items.subtotal) as total_amount'),
+                DB::raw('SUM(transaction_items.qty * product_variants.product_hpp) as total_hpp')
             )
             ->join('products', 'transaction_items.product_id', '=', 'products.id')
             ->leftJoin('merek', 'products.merek_id', '=', 'merek.id')
             ->leftJoin('product_variants', 'transaction_items.product_variant_id', '=', 'product_variants.id')
+            ->leftJoin('product_nettos', 'product_variants.product_netto_id', '=', 'product_nettos.id')
             ->join('transactions', 'transaction_items.transaction_id', '=', 'transactions.id');
 
         // Apply filters
@@ -770,6 +869,9 @@ class TransactionController extends Controller
         if ($request->has('end_date') && !empty($request->end_date)) {
             $query->where('transactions.transaction_date', '<=', Carbon::parse($request->end_date)->endOfDay());
         }
+        if ($request->has('source') && !empty($request->source)) {
+            $query->where('transactions.source', $request->source);
+        }
 
         // Bundling Logic: Show components, hide bundle parents
         $query->where(function($q) {
@@ -777,7 +879,7 @@ class TransactionController extends Controller
               ->orWhereNotNull('transaction_items.parent_item_id');
         });
 
-        $query->groupBy('transaction_items.product_id', 'transaction_items.product_variant_id', 'merek.name', 'products.name', 'product_variants.variant_name', 'product_variants.sku_code')
+        $query->groupBy('transaction_items.product_id', 'transaction_items.product_variant_id', 'merek.name', 'products.name', 'product_variants.variant_name', 'product_variants.sku_code', 'product_variants.product_hpp', 'product_nettos.netto_value', 'product_nettos.satuan')
               ->orderBy('total_qty', 'desc');
 
         return DataTables::of($query)
@@ -785,16 +887,40 @@ class TransactionController extends Controller
             ->editColumn('total_amount', function ($row) {
                 return 'Rp ' . number_format($row->total_amount, 0, ',', '.');
             })
+            ->editColumn('product_hpp', function ($row) {
+                return 'Rp ' . number_format($row->product_hpp, 0, ',', '.');
+            })
+            ->editColumn('selling_price', function ($row) {
+                return 'Rp ' . number_format($row->selling_price, 0, ',', '.');
+            })
+            ->editColumn('total_hpp', function ($row) {
+                return 'Rp ' . number_format($row->total_hpp, 0, ',', '.');
+            })
             ->filterColumn('product_name', function ($query, $keyword) {
-                $query->where('products.name', 'like', "%{$keyword}%");
+                $query->where(function($q) use ($keyword) {
+                    $q->where('products.name', 'like', "%{$keyword}%")
+                      ->orWhere('merek.name', 'like', "%{$keyword}%");
+                });
             })
             ->filterColumn('variant_name', function ($query, $keyword) {
-                $query->where('product_variants.variant_name', 'like', "%{$keyword}%");
+                $query->where(function($q) use ($keyword) {
+                    $q->where('product_variants.variant_name', 'like', "%{$keyword}%")
+                      ->orWhere('product_variants.sku_code', 'like', "%{$keyword}%");
+                });
             })
             ->filterColumn('total_qty', function ($query, $keyword) {
                 // numeric aggregate — skip global search
             })
             ->filterColumn('total_amount', function ($query, $keyword) {
+                // numeric aggregate — skip global search
+            })
+            ->filterColumn('product_hpp', function ($query, $keyword) {
+                // numeric aggregate — skip global search
+            })
+            ->filterColumn('selling_price', function ($query, $keyword) {
+                // numeric aggregate — skip global search
+            })
+            ->filterColumn('total_hpp', function ($query, $keyword) {
                 // numeric aggregate — skip global search
             })
             ->make(true);
@@ -808,12 +934,23 @@ class TransactionController extends Controller
                 'products.name as product_name',
                 'product_variants.variant_name',
                 'product_variants.sku_code',
+                'product_variants.product_hpp',
+                DB::raw('CASE
+                    WHEN product_variants.is_approved = 1 AND product_variants.het_online > 0 THEN product_variants.het_online
+                    WHEN product_variants.price > 0 THEN product_variants.price
+                    WHEN products.price_real > 0 THEN products.price_real
+                    ELSE products.price
+                END as selling_price'),
+                'product_nettos.netto_value',
+                'product_nettos.satuan',
                 DB::raw('SUM(transaction_items.qty) as total_qty'),
-                DB::raw('SUM(transaction_items.subtotal) as total_amount')
+                DB::raw('SUM(transaction_items.subtotal) as total_amount'),
+                DB::raw('SUM(transaction_items.qty * product_variants.product_hpp) as total_hpp')
             )
             ->join('products', 'transaction_items.product_id', '=', 'products.id')
             ->leftJoin('merek', 'products.merek_id', '=', 'merek.id')
             ->leftJoin('product_variants', 'transaction_items.product_variant_id', '=', 'product_variants.id')
+            ->leftJoin('product_nettos', 'product_variants.product_netto_id', '=', 'product_nettos.id')
             ->join('transactions', 'transaction_items.transaction_id', '=', 'transactions.id');
 
         if ($request->has('start_date') && !empty($request->start_date)) {
@@ -822,6 +959,9 @@ class TransactionController extends Controller
         if ($request->has('end_date') && !empty($request->end_date)) {
             $query->where('transactions.transaction_date', '<=', Carbon::parse($request->end_date)->endOfDay());
         }
+        if ($request->has('source') && !empty($request->source)) {
+            $query->where('transactions.source', $request->source);
+        }
 
         // Bundling Logic: Show components, hide bundle parents
         $query->where(function($q) {
@@ -829,7 +969,7 @@ class TransactionController extends Controller
               ->orWhereNotNull('transaction_items.parent_item_id');
         });
 
-        $items = $query->groupBy('transaction_items.product_id', 'transaction_items.product_variant_id', 'merek.name', 'products.name', 'product_variants.variant_name', 'product_variants.sku_code')
+        $items = $query->groupBy('transaction_items.product_id', 'transaction_items.product_variant_id', 'merek.name', 'products.name', 'product_variants.variant_name', 'product_variants.sku_code', 'product_variants.product_hpp', 'product_nettos.netto_value', 'product_nettos.satuan')
               ->orderBy('total_qty', 'desc')
               ->get();
 

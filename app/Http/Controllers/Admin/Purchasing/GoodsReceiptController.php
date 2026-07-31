@@ -45,41 +45,129 @@ class GoodsReceiptController extends Controller
 
     public function getall()
     {
-        $grs = GoodsReceipt::with(['supplier', 'purchaseOrder', 'receiver'])->orderBy('received_date', 'desc');
+        $grs = GoodsReceipt::with([
+            'supplier',
+            'purchaseOrder',
+            'receiver',
+            'items.product.merek',
+            'items.productVariant.netto',
+            'items.productBatches.product.merek',
+            'items.productBatches.variant.netto',
+            'items.purchaseOrderItem.product.merek',
+            'items.purchaseOrderItem.product.variants.netto'
+        ])->orderBy('received_date', 'desc');
 
         return DataTables::of($grs)
             ->addIndexColumn()
-            ->addColumn('supplier_name', function ($gr) {
-            return $gr->supplier ? $gr->supplier->name : '-';
-        })
-            ->addColumn('po_number', function ($gr) {
-            return $gr->purchaseOrder ? $gr->purchaseOrder->po_number : '-';
-        })
-            ->addColumn('received_by_name', function ($gr) {
-            return $gr->receiver ? $gr->receiver->name : '-';
-        })
-            ->editColumn('received_date', function ($gr) {
-            return $gr->received_date->format('d/m/Y');
-        })
+            ->addColumn('dokumen', function ($gr) {
+                $grNumber = '<span class="po-number">' . e($gr->sj_number) . '</span>';
+                $poHtml = $gr->purchaseOrder
+                    ? '<small class="text-muted d-block">' . e($gr->purchaseOrder->po_number) . '</small>'
+                    : '<small class="text-muted d-block">-</small>';
+                return $grNumber . $poHtml;
+            })
+            ->addColumn('surat_jalan', function ($gr) {
+                $sj = '<span>' . e($gr->delivery_note_number ?? '-') . '</span>';
+                $supplier = '<small class="text-muted d-block">' . e($gr->supplier ? $gr->supplier->name : '-') . '</small>';
+                return $sj . $supplier;
+            })
+            ->addColumn('penerimaan', function ($gr) {
+                $date = '<span>' . $gr->received_date->format('d/m/Y') . '</span>';
+                $receiver = '<small class="text-muted d-block">' . e($gr->receiver ? $gr->receiver->name : '-') . '</small>';
+                $badge = $gr->status === 'confirmed' ? 'success' : 'secondary';
+                $status = '<br><span class="badge badge-status badge-' . $badge . '">' . strtoupper($gr->status) . '</span>';
+                return $date . $receiver . $status;
+            })
+            ->addColumn('produk', function ($gr) {
+                if ($gr->items->isEmpty()) {
+                    return '-';
+                }
+                return $gr->items->map(function ($item) {
+                    $parts = [];
+
+                    // Priority 1: direct relationship (product_id di goods_receipt_items)
+                    if ($item->product) {
+                        if ($item->product->merek) {
+                            $parts[] = e($item->product->merek->name);
+                        }
+                        $parts[] = e($item->product->name);
+                        if ($item->productVariant && $item->productVariant->netto) {
+                            $n = $item->productVariant->netto;
+                            $nettoText = trim($n->netto_value . ' ' . $n->satuan);
+                            if ($nettoText) {
+                                $parts[] = e($nettoText);
+                            }
+                        }
+                    }
+
+                    // Priority 2: via ProductBatch
+                    if (empty($parts)) {
+                        $batch = $item->productBatches->first();
+                        if ($batch && $batch->product) {
+                            $product = $batch->product;
+                            if ($product->merek) {
+                                $parts[] = e($product->merek->name);
+                            }
+                            $parts[] = e($product->name);
+                            if ($batch->variant && $batch->variant->netto) {
+                                $n = $batch->variant->netto;
+                                $nettoText = trim($n->netto_value . ' ' . $n->satuan);
+                                if ($nettoText) {
+                                    $parts[] = e($nettoText);
+                                }
+                            }
+                        }
+                    }
+
+                    // Priority 3: via PurchaseOrderItem
+                    if (empty($parts)) {
+                        if ($item->purchaseOrderItem && $item->purchaseOrderItem->product) {
+                            $product = $item->purchaseOrderItem->product;
+                            if ($product->merek) {
+                                $parts[] = e($product->merek->name);
+                            }
+                            $parts[] = e($product->name);
+                            $variant = $product->variants->first();
+                            if ($variant && $variant->netto) {
+                                $n = $variant->netto;
+                                $nettoText = trim($n->netto_value . ' ' . $n->satuan);
+                                if ($nettoText) {
+                                    $parts[] = e($nettoText);
+                                }
+                            }
+                        }
+                    }
+
+                    if ($parts) {
+                        return '<div>' . implode(' ', $parts) . '</div>';
+                    }
+                    return '<div>' . e($item->product_name) . '</div>';
+                })->implode('');
+            })
             ->addColumn('action', function ($gr) {
-            $isFinance = auth()->user()->isFinance();
-            $editBtn = !$isFinance ? '<a class="dropdown-item has-icon" href="' . route('admin.purchasing.goods_receipts.edit', $gr->id) . '"><i class="fas fa-edit text-warning"></i> Edit</a>' : '';
-            $deleteBtn = !$isFinance ? '
-                    <div class="dropdown-divider"></div>
-                    <a class="dropdown-item has-icon text-danger btn-delete" href="javascript:void(0)" data-id="' . $gr->id . '"><i class="fas fa-trash"></i> Hapus</a>' : '';
-            return '
+                $isFinance = auth()->user()->isFinance();
+                $editBtn = !$isFinance
+                    ? '<a class="dropdown-item has-icon" href="' . route('admin.purchasing.goods_receipts.edit', $gr->id) . '"><i class="fas fa-edit text-warning"></i> Edit</a>'
+                    : '';
+                $deleteBtn = !$isFinance
+                    ? '<div class="dropdown-divider"></div><a class="dropdown-item has-icon text-danger btn-delete" href="javascript:void(0)" data-id="' . $gr->id . '"><i class="fas fa-trash"></i> Hapus</a>'
+                    : '';
+                return '
                     <div class="dropdown d-inline dropleft">
-                        <button type="button" class="btn btn-primary btn-sm dropdown-toggle" aria-haspopup="true" data-toggle="dropdown">
-                            Action
-                        </button>
-                        <ul class="dropdown-menu">
-                            <li><a class="dropdown-item has-icon" href="' . route('admin.purchasing.goods_receipts.show', $gr->id) . '"><i class="fas fa-eye text-info"></i> Detail</a></li>
+                        <button type="button" class="btn btn-primary btn-sm dropdown-toggle" data-toggle="dropdown">Aksi</button>
+                        <div class="dropdown-menu">
+                            <a class="dropdown-item has-icon" href="' . route('admin.purchasing.goods_receipts.show', $gr->id) . '"><i class="fas fa-eye text-info"></i> Detail</a>
                             ' . $editBtn . '
                             ' . $deleteBtn . '
-                        </ul>
+                        </div>
                     </div>';
-        })
-            ->rawColumns(['action'])
+            })
+            ->rawColumns(['dokumen', 'surat_jalan', 'penerimaan', 'produk', 'action'])
+            ->filterColumn('produk', function ($query, $keyword) {
+                $query->whereHas('items', function ($q) use ($keyword) {
+                    $q->where('product_name', 'like', "%{$keyword}%");
+                });
+            })
             ->make(true);
     }
 
@@ -124,15 +212,21 @@ class GoodsReceiptController extends Controller
     public function getProducts(Request $request)
     {
         $search = $request->search;
-        $products = Product::with(['merek', 'variants.netto'])
-            ->where(function ($q) use ($search) {
-                $q->where('name', 'like', "%{$search}%")
-                  ->orWhereHas('merek', function ($mq) use ($search) {
-                      $mq->where('name', 'like', "%{$search}%");
-                  })
-                  ->orWhereHas('variants', function ($vq) use ($search) {
-                      $vq->where('sku_code', 'like', "%{$search}%");
-                  });
+        $words = array_filter(explode(' ', $search));
+
+        $products = Product::with(['merek', 'variants.netto', 'nettos'])
+            ->when($words, function ($q) use ($words) {
+                foreach ($words as $word) {
+                    $q->where(function ($subQ) use ($word) {
+                        $subQ->where('name', 'like', "%{$word}%")
+                            ->orWhereHas('merek', function ($mq) use ($word) {
+                                $mq->where('name', 'like', "%{$word}%");
+                            })
+                            ->orWhereHas('variants', function ($vq) use ($word) {
+                                $vq->where('sku_code', 'like', "%{$word}%");
+                            });
+                    });
+                }
             })
             ->limit(20)
             ->get();
@@ -165,7 +259,7 @@ class GoodsReceiptController extends Controller
                         $parts[] = $pName;
                     }
 
-                    $currentText = implode(' - ', $parts);
+                    $currentText = implode(' ', $parts);
 
                     if ($nettoText) {
                         $cleanCurrent = strtolower(str_replace(' ', '', $currentText));
@@ -183,23 +277,39 @@ class GoodsReceiptController extends Controller
                         'text' => $name,
                         'product_id' => $product->id,
                         'variant_id' => $variant->id,
-                        'product_name' => $product->name,
+                        'product_name' => trim($brand . ' ' . $product->name),
                         'variant_name' => $variant->variant_name ?? '',
                         'description' => $nettoText,
                         'satuan' => $variant->netto->satuan ?? '',
                     ];
                 }
             } else {
-                $name = trim($brand . ' ' . $product->name);
+                $nettoText = '';
+                $firstNetto = $product->nettos->first();
+                if ($firstNetto) {
+                    $nettoText = trim($firstNetto->netto_value . ' ' . $firstNetto->satuan);
+                }
+                $parts = [];
+                if ($brand) $parts[] = $brand;
+                $parts[] = $product->name;
+                if ($nettoText) {
+                    $cleanName = strtolower(str_replace(' ', '', $product->name));
+                    $cleanNetto = strtolower(str_replace(' ', '', $nettoText));
+                    if (strpos($cleanName, $cleanNetto) === false) {
+                        $parts[] = $nettoText;
+                    }
+                }
+                $name = implode(' ', array_filter($parts));
+                $name = preg_replace('/\s+/', ' ', $name);
                 $results[] = [
                     'id' => 'p_' . $product->id,
                     'text' => $name,
                     'product_id' => $product->id,
                     'variant_id' => null,
-                    'product_name' => $product->name,
+                    'product_name' => trim($brand . ' ' . $product->name),
                     'variant_name' => '',
-                    'description' => '',
-                    'satuan' => '',
+                    'description' => $nettoText,
+                    'satuan' => $firstNetto->satuan ?? '',
                 ];
             }
         }
@@ -262,6 +372,8 @@ class GoodsReceiptController extends Controller
                 $grItem = GoodsReceiptItem::create([
                     'goods_receipt_id' => $gr->id,
                     'purchase_order_item_id' => $item['purchase_order_item_id'] ?? null,
+                    'product_id' => $productId,
+                    'product_variant_id' => $variantId,
                     'product_name' => $item['product_name'],
                     'description' => $item['description'],
                     'satuan' => $item['satuan'] ?? null,
@@ -342,7 +454,7 @@ class GoodsReceiptController extends Controller
 
     public function edit($id)
     {
-        $gr = GoodsReceipt::with(['supplier', 'purchaseOrder', 'receiver', 'items'])->findOrFail($id);
+        $gr = GoodsReceipt::with(['supplier', 'purchaseOrder', 'receiver', 'items.product.merek', 'items.productVariant.netto', 'items.productBatches'])->findOrFail($id);
         $pos = PurchaseOrder::whereIn('status', ['submitted', 'approved', 'partial', 'received'])->get();
         $suppliers = Supplier::where('status', 'active')->get();
         $warehouses = \App\Models\Warehouse::where('status', 'active')->get();
@@ -429,6 +541,8 @@ class GoodsReceiptController extends Controller
                 $grItem = GoodsReceiptItem::create([
                     'goods_receipt_id' => $gr->id,
                     'purchase_order_item_id' => $item['purchase_order_item_id'] ?? null,
+                    'product_id' => $productId,
+                    'product_variant_id' => $variantId,
                     'product_name' => $item['product_name'],
                     'description' => $item['description'],
                     'satuan' => $item['satuan'] ?? null,
@@ -579,7 +693,7 @@ class GoodsReceiptController extends Controller
 
     public function show($id)
     {
-        $gr = GoodsReceipt::with(['supplier', 'purchaseOrder', 'receiver', 'items'])->findOrFail($id);
+        $gr = GoodsReceipt::with(['supplier', 'purchaseOrder', 'receiver', 'items.product.merek', 'items.productVariant.netto'])->findOrFail($id);
         return view('admin.purchasing.goods_receipts.show', compact('gr'))->with('sb', 'GoodsReceipt');
     }
 }

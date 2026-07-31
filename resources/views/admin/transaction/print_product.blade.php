@@ -10,7 +10,7 @@
         .header h2 { margin: 0; text-transform: uppercase; }
         .info { margin-bottom: 20px; }
         table { width: 100%; border-collapse: collapse; margin-bottom: 20px; }
-        th, td { border: 1px solid #ddd; padding: 10px; text-align: left; }
+        th, td { border: 1px solid #ddd; padding: 6px; text-align: left; }
         th { background-color: #f2f2f2; font-weight: bold; }
         .text-center { text-align: center; }
         .text-right { text-align: right; }
@@ -29,6 +29,7 @@
 
     <div class="info">
         <strong>Periode:</strong> {{ request('start_date') ?? '-' }} s/d {{ request('end_date') ?? '-' }}<br>
+        @if(request('source'))<strong>Channel:</strong> {{ ucfirst(request('source')) }}<br>@endif
         <strong>Dicetak Pada:</strong> {{ date('d-m-Y H:i:s') }}
     </div>
 
@@ -37,33 +38,41 @@
             <tr>
                 <th width="30">#</th>
                 <th>Nama Produk</th>
-                <th>Variant</th>
                 <th class="text-center">Qty Terjual</th>
+                <th class="text-right">HPP Satuan</th>
+                <th class="text-right">Total HPP</th>
+                <th class="text-right">Harga Jual</th>
                 <th class="text-right">Total Penjualan</th>
             </tr>
         </thead>
         <tbody>
-            @php $grandTotal = 0; $totalQty = 0; @endphp
+            @php $grandTotal = 0; $totalHpp = 0; $totalQty = 0; @endphp
             @foreach($items as $index => $item)
                 <tr>
                     <td class="text-center">{{ $index + 1 }}</td>
                     <td>
-                        <strong>{{ $item->merek_name }} {{ $item->product_name }}</strong>
+                        <strong>{{ $item->merek_name }} {{ $item->variant_name ?? $item->product_name }}</strong>
                     </td>
-                    <td>{{ $item->variant_name ?? '-' }}</td>
                     <td class="text-center">{{ $item->total_qty }}</td>
+                    <td class="text-right">Rp {{ number_format($item->product_hpp ?? 0, 0, ',', '.') }}</td>
+                    <td class="text-right">Rp {{ number_format($item->total_hpp ?? 0, 0, ',', '.') }}</td>
+                    <td class="text-right">Rp {{ number_format($item->selling_price ?? 0, 0, ',', '.') }}</td>
                     <td class="text-right">Rp {{ number_format($item->total_amount, 0, ',', '.') }}</td>
                 </tr>
                 @php 
                     $grandTotal += $item->total_amount;
+                    $totalHpp += $item->total_hpp ?? 0;
                     $totalQty += $item->total_qty;
                 @endphp
             @endforeach
         </tbody>
         <tfoot>
             <tr style="background-color: #f9f9f9; font-weight: bold;">
-                <td colspan="3" class="text-right">TOTAL KESELURUHAN</td>
+                <td class="text-right" colspan="2">TOTAL KESELURUHAN</td>
                 <td class="text-center">{{ $totalQty }}</td>
+                <td></td>
+                <td class="text-right">Rp {{ number_format($totalHpp, 0, ',', '.') }}</td>
+                <td></td>
                 <td class="text-right">Rp {{ number_format($grandTotal, 0, ',', '.') }}</td>
             </tr>
         </tfoot>

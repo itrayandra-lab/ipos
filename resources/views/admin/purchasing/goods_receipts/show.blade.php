@@ -72,7 +72,18 @@
                                         @foreach($gr->items as $index => $item)
                                         <tr>
                                             <td>{{ $index + 1 }}</td>
-                                            <td>{{ $item->product_name }}</td>
+                                            <td>
+                                                @if($item->product)
+                                                    {{ $item->product->merek->name ?? '' }} {{ $item->product->name }}
+                                                    @if($item->productVariant && $item->productVariant->netto)
+                                                        {{ $item->productVariant->netto->netto_value }} {{ $item->productVariant->netto->satuan }}
+                                                    @elseif($item->description)
+                                                        {{ $item->description }}
+                                                    @endif
+                                                @else
+                                                    {{ $item->product_name }}
+                                                @endif
+                                            </td>
                                             <td>{{ $item->description }}</td>
                                             <td class="text-center">{{ $item->satuan }}</td>
                                             <td class="text-center">{{ $item->batch_no ?: '-' }}</td>

@@ -108,11 +108,15 @@
 
             {{-- Manajemen Stok Group --}}
             @if($user->hasPermission('access_stock_menu') || $user->hasPermission('access_stock_pusat') || $user->hasPermission('access_stock_movement') || $user->hasPermission('access_stock_settlement') || $user->hasPermission('access_warehouses'))
-            <li class="nav-item dropdown {{ ($sb == 'Stock' || $sb == 'StockMovement' || $sb == 'Settlement' || $sb == 'Warehouse') ? 'active' : '' }}">
+            <li class="nav-item dropdown {{ ($sb == 'Stock' || $sb == 'StockOpname' || $sb == 'StockMovement' || $sb == 'Settlement' || $sb == 'Warehouse') ? 'active' : '' }}">
                 <a href="#" class="nav-link has-dropdown"><i class="fas fa-boxes"></i> <span>Manajemen Stok</span></a>
                 <ul class="dropdown-menu">
                     @if($user->hasPermission('access_stock_menu') || $user->hasPermission('access_stock_pusat'))
                     <li class="{{ $sb == 'Stock' ? 'active' : '' }}"><a class="nav-link" href="{{ url('admin/manage-master/stock') }}">Stok Barang</a></li>
+                    @endif
+
+                    @if($user->hasPermission('access_stock_opname') || $user->hasPermission('approve_stock_opname'))
+                    <li class="{{ $sb == 'StockOpname' ? 'active' : '' }}"><a class="nav-link" href="{{ url('admin/manage-master/stock-opname') }}">Stock Opname</a></li>
                     @endif
 
                     @if($user->hasPermission('access_stock_menu') || $user->hasPermission('access_stock_movement'))

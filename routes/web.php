@@ -27,6 +27,7 @@ use App\Http\Controllers\Admin\AffiliateController as AffiliateAdmin;
 use App\Http\Controllers\Admin\CustomerController as CustomerAdmin;
 use App\Http\Controllers\Admin\SalesDocumentController as SalesDocumentAdmin;
 use App\Http\Controllers\Admin\BankAccountController as BankAccountAdmin;
+use App\Http\Controllers\PurchaseOrderApprovalController;
 
 # Sales Controllers
 use App\Http\Controllers\Sales\DashboardController as DashboardSales;
@@ -181,6 +182,17 @@ Route::prefix('admin')->middleware(['auth', 'role:super_admin,store_manager,fina
                 }
                 );
 
+                Route::prefix('stock-opname')->group(function () {
+                    Route::get('/', [\App\Http\Controllers\Admin\ManageMaster\StockOpnameController::class , 'index']);
+                    Route::get('/create', [\App\Http\Controllers\Admin\ManageMaster\StockOpnameController::class , 'create']);
+                    Route::post('/get-products', [\App\Http\Controllers\Admin\ManageMaster\StockOpnameController::class , 'getProducts']);
+                    Route::post('/store', [\App\Http\Controllers\Admin\ManageMaster\StockOpnameController::class , 'store']);
+                    Route::post('/{id}/approve', [\App\Http\Controllers\Admin\ManageMaster\StockOpnameController::class , 'approve']);
+                    Route::post('/{id}/reject', [\App\Http\Controllers\Admin\ManageMaster\StockOpnameController::class , 'reject']);
+                    Route::get('/{id}', [\App\Http\Controllers\Admin\ManageMaster\StockOpnameController::class , 'show']);
+                }
+                );
+
                 Route::prefix('attribute-groups')->group(function () {
                     Route::get('/', [AttributeGroupAdmin::class , 'index'])->name('admin.manage_master.attribute_groups.index');
                     Route::get('/all', [AttributeGroupAdmin::class , 'getall'])->name('admin.manage_master.attribute_groups.all');
@@ -277,7 +289,7 @@ Route::prefix('admin')->middleware(['auth', 'role:super_admin,store_manager,fina
         Route::prefix('transactions')->group(function () {
             Route::get('/', [TransactionAdmin::class , 'index'])->name('admin.transactions.index');
             Route::get('all', [TransactionAdmin::class , 'getall']);
-            Route::get('revenue', [TransactionAdmin::class , 'getRevenue']);
+            Route::get('revenue', [TransactionAdmin::class , 'getRevenue'])->name('admin.transactions.revenue');
             Route::get('print', [TransactionAdmin::class , 'print']);
             Route::get('export/excel', [TransactionAdmin::class , 'exportExcel'])->name('admin.transactions.export.excel');
             Route::get('export/pdf', [TransactionAdmin::class , 'exportPdf'])->name('admin.transactions.export.pdf');
@@ -566,6 +578,11 @@ Route::prefix('branch')->middleware(['auth', 'role:super_admin,store_manager,adm
         Route::post('/returns/{id}/cancel', 'cancel')->name('branch.returns.cancel');
     });
 });
+
+# -------------------- PUBLIC: PO APPROVAL (no auth) --------------------
+Route::get('/purchase-order/approval/{token}', [PurchaseOrderApprovalController::class, 'show'])->name('purchase-order.approval.show');
+Route::post('/purchase-order/approval/{token}/approve', [PurchaseOrderApprovalController::class, 'approve'])->name('purchase-order.approval.approve');
+Route::post('/purchase-order/approval/{token}/reject', [PurchaseOrderApprovalController::class, 'reject'])->name('purchase-order.approval.reject');
 
 # -------------------- SALES --------------------
 Route::prefix('sales')->middleware(['auth', 'role:sales'])->group(function () {

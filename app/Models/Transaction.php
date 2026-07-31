@@ -26,6 +26,8 @@ class Transaction extends Model
         'customer_address',
         'source',
         'notes',
+        'other_fees',
+        'is_sample',
         'total_amount',
         'payment_status',
         'payment_method',
@@ -49,6 +51,8 @@ class Transaction extends Model
         'created_at' => 'datetime',
         'updated_at' => 'datetime',
         'due_date' => 'datetime',
+        'is_sample' => 'boolean',
+        'other_fees' => 'array',
     ];
 
     public function user()

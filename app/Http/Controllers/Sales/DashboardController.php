@@ -20,8 +20,8 @@ class DashboardController extends Controller
             'today'            => Carbon::createFromFormat('Y-m-d', date('Y-m-d'))->isoFormat('dddd, D MMMM Y'),
             'userCount'        => User::count(),
             'productCount'     => Product::count(),
-            'transactionToday' => Transaction::whereDate('created_at', $today)->where('payment_status', 'paid')->count(),
-            'incomeToday'      => Transaction::whereDate('created_at', $today)->where('payment_status', 'paid')->sum('total_amount'),
+            'transactionToday' => Transaction::whereDate('created_at', $today)->where('payment_status', 'paid')->where('is_sample', false)->count(),
+            'incomeToday'      => Transaction::whereDate('created_at', $today)->where('payment_status', 'paid')->where('is_sample', false)->sum('total_amount'),
             'latestProducts'   => Product::latest()->take(5)->get(),
         ];
 

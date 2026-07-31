@@ -108,6 +108,14 @@
             <td class="price-col">-Rp {{ number_format($transaction->discount, 0, ',', '.') }}</td>
         </tr>
         @endif
+        @if(!empty($transaction->other_fees) && is_array($transaction->other_fees))
+            @foreach($transaction->other_fees as $fee)
+            <tr>
+                <td>Biaya Lain ({{ $fee['name'] ?? '-' }}{{ !empty($fee['keterangan']) ? ' - '.$fee['keterangan'] : '' }})</td>
+                <td class="price-col">+Rp {{ number_format($fee['amount'] ?? 0, 0, ',', '.') }}</td>
+            </tr>
+            @endforeach
+        @endif
         <tr>
             <td class="bold h3" style="font-size: 14px;">TOTAL</td>
             <td class="price-col bold h3" style="font-size: 14px;">Rp {{ number_format($transaction->total_amount, 0, ',', '.') }}</td>

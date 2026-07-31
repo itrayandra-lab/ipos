@@ -78,6 +78,7 @@
                                     <thead>
                                         <tr>
                                             <th>No Batch</th>
+                                            <th>Supplier</th>
                                             <th>Exp Date</th>
                                             <th class="text-right">Qty Awal</th>
                                             <th class="text-right text-primary">Sisa Stok</th>
@@ -157,6 +158,15 @@
                     <div class="form-group">
                         <label>Qty Awal</label>
                         <input type="number" class="form-control" name="qty" id="edit-qty" required>
+                    </div>
+                    <div class="form-group">
+                        <label>Supplier</label>
+                        <select class="form-control select2" name="supplier_id" id="edit-supplier">
+                            <option value="">Pilih Supplier</option>
+                            @foreach($suppliers as $supplier)
+                                <option value="{{ $supplier->id }}">{{ $supplier->name }}</option>
+                            @endforeach
+                        </select>
                     </div>
                 </div>
                 <div class="modal-footer">
@@ -279,9 +289,11 @@
                         `;
                         @endif
 
+                        let supplierName = b.supplier ? b.supplier.name : '-';
                         $('#table-det-batches tbody').append(`
                             <tr>
                                 <td><b>${b.batch_no}</b></td>
+                                <td>${supplierName}</td>
                                 <td>${b.expiry_date ? new Date(b.expiry_date).toLocaleDateString('id-ID') : '-'}</td>
                                 <td class="text-right">${b.qty}</td>
                                 <td class="text-right text-primary font-weight-bold">${b.current_qty}</td>
@@ -297,7 +309,7 @@
                 $('#table-det-incoming tbody').empty();
                 if(res.incoming.length) {
                     res.incoming.forEach(i => {
-                        let badge = i.type === 'Supplier' ? 'badge-primary' : 'badge-dark';
+                        let badge = i.type === 'Penerimaan Barang' ? 'badge-primary' : (i.type === 'Mutasi Masuk' ? 'badge-dark' : 'badge-secondary');
                         $('#table-det-incoming tbody').append(`
                             <tr>
                                 <td><span class="badge ${badge}">${i.type}</span></td>
@@ -363,6 +375,7 @@
                     $('#edit-batch-no').val(res.data.batch_no);
                     $('#edit-expiry').val(res.data.expiry_date ? res.data.expiry_date.split('T')[0] : '');
                     $('#edit-qty').val(res.data.qty);
+                    $('#edit-supplier').val(res.data.supplier_id || '').trigger('change');
                     $('#modal-edit').modal('show');
                 }
             });

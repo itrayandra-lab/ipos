@@ -88,6 +88,11 @@
                                     <button class="btn btn-sm btn-primary" data-toggle="modal" data-target="#modal-discount"><i class="fas fa-plus"></i></button>
                                 </div>
 
+                                <div class="ringkas-info">
+                                    <span>Biaya Lain: <strong id="summary-other-fees" class="text-success">Rp 0</strong></span>
+                                    <button class="btn btn-sm btn-primary" data-toggle="modal" data-target="#modal-other-fees"><i class="fas fa-plus"></i></button>
+                                </div>
+
                                 <!-- TOTAL DISPLAY -->
                                 <div class="pos-total-display">
                                     <div class="pos-total-label">Total Harus Bayar</div>
@@ -120,10 +125,16 @@
                                 </div>
 
                                 <!-- Invoice Checkbox -->
-                                <div class="form-group mb-3">
+                                <div class="form-group mb-1">
                                     <div class="custom-control custom-checkbox">
                                         <input type="checkbox" class="custom-control-input" id="generate-invoice-check">
                                         <label class="custom-control-label font-weight-bold text-primary" for="generate-invoice-check">Cetak Invoice formal? (Format: INV/...)</label>
+                                    </div>
+                                </div>
+                                <div class="form-group mb-3">
+                                    <div class="custom-control custom-checkbox">
+                                        <input type="checkbox" class="custom-control-input" id="is-sample-check">
+                                        <label class="custom-control-label font-weight-bold text-danger" for="is-sample-check"><i class="fas fa-gift mr-1"></i> Sampel Gratis (tidak terhitung omzet)</label>
                                     </div>
                                 </div>
 
@@ -277,6 +288,42 @@
     </div>
 </div>
 
+<!-- Modal 1b: Other Fees -->
+<div class="modal fade modal-fullscreen-tablet" id="modal-other-fees" tabindex="-1" role="dialog">
+    <div class="modal-dialog" role="document">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Atur Biaya Lain</h5>
+                <button type="button" class="close" data-dismiss="modal"><span>&times;</span></button>
+            </div>
+            <div class="modal-body">
+                <div class="table-responsive">
+                    <table class="table table-sm" id="other-fees-table">
+                        <thead>
+                            <tr>
+                                <th>Nama Biaya</th>
+                                <th>Keterangan</th>
+                                <th>Nominal (Rp)</th>
+                                <th style="width:40px"></th>
+                            </tr>
+                        </thead>
+                        <tbody id="other-fees-list"></tbody>
+                    </table>
+                </div>
+                <button type="button" class="btn btn-sm btn-outline-success" id="btn-add-other-fee">
+                    <i class="fas fa-plus"></i> Tambah Biaya
+                </button>
+            </div>
+            <div class="modal-footer">
+                <div class="d-flex justify-content-between w-100 align-items-center">
+                    <span class="font-weight-bold">Total Biaya Lain: <span id="other-fees-modal-total" class="text-success">Rp 0</span></span>
+                    <button type="button" class="btn btn-primary" data-dismiss="modal">OK</button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
 <!-- Modal 2: Customer Search / Quick Add -->
 <div class="modal fade modal-fullscreen-tablet" id="modal-customer-lookup" tabindex="-1" role="dialog">
     <div class="modal-dialog" role="document">
@@ -307,13 +354,10 @@
                     <div class="form-group mb-2">
                         <input type="email" id="customer-email" class="form-control" placeholder="Email (Opsional)">
                     </div>
-                    <button type="button" class="btn btn-outline-primary btn-sm btn-block mt-2" id="btn-save-customer-ajax">
-                        <i class="fas fa-save mr-1"></i> Daftarkan Sebagai Pelanggan Tetap
+                    <button type="button" class="btn btn-primary btn-block mt-2" id="btn-save-customer-ajax">
+                        <i class="fas fa-save mr-1"></i> Simpan & Tutup
                     </button>
                 </div>
-            </div>
-            <div class="modal-footer">
-                <button type="button" class="btn btn-primary btn-block tablet-btn" data-dismiss="modal">Simpan & Tutup</button>
             </div>
         </div>
     </div>
@@ -590,6 +634,7 @@
     let affiliates = @json($affiliates);
     let affiliateProductRates = {};
     let voucherDiscount = 0;
+    let otherFees = JSON.parse(localStorage.getItem('pos_other_fees')) || [];
 
     // Group batches by product+variant combination
     batchList.forEach(batch => {
@@ -674,6 +719,46 @@
                 $('#discount-manual').val(nominal);
                 updateTotals();
             }
+        });
+
+        // Modal: Other Fees
+        $('#modal-other-fees').on('show.bs.modal', function() {
+            renderOtherFeesModal();
+        });
+
+        $('#btn-add-other-fee').on('click', function() {
+            otherFees.push({ name: '', keterangan: '', amount: 0 });
+            saveOtherFees();
+            renderOtherFeesModal();
+            updateTotals();
+        });
+
+        $(document).on('click', '.remove-other-fee', function() {
+            let i = $(this).data('index');
+            otherFees.splice(i, 1);
+            saveOtherFees();
+            renderOtherFeesModal();
+            updateTotals();
+        });
+
+        $(document).on('input', '.other-fee-name', function() {
+            let i = $(this).data('index');
+            otherFees[i].name = $(this).val();
+            saveOtherFees();
+        });
+
+        $(document).on('input', '.other-fee-keterangan', function() {
+            let i = $(this).data('index');
+            otherFees[i].keterangan = $(this).val();
+            saveOtherFees();
+        });
+
+        $(document).on('input', '.other-fee-amount', function() {
+            let i = $(this).data('index');
+            otherFees[i].amount = parseFloat($(this).val()) || 0;
+            saveOtherFees();
+            updateOtherFeesModalTotal();
+            updateTotals();
         });
 
         // Modal: Discount Sync
@@ -798,9 +883,17 @@
                 success: function(res) {
                     if (res.success) {
                         $('#customer-id').val(res.data.id);
+                        $('#customer-name').val(res.data.name);
+                        $('#customer-phone').val(res.data.phone);
                         $('#summary-customer').text(res.data.name);
-                        iziToast.success({ title: 'Berhasil', message: 'Customer terdaftar', position: 'topRight' });
+                        iziToast.success({ title: 'Berhasil', message: 'Customer tersimpan', position: 'topRight' });
+                        $('#modal-customer-lookup').modal('hide');
                     }
+                },
+                error: function(xhr) {
+                    let msg = 'Gagal menyimpan customer';
+                    if (xhr.responseJSON && xhr.responseJSON.message) msg = xhr.responseJSON.message;
+                    swal('Error', msg, 'error');
                 }
             });
         });
@@ -901,6 +994,7 @@
                     qty: item.qty,
                     discount: item.discount || 0
                 })),
+                other_fees: JSON.stringify(otherFees),
                 customer_id: $('#customer-id').val(),
                 customer_name: $('#customer-name').val(),
                 customer_phone: $('#customer-phone').val(),
@@ -911,6 +1005,7 @@
                 affiliate_id: $('#affiliate-select').val(),
                 affiliate_fee_mode: $('#affiliate-mode').val(),
                 generate_invoice: $('#generate-invoice-check').is(':checked') ? 1 : 0,
+                is_sample: $('#is-sample-check').is(':checked') ? 1 : 0,
                 transaction_date: $('#transaction-date').val(),
                 warehouse_id: $('#filter-warehouse').val(),
                 cash_received: $('#cash-received').val(),
@@ -944,6 +1039,10 @@
                 success: function(res) {
                     if (res.success) {
                         localStorage.removeItem('pos_cart');
+                        localStorage.removeItem('pos_other_fees');
+                        otherFees = [];
+                        $('#label-other-fees').text('Rp 0');
+                        $('#val-other-fees').val('[]');
                         $('#final-total-text').text($('#cart-total').text());
                         $('#cashier-name-text').text(res.cashier_name || '{{ auth()->user()->name ?? "-" }}');
                         $('#invoice-number-text').text(res.invoice_number || '-');
@@ -1294,7 +1393,7 @@
     }
 
     function removeFromCart(id) { cart = cart.filter(item => item.pseudo_batch_id != id); saveCart(); renderCart(); }
-    function clearCart() { cart = []; saveCart(); renderCart(); }
+    function clearCart() { cart = []; saveCart(); renderCart(); otherFees = []; localStorage.removeItem('pos_other_fees'); $('#label-other-fees').text('Rp 0'); $('#val-other-fees').val('[]'); }
     function saveCart() { localStorage.setItem('pos_cart', JSON.stringify(cart)); }
 
     function getSubtotal() {
@@ -1305,6 +1404,41 @@
             subtotal += (itemPrice + itemMarkup) * item.qty;
         });
         return subtotal;
+    }
+
+    function getOtherFeesTotal() {
+        let total = 0;
+        otherFees.forEach(fee => total += parseFloat(fee.amount) || 0);
+        return total;
+    }
+
+    function saveOtherFees() {
+        localStorage.setItem('pos_other_fees', JSON.stringify(otherFees));
+    }
+
+    function renderOtherFeesModal() {
+        let container = $('#other-fees-list');
+        container.empty();
+        if (otherFees.length === 0) {
+            container.append('<tr><td colspan="4" class="text-center text-muted py-3">Belum ada biaya tambahan</td></tr>');
+        } else {
+            otherFees.forEach((fee, i) => {
+                container.append(`
+                    <tr>
+                        <td><input type="text" class="form-control form-control-sm other-fee-name" value="${fee.name}" data-index="${i}"></td>
+                        <td><input type="text" class="form-control form-control-sm other-fee-keterangan" value="${fee.keterangan || ''}" data-index="${i}" placeholder="Opsional"></td>
+                        <td><input type="number" class="form-control form-control-sm other-fee-amount" value="${fee.amount}" data-index="${i}" min="0"></td>
+                        <td class="text-center"><button class="btn btn-sm btn-danger remove-other-fee" data-index="${i}"><i class="fas fa-times"></i></button></td>
+                    </tr>
+                `);
+            });
+        }
+        updateOtherFeesModalTotal();
+    }
+
+    function updateOtherFeesModalTotal() {
+        let total = getOtherFeesTotal();
+        $('#other-fees-modal-total').text('Rp ' + total.toLocaleString('id-ID'));
     }
 
     function updateTotals() {
@@ -1322,11 +1456,13 @@
         });
 
         let totalDiscount = discountManual + voucherDiscount + itemDiscountsTotal;
-        let total = Math.max(0, subtotal - totalDiscount);
+        let otherFeesTotal = getOtherFeesTotal();
+        let total = Math.max(0, subtotal - totalDiscount + otherFeesTotal);
         
         // Update Sidebar View
         $('#cart-subtotal').text('Rp ' + subtotal.toLocaleString('id-ID'));
         $('#summary-discount').text('Rp ' + totalDiscount.toLocaleString('id-ID'));
+        $('#summary-other-fees').text('Rp ' + otherFeesTotal.toLocaleString('id-ID'));
         $('#cart-total').text('Rp ' + total.toLocaleString('id-ID'));
 
         // Update Modal Preview

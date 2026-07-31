@@ -231,7 +231,7 @@
     @push('scripts')
     <script>
         $(document).ready(function() {
-            $('#products-table').DataTable({
+            var table = $('#products-table').DataTable({
                 responsive: true,
                 processing: true,
                 serverSide: true,
@@ -279,6 +279,23 @@
                     },
                     { data: 'action', name: 'action' }
                 ]
+            });
+
+            // Restore halaman DataTable dari sessionStorage
+            var savedPage = sessionStorage.getItem('products_page');
+            if (savedPage !== null) {
+                table.page(parseInt(savedPage)).draw('page');
+                sessionStorage.removeItem('products_page');
+            }
+
+            // Simpan halaman saat pagination berubah
+            table.on('page.dt', function() {
+                sessionStorage.setItem('products_page', table.page.info().page);
+            });
+
+            // Simpan halaman saat klik link navigasi (detail, edit, dll)
+            $('#products-table').on('click', 'a[href]:not([href="#"]):not([href=""])', function() {
+                sessionStorage.setItem('products_page', table.page.info().page);
             });
 
             // Delete Logic

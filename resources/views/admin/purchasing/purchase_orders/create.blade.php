@@ -42,6 +42,87 @@
     margin: 0;
 }
 
+/* select2 multi (approvers) — teal theme */
+.select2-container--default .select2-selection--multiple {
+    border: 2px solid var(--slate-200) !important;
+    border-radius: 10px !important;
+    min-height: 56px !important;
+    padding: 4px 8px !important;
+    display: flex !important;
+    align-items: center !important;
+    flex-wrap: wrap !important;
+    gap: 4px !important;
+    transition: border-color .15s, box-shadow .15s;
+}
+.select2-container--default.select2-container--focus .select2-selection--multiple {
+    border-color: var(--po-teal) !important;
+    box-shadow: 0 0 0 3px rgba(13,148,136,.1) !important;
+}
+.select2-container--default .select2-selection--multiple .select2-selection__choice {
+    background: #f0fdfa !important;
+    border: 1.5px solid #14b8a6 !important;
+    border-radius: 8px !important;
+    padding: 4px 10px !important;
+    margin: 2px !important;
+    font-size: 13px !important;
+    font-weight: 600 !important;
+    color: #0d9488 !important;
+}
+.select2-container--default .select2-selection--multiple .select2-selection__choice__remove {
+    color: #0d9488 !important;
+    margin-right: 4px !important;
+    font-weight: 700 !important;
+}
+.select2-container--default .select2-selection--multiple .select2-selection__choice__remove:hover {
+    color: #dc2626 !important;
+    background: transparent !important;
+}
+.select2-container--default .select2-selection--multiple .select2-selection__rendered {
+    padding: 0 !important;
+    display: flex !important;
+    align-items: center !important;
+    flex-wrap: wrap !important;
+    gap: 2px !important;
+}
+.select2-container--default .select2-search--inline .select2-search__field {
+    margin-top: 0 !important;
+    height: 32px !important;
+    font-size: 14px !important;
+    padding-left: 4px !important;
+    min-width: 180px !important;
+}
+.select2-container--default .select2-search--inline .select2-search__field::placeholder {
+    color: var(--slate-400);
+    font-weight: 400;
+}
+/* dropdown results */
+.select2-container--default .select2-results > .select2-results__options {
+    max-height: 240px;
+    padding: 6px;
+}
+.select2-container--default .select2-results__option {
+    padding: 10px 12px !important;
+    border-radius: 8px !important;
+    font-size: 14px !important;
+    margin-bottom: 2px !important;
+}
+.select2-container--default .select2-results__option--highlighted[aria-selected] {
+    background: #f0fdfa !important;
+    color: #0d9488 !important;
+}
+.select2-container--default .select2-results__option[aria-selected=true] {
+    background: #ccfbf1 !important;
+    color: #0f766e !important;
+    font-weight: 700 !important;
+}
+.select2-dropdown {
+    border: 1px solid #e2e8f0 !important;
+    border-radius: 12px !important;
+    box-shadow: 0 8px 24px rgba(0,0,0,.1) !important;
+    overflow: hidden;
+    padding: 4px;
+}
+
 /* Info card — clean grouped layout */
 .info-card {
     background: #fff;
@@ -230,7 +311,7 @@
     text-transform: uppercase;
 }
 .item-notes {
-    margin-top: 8px;
+    min-width: 140px;
 }
 .item-notes .form-control {
     border-radius: 6px;
@@ -246,26 +327,7 @@
 }
 
 /* Summary sidebar */
-.summary-card {
-    background: #fff;
-    border-radius: 12px;
-    border: 1px solid var(--slate-200);
-    padding: 20px;
-}
-.summary-card.is-sticky {
-    position: sticky;
-    top: 24px;
-}
-.summary-title {
-    font-size: 12px;
-    font-weight: 700;
-    text-transform: uppercase;
-    letter-spacing: .5px;
-    color: var(--slate-400);
-    padding-bottom: 14px;
-    border-bottom: 1px solid var(--slate-100);
-    margin-bottom: 14px;
-}
+
 .summary-row {
     display: flex;
     justify-content: space-between;
@@ -400,8 +462,8 @@
             @csrf
 
             <div class="row">
-                {{-- ===== LEFT COLUMN ===== --}}
-                <div class="col-lg-8">
+                {{-- ===== FULL WIDTH ===== --}}
+                <div class="col-lg-12">
 
                     {{-- INFO PO --}}
                     <div class="info-card">
@@ -409,7 +471,7 @@
                         <div class="row">
                             <div class="col-md-4 info-field">
                                 <label>Nomor PO</label>
-                                <input type="text" value="{{ $po_number }}" class="form-control" readonly>
+                                <input type="text" value="{{ $po_number }}" class="form-control" name="po_number">
                             </div>
                             <div class="col-md-4 info-field">
                                 <label>Supplier <span class="text-danger">*</span></label>
@@ -460,52 +522,63 @@
                             <i class="fas fa-plus mr-1"></i> Tambah Produk
                         </button>
                     </div>
+                    {{-- APPROVERS --}}
+                    <div class="info-card">
+                        <div class="info-card-title"><i class="fas fa-user-check mr-1" style="color:var(--po-teal);"></i> Persetujuan</div>
+                        <div class="info-field">
+                            <label>Pilih 1-3 orang approver <span class="text-danger">*</span></label>
+                            <select name="approvers[]" id="approvers" class="form-control select2" multiple="multiple" required>
+                                @foreach($users as $user)
+                                    <option value="{{ $user->id }}">{{ $user->name }} ({{ ucfirst(str_replace('_', ' ', $user->role)) }})</option>
+                                @endforeach
+                            </select>
+                            <small class="text-muted" style="margin-top:8px;display:block;"><i class="fas fa-info-circle mr-1"></i>Approver akan menerima link untuk menyetujui PO ini tanpa login.</small>
+                        </div>
+                    </div>
 
                 </div>
+            </div>
 
-                {{-- ===== RIGHT COLUMN — SUMMARY ===== --}}
-                <div class="col-lg-4">
-                    <div class="summary-card is-sticky">
-                        <div class="summary-title">Ringkasan PO</div>
-
-                        <div class="summary-row">
+            {{-- ===== SUMMARY BAR (FULL WIDTH) ===== --}}
+            <div class="info-card" style="margin-top:-12px;">
+                <div class="row align-items-center">
+                    <div class="col-md-3">
+                        <div class="summary-row" style="margin-bottom:0;">
                             <span class="summary-label">Subtotal</span>
                             <span class="summary-value" id="display-subtotal-text">Rp 0</span>
                             <input type="hidden" name="subtotal" id="input-subtotal" value="0">
                         </div>
-
-                        <div class="summary-discount">
-                            <div class="d-flex" style="gap:8px;">
-                                <select name="discount_type" id="discount_type" style="flex:0 0 90px;">
-                                    <option value="percentage">%</option>
-                                    <option value="fixed">Rp</option>
-                                </select>
-                                <input type="text" name="discount_value" id="discount_value" value="0" placeholder="Diskon" style="flex:1;">
-                                <input type="hidden" name="discount_amount" id="input-discount-amount" value="0">
-                            </div>
+                    </div>
+                    <div class="col-md-2">
+                        <div class="d-flex" style="gap:6px;align-items:center;">
+                            <select name="discount_type" id="discount_type" style="border:1px solid var(--slate-200);border-radius:6px;font-size:12px;padding:4px 6px;">
+                                <option value="percentage">%</option>
+                                <option value="fixed">Rp</option>
+                            </select>
+                            <input type="text" name="discount_value" id="discount_value" value="0" placeholder="Diskon" style="border:1px solid var(--slate-200);border-radius:6px;font-size:13px;font-weight:700;padding:4px 8px;text-align:right;width:80px;">
+                            <input type="hidden" name="discount_amount" id="input-discount-amount" value="0">
                         </div>
-
-                        <hr class="summary-hr">
-
-                        <div class="summary-row summary-tax">
-                            <div class="custom-control custom-switch">
+                    </div>
+                    <div class="col-md-2">
+                        <div class="d-flex align-items-center" style="gap:8px;">
+                            <div class="custom-control custom-switch" style="margin-bottom:0;">
                                 <input type="checkbox" class="custom-control-input" id="tax_enable">
-                                <label class="custom-control-label" for="tax_enable">PPN 11%</label>
+                                <label class="custom-control-label" for="tax_enable" style="font-size:12px;font-weight:600;">PPN 11%</label>
                             </div>
                             <span class="summary-value" id="display-tax-amount-text" style="font-size:13px;">Rp 0</span>
                             <input type="hidden" name="tax_percentage" id="tax_percentage" value="0">
                             <input type="hidden" name="tax_amount" id="input-tax-amount" value="0">
                         </div>
-
-                        <hr class="summary-hr">
-
-                        <div class="summary-row summary-grand">
+                    </div>
+                    <div class="col-md-2">
+                        <div class="summary-row summary-grand" style="margin-bottom:0;">
                             <span class="summary-label" style="font-weight:700;font-size:14px;">Grand Total</span>
-                            <span class="summary-value" id="display-total-text">Rp 0</span>
+                            <span class="summary-value" id="display-total-text" style="font-size:20px;">Rp 0</span>
                             <input type="hidden" name="total" id="input-total" value="0">
                         </div>
-
-                        <button type="button" id="btn-submit-po" onclick="submitPO()" class="btn-po-primary mt-3">
+                    </div>
+                    <div class="col-md-3 text-right">
+                        <button type="button" id="btn-submit-po" onclick="submitPO()" class="btn-po-primary" style="width:auto;padding:10px 32px;">
                             <i class="fas fa-paper-plane mr-2"></i> Ajukan PO
                         </button>
                     </div>
@@ -556,25 +629,26 @@ function itemCardHTML(idx, data) {
             </div>
             <div class="item-card-body">
                 <div class="item-fields-row">
-                    <div class="item-field" style="flex:0 0 100px;">
+                    <div class="item-field" style="flex:0 0 80px;">
                         <label>Qty</label>
                         <input type="text" name="items[${idx}][qty]" class="form-control qty-input" value="${formatNumberId(qty)}" required>
                     </div>
-                    <div class="item-field" style="flex:1;">
+                    <div class="item-field" style="flex:0 0 180px;">
                         <label>Harga</label>
                         <div class="input-group">
                             <div class="input-group-prepend"><span class="input-group-text">Rp</span></div>
                             <input type="text" name="items[${idx}][price]" class="form-control price-input" value="${formatNumberId(price)}" required>
                         </div>
                     </div>
-                    <div class="item-field" style="flex:0 0 140px;">
+                    <div class="item-field" style="flex:0 0 130px;">
                         <label>Subtotal</label>
                         <div class="item-total row-total-display">Rp ${formatNumberId(qty * price)}</div>
                     </div>
-                </div>
-                <div class="item-notes">
-                    <input type="text" name="items[${idx}][description]" class="form-control" value="${desc}" placeholder="Catatan item (ukuran, batch, exp)">
-                    <input type="hidden" name="items[${idx}][satuan]" value="">
+                    <div class="item-notes" style="flex:1;">
+                        <label style="font-size:11px;font-weight:600;color:var(--slate-400);text-transform:uppercase;letter-spacing:.3px;display:block;margin-bottom:2px;">Catatan</label>
+                        <input type="text" name="items[${idx}][description]" class="form-control" value="${desc}" placeholder="Ukuran, batch, exp...">
+                        <input type="hidden" name="items[${idx}][satuan]" value="">
+                    </div>
                 </div>
             </div>
         </div>
@@ -652,6 +726,15 @@ function submitPO() {
     }
     if (!$('#warehouse_id').val()) {
         iziToast.warning({ title: 'Peringatan', message: 'Harap pilih gudang penerimaan', position: 'topRight' });
+        return;
+    }
+    let approvers = $('#approvers').val();
+    if (!approvers || approvers.length === 0) {
+        iziToast.warning({ title: 'Peringatan', message: 'Pilih minimal 1 approver', position: 'topRight' });
+        return;
+    }
+    if (approvers.length > 3) {
+        iziToast.warning({ title: 'Peringatan', message: 'Maksimal 3 approver', position: 'topRight' });
         return;
     }
     let allFilled = true;

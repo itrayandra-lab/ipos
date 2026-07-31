@@ -228,10 +228,37 @@
                                                     @if($item->purchase_order_item_id)
                                                     <input type="hidden" name="items[{{ $index }}][purchase_order_item_id]" value="{{ $item->purchase_order_item_id }}">
                                                     @endif
-                                                    <input type="hidden" name="items[{{ $index }}][product_name]" value="{{ $item->product_name }}">
-                                                    <input type="hidden" name="items[{{ $index }}][description]" value="{{ $item->description }}">
-                                                    <input type="hidden" name="items[{{ $index }}][satuan]" value="{{ $item->satuan }}">
-                                                    <input type="text" value="{{ $item->product_name }}" class="form-control" readonly>
+                                                    @php
+                                                        $editProductId = $item->product_id;
+                                                        $editVariantId = $item->product_variant_id;
+                                                        $editDisplayName = $item->product_name;
+                                                        if (!$editProductId) {
+                                                            $batch = $item->productBatches->first();
+                                                            if ($batch) {
+                                                                $editProductId = $batch->product_id;
+                                                                $editVariantId = $batch->product_variant_id;
+                                                            }
+                                                        }
+                                                        if ($item->product) {
+                                                            $parts = [];
+                                                            if ($item->product->merek) $parts[] = $item->product->merek->name;
+                                                            $parts[] = $item->product->name;
+                                                            if ($item->productVariant && $item->productVariant->netto) {
+                                                                $parts[] = trim($item->productVariant->netto->netto_value . ' ' . $item->productVariant->netto->satuan);
+                                                            } elseif ($item->description) {
+                                                                $parts[] = $item->description;
+                                                            }
+                                                            $editDisplayName = implode(' ', $parts);
+                                                        }
+                                                    @endphp
+                                                    <input type="hidden" name="items[{{ $index }}][product_name]" class="product-name-input" value="{{ $item->product_name }}">
+                                                    <input type="hidden" name="items[{{ $index }}][product_id]" class="product-id-input" value="{{ $editProductId }}">
+                                                    <input type="hidden" name="items[{{ $index }}][variant_id]" class="variant-id-input" value="{{ $editVariantId }}">
+                                                    <input type="hidden" name="items[{{ $index }}][description]" class="description-input" value="{{ $item->description }}">
+                                                    <input type="hidden" name="items[{{ $index }}][satuan]" class="satuan-input" value="{{ $item->satuan }}">
+                                                    <select class="form-control product-select2-edit" style="width:100%;">
+                                                        <option value="{{ $editDisplayName }}" selected>{{ $editDisplayName }}</option>
+                                                    </select>
                                                 </td>
                                                 <td>
                                                     <input type="text" name="items[{{ $index }}][batch_no]" value="{{ $item->batch_no }}" class="form-control" placeholder="Batch No...">
@@ -307,6 +334,38 @@
 
     $(document).ready(function() {
         $('.select2').select2({ width: '100%' });
+
+        $('.product-select2-edit').each(function() {
+            let $select = $(this);
+            $select.select2({
+                ajax: {
+                    url: "{{ route('admin.purchasing.goods_receipts.get_products') }}",
+                    dataType: 'json',
+                    delay: 250,
+                    data: params => ({ search: params.term }),
+                    processResults: data => ({ results: data }),
+                    cache: true
+                },
+                placeholder: 'Ketik merek / produk...',
+                minimumInputLength: 2,
+                width: '100%'
+            }).on('select2:select', function(e) {
+                let data = e.params.data;
+                let row = $(this).closest('tr');
+                row.find('.product-name-input').val(data.product_name);
+                row.find('.product-id-input').val(data.product_id);
+                row.find('.variant-id-input').val(data.variant_id);
+                row.find('.description-input').val(data.description);
+                row.find('.satuan-input').val(data.satuan);
+            }).on('select2:clear', function() {
+                let row = $(this).closest('tr');
+                row.find('.product-name-input').val('');
+                row.find('.product-id-input').val('');
+                row.find('.variant-id-input').val('');
+                row.find('.description-input').val('');
+                row.find('.satuan-input').val('');
+            });
+        });
 
         $('#purchase_order_id').on('change', function() {
             let poId = $(this).val();
@@ -421,10 +480,14 @@
                             <td class="text-center">${index + 1}</td>
                             <td>
                                 <input type="hidden" name="items[${index}][purchase_order_item_id]" value="${item.id}">
-                                <input type="hidden" name="items[${index}][product_name]" value="${item.product_name}">
-                                <input type="hidden" name="items[${index}][description]" value="${item.description || ''}">
-                                <input type="hidden" name="items[${index}][satuan]" value="">
-                                <input type="text" value="${item.display_name || item.product_name}" class="form-control" readonly>
+                                <input type="hidden" name="items[${index}][product_name]" class="product-name-input" value="${item.product_name || ''}">
+                                <input type="hidden" name="items[${index}][product_id]" class="product-id-input" value="">
+                                <input type="hidden" name="items[${index}][variant_id]" class="variant-id-input" value="">
+                                <input type="hidden" name="items[${index}][description]" class="description-input" value="${item.description || ''}">
+                                <input type="hidden" name="items[${index}][satuan]" class="satuan-input" value="">
+                                <select class="form-control product-select2-edit" style="width:100%;">
+                                    <option value="${item.display_name || item.product_name}" selected>${item.display_name || item.product_name}</option>
+                                </select>
                             </td>
                             <td>
                                 <input type="text" name="items[${index}][batch_no]" class="form-control" placeholder="Batch No...">
@@ -445,6 +508,37 @@
                     $('#table-items tbody').append(html);
                 });
                 rowCount = res.items.length;
+                $('#table-items tbody').find('.product-select2-edit').each(function() {
+                    let $select = $(this);
+                    $select.select2({
+                        ajax: {
+                            url: "{{ route('admin.purchasing.goods_receipts.get_products') }}",
+                            dataType: 'json',
+                            delay: 250,
+                            data: params => ({ search: params.term }),
+                            processResults: data => ({ results: data }),
+                            cache: true
+                        },
+                        placeholder: 'Ketik merek / produk...',
+                        minimumInputLength: 2,
+                        width: '100%'
+                    }).on('select2:select', function(e) {
+                        let data = e.params.data;
+                        let row = $(this).closest('tr');
+                        row.find('.product-name-input').val(data.product_name);
+                        row.find('.product-id-input').val(data.product_id);
+                        row.find('.variant-id-input').val(data.variant_id);
+                        row.find('.description-input').val(data.description);
+                        row.find('.satuan-input').val(data.satuan);
+                    }).on('select2:clear', function() {
+                        let row = $(this).closest('tr');
+                        row.find('.product-name-input').val('');
+                        row.find('.product-id-input').val('');
+                        row.find('.variant-id-input').val('');
+                        row.find('.description-input').val('');
+                        row.find('.satuan-input').val('');
+                    });
+                });
             }
         });
     }

@@ -12,6 +12,8 @@ class GoodsReceiptItem extends Model
     protected $fillable = [
         'goods_receipt_id',
         'purchase_order_item_id',
+        'product_id',
+        'product_variant_id',
         'product_name',
         'description',
         'satuan',
@@ -36,5 +38,15 @@ class GoodsReceiptItem extends Model
     public function purchaseOrderItem()
     {
         return $this->belongsTo(PurchaseOrderItem::class);
+    }
+
+    public function product()
+    {
+        return $this->belongsTo(Product::class, 'product_id');
+    }
+
+    public function productVariant()
+    {
+        return $this->belongsTo(ProductVariant::class, 'product_variant_id');
     }
 }

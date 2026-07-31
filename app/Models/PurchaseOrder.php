@@ -60,6 +60,11 @@ class PurchaseOrder extends Model
         return $this->hasMany(GoodsReceipt::class);
     }
 
+    public function approvals()
+    {
+        return $this->hasMany(PurchaseOrderApproval::class);
+    }
+
     // Auto-generate PO number: PO/BL/YYYY/MM/XXXX
     public static function generatePONumber()
     {

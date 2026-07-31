@@ -271,6 +271,7 @@ class PosController extends Controller
             'items.*.batch_id' => 'nullable|exists:product_batches,id',
             'items.*.qty' => 'required|integer|min:1',
             'items.*.discount' => 'nullable|numeric|min:0',
+            'other_fees' => 'nullable|json',
             'customer_name' => 'nullable|string|max:100',
             'customer_phone' => 'nullable|string|max:20',
             'customer_id' => 'nullable|exists:customers,id',
@@ -283,6 +284,7 @@ class PosController extends Controller
             'transaction_date' => 'nullable|date',
             'warehouse_id' => 'required|exists:warehouses,id',
             'cash_received' => 'nullable|numeric',
+            'is_sample' => 'nullable|boolean',
         ]);
 
         if ($validator->fails()) {
@@ -322,6 +324,7 @@ class PosController extends Controller
             }
 
             $stockService = new StockService();
+            $isSample = $request->boolean('is_sample');
 
             foreach ($request->items as $item) {
                 $product = Product::findOrFail($item['product_id']);
@@ -397,7 +400,8 @@ class PosController extends Controller
                     'price' => $finalPrice, 
                     'discount' => $itemDiscount,
                     'subtotal' => $subtotal,
-                    'is_bundle' => $product->is_bundle // Temporary marker
+                    'is_bundle' => $product->is_bundle, // Temporary marker
+                    'is_sample' => $isSample,
                 ];
 
                 // Manual decrement is handled later for single items, 
@@ -449,9 +453,23 @@ class PosController extends Controller
                     }
                 }
 
-                $finalTotal = $totalAmount - $finalDiscount;
+                $otherFees = [];
+                $otherFeesTotal = 0;
+                if ($request->other_fees) {
+                    $otherFees = json_decode($request->other_fees, true) ?? [];
+                    foreach ($otherFees as $fee) {
+                        $otherFeesTotal += (float)($fee['amount'] ?? 0);
+                    }
+                }
+
+                $finalTotal = $totalAmount - $finalDiscount + $otherFeesTotal;
 
                 // Validation: Cash Received
+                if ($isSample) {
+                    $finalTotal = 0;
+                    $request->merge(['payment_status' => 'paid']);
+                }
+
                 if ($request->payment_method === 'cash') {
                     $cashReceived = (float)($request->cash_received ?? 0);
                     if ($cashReceived < $finalTotal) {
@@ -467,6 +485,8 @@ class PosController extends Controller
                     'customer_phone' => $request->customer_phone,
                     'source' => $channelSlug,
                     'notes' => $request->notes,
+                    'other_fees' => $otherFees,
+                    'is_sample' => $isSample,
                     'total_amount' => $finalTotal,
                     'payment_status' => $request->payment_status,
                     'payment_method' => $request->payment_method,

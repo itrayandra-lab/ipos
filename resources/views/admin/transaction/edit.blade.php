@@ -124,10 +124,18 @@
                                     </select>
                                 </div>
                             </div>
-                            <div class="col-md-8">
+                            <div class="col-md-4">
                                 <div class="form-group">
                                     <label>Catatan</label>
                                     <textarea name="notes" class="form-control" rows="2">{{ $transaction->notes }}</textarea>
+                                </div>
+                            </div>
+                            <div class="col-md-4 d-flex align-items-end">
+                                <div class="form-group mb-0">
+                                    <div class="form-check">
+                                        <input type="checkbox" name="is_sample" id="is_sample" class="form-check-input" value="1" {{ $transaction->is_sample ? 'checked' : '' }}>
+                                        <label class="form-check-label" for="is_sample" style="font-weight:600;color:#dc3545;">Sampel Gratis (tidak masuk omzet)</label>
+                                    </div>
                                 </div>
                             </div>
                         </div>
@@ -207,6 +215,16 @@
                                     <input type="number" name="tax_amount" id="tax_amount" class="form-control" value="{{ $transaction->tax_amount }}" min="0" step="0.01">
                                 </div>
                                 <div class="form-group">
+                                    <label>Biaya Lain</label>
+                                    <div>
+                                        <span id="label-other-fees" class="text-success font-weight-bold mr-2">Rp {{ number_format(collect($transaction->other_fees ?? [])->sum('amount'), 0, ',', '.') }}</span>
+                                        <button type="button" class="btn btn-sm btn-outline-success" data-toggle="modal" data-target="#otherFeesModal">
+                                            <i class="fas fa-plus"></i> Atur
+                                        </button>
+                                    </div>
+                                    <input type="hidden" name="other_fees" id="val-other-fees" value='{{ json_encode($transaction->other_fees ?? []) }}'>
+                                </div>
+                                <div class="form-group">
                                     <label><strong>Total</strong></label>
                                     <input type="text" id="total" class="form-control" value="Rp {{ number_format($transaction->total_amount, 0, ',', '.') }}" readonly style="font-size: 18px; font-weight: bold;">
                                 </div>
@@ -228,9 +246,49 @@
     </section>
 </div>
 
+{{-- Other Fees Modal --}}
+<div class="modal fade" id="otherFeesModal" tabindex="-1" role="dialog" aria-hidden="true">
+    <div class="modal-dialog" role="document">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Atur Biaya Lain</h5>
+                <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                    <span aria-hidden="true">&times;</span>
+                </button>
+            </div>
+            <div class="modal-body">
+                <div class="table-responsive">
+                    <table class="table table-sm">
+                        <thead>
+                            <tr>
+                                <th>Nama Biaya</th>
+                                <th>Keterangan</th>
+                                <th>Nominal (Rp)</th>
+                                <th style="width:40px"></th>
+                            </tr>
+                        </thead>
+                        <tbody id="other-fees-list"></tbody>
+                    </table>
+                </div>
+                <button type="button" class="btn btn-sm btn-outline-success" id="btn-add-other-fee">
+                    <i class="fas fa-plus"></i> Tambah Biaya
+                </button>
+            </div>
+            <div class="modal-footer">
+                <div class="d-flex justify-content-between w-100 align-items-center">
+                    <span class="font-weight-bold">Total Biaya Lain: <span id="other-fees-modal-total" class="text-success">Rp 0</span></span>
+                    <button type="button" class="btn btn-primary" data-dismiss="modal">OK</button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
 <script>
 const batchData = @json($batchList);
 let rowIndex = {{ count($transaction->items) }};
+let otherFees = JSON.parse('{{ json_encode($transaction->other_fees ?? []) }}'.replace(/&quot;/g, '"') || '[]');
+if (!Array.isArray(otherFees)) otherFees = [];
 
 function buildBatchOptions() {
     let html = '<option value="">-- Pilih Barang --</option>';
@@ -267,6 +325,37 @@ function addRow() {
     updateTotals();
 }
 
+function getOtherFeesTotal() {
+    let total = 0;
+    otherFees.forEach(function(fee) { total += parseFloat(fee.amount) || 0; });
+    return total;
+}
+
+function saveOtherFees() {
+    $('#val-other-fees').val(JSON.stringify(otherFees));
+}
+
+function renderOtherFeesModal() {
+    let container = $('#other-fees-list');
+    container.empty();
+    if (otherFees.length === 0) {
+        container.append('<tr><td colspan="4" class="text-center text-muted py-3">Belum ada biaya tambahan</td></tr>');
+    } else {
+        otherFees.forEach(function(fee, i) {
+            container.append(`
+                <tr>
+                    <td><input type="text" class="form-control form-control-sm other-fee-name" value="${fee.name}" data-index="${i}"></td>
+                    <td><input type="text" class="form-control form-control-sm other-fee-keterangan" value="${fee.keterangan || ''}" data-index="${i}" placeholder="Opsional"></td>
+                    <td><input type="number" class="form-control form-control-sm other-fee-amount" value="${fee.amount}" data-index="${i}" min="0"></td>
+                    <td class="text-center"><button class="btn btn-sm btn-danger remove-other-fee" data-index="${i}"><i class="fas fa-times"></i></button></td>
+                </tr>
+            `);
+        });
+    }
+    let total = getOtherFeesTotal();
+    $('#other-fees-modal-total').text('Rp ' + total.toLocaleString('id-ID'));
+}
+
 function updateTotals() {
     let subtotal = 0;
     $('#item-rows tr').each(function() {
@@ -279,9 +368,12 @@ function updateTotals() {
     
     let discount = parseFloat($('#discount').val()) || 0;
     let tax = parseFloat($('#tax_amount').val()) || 0;
-    let total = (subtotal + tax) - discount;
+    let otherFeesTotal = getOtherFeesTotal();
+    let total = (subtotal + tax) - discount + otherFeesTotal;
     
     $('#subtotal').val('Rp ' + subtotal.toLocaleString('id-ID'));
+    $('#label-other-fees').text('Rp ' + otherFeesTotal.toLocaleString('id-ID'));
+    saveOtherFees();
     $('#total').val('Rp ' + total.toLocaleString('id-ID'));
 }
 
@@ -296,6 +388,41 @@ $(document).ready(function() {
     });
     
     $(document).on('change', '.item-qty, .item-price, #discount, #tax_amount', updateTotals);
+
+    // Other Fees
+    $('#otherFeesModal').on('show.bs.modal', function() {
+        renderOtherFeesModal();
+    });
+
+    $('#btn-add-other-fee').on('click', function() {
+        otherFees.push({ name: '', keterangan: '', amount: 0 });
+        renderOtherFeesModal();
+        updateTotals();
+    });
+
+    $(document).on('click', '.remove-other-fee', function() {
+        let i = $(this).data('index');
+        otherFees.splice(i, 1);
+        renderOtherFeesModal();
+        updateTotals();
+    });
+
+    $(document).on('input', '.other-fee-name', function() {
+        let i = $(this).data('index');
+        otherFees[i].name = $(this).val();
+    });
+
+    $(document).on('input', '.other-fee-keterangan', function() {
+        let i = $(this).data('index');
+        otherFees[i].keterangan = $(this).val();
+    });
+
+    $(document).on('input', '.other-fee-amount', function() {
+        let i = $(this).data('index');
+        otherFees[i].amount = parseFloat($(this).val()) || 0;
+        $('#other-fees-modal-total').text('Rp ' + getOtherFeesTotal().toLocaleString('id-ID'));
+        updateTotals();
+    });
     
     $(document).on('change', '.select2-items', function() {
         let option = $(this).find(':selected');

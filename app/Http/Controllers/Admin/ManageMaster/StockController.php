@@ -42,7 +42,9 @@ class StockController extends Controller
             return $b->expiry_date && $b->expiry_date->isFuture() && $b->expiry_date->lte(now()->addDays(30));
         })->count();
 
-        return view('admin.manage_master.stock.index', compact('products', 'warehouses', 'totalSku', 'totalUnits', 'lowStockCount', 'nearExpiredCount'))->with('sb', 'Stock');
+        $suppliers = \App\Models\Supplier::orderBy('name')->get(['id', 'name']);
+
+        return view('admin.manage_master.stock.index', compact('products', 'warehouses', 'suppliers', 'totalSku', 'totalUnits', 'lowStockCount', 'nearExpiredCount'))->with('sb', 'Stock');
     }
 
     public function getall(Request $request)
@@ -132,6 +134,7 @@ class StockController extends Controller
             'product_id' => 'required|exists:products,id',
             'product_variant_id' => 'nullable|exists:product_variants,id',
             'warehouse_id' => 'nullable|exists:warehouses,id',
+            'supplier_id' => 'nullable|exists:suppliers,id',
             'batch_no' => 'required|string|max:255',
             'expiry_date' => 'nullable|date',
             'qty' => 'required|integer|min:1',
@@ -155,7 +158,7 @@ class StockController extends Controller
 
     public function get(Request $request)
     {
-        $batch = ProductBatch::with(['product.merek', 'variant'])->findOrFail($request->id);
+        $batch = ProductBatch::with(['product.merek', 'variant', 'supplier'])->findOrFail($request->id);
         return response()->json(['success' => true, 'data' => $batch]);
     }
 
@@ -167,6 +170,7 @@ class StockController extends Controller
             'expiry_date' => 'nullable|date',
             'qty' => 'required|integer|min:0',
             'buy_price' => 'nullable|numeric|min:0',
+            'supplier_id' => 'nullable|exists:suppliers,id',
         ]);
 
         if ($validator->fails()) {
@@ -174,7 +178,7 @@ class StockController extends Controller
         }
 
         $batch = ProductBatch::findOrFail($request->id);
-        $batch->update($request->only(['batch_no', 'expiry_date', 'qty', 'buy_price']));
+        $batch->update($request->only(['batch_no', 'expiry_date', 'qty', 'buy_price', 'supplier_id']));
 
         return response()->json(['success' => true, 'message' => 'Data batch berhasil diperbarui']);
     }
@@ -291,7 +295,7 @@ class StockController extends Controller
         }
 
         // 1. Get All Batches for this group
-        $batchesQuery = ProductBatch::with(['variant.netto'])
+        $batchesQuery = ProductBatch::with(['variant.netto', 'supplier'])
             ->where('product_id', $productId)
             ->where('warehouse_id', $warehouseId);
 
@@ -318,21 +322,44 @@ class StockController extends Controller
         
         $batchIds = $batches->pluck('id');
 
-        // 2. Incoming History (Supplier + Mutasi Masuk)
+        // 2. Incoming History (Supplier + Mutasi Masuk + Manual)
         $batchNos = $batches->pluck('batch_no');
-        
+
+        // Parse GR-XX numbers for direct GoodsReceiptItem lookup
+        $grItemIds = $batches->pluck('batch_no')
+            ->filter(function($bn) {
+                return preg_match('/^GR-(\d+)$/', $bn, $m);
+            })
+            ->map(function($bn) {
+                preg_match('/^GR-(\d+)$/', $bn, $m);
+                return (int)$m[1];
+            });
+
+        // Supplier from GoodsReceipt (by delivery_note_number, items.batch_no, or GR item ID)
         $fromSupplier = \App\Models\GoodsReceipt::with(['purchaseOrder', 'supplier'])
-            ->whereIn('delivery_note_number', $batchNos)
+            ->where(function($q) use ($batchNos, $grItemIds) {
+                $q->whereIn('delivery_note_number', $batchNos)
+                  ->orWhereHas('items', function($q) use ($batchNos) {
+                      $q->whereIn('batch_no', $batchNos);
+                  });
+                if ($grItemIds->isNotEmpty()) {
+                    $q->orWhereHas('items', function($q) use ($grItemIds) {
+                        $q->whereIn('id', $grItemIds);
+                    });
+                }
+            })
             ->get()
             ->map(function($item) {
                 return [
-                    'type' => 'Supplier',
+                    'type' => 'Penerimaan Barang',
                     'ref_no' => $item->sj_number ?? $item->delivery_note_number,
                     'source' => $item->supplier ? $item->supplier->name : '-',
                     'date' => $item->received_date ? $item->received_date->format('Y-m-d') : '-',
                     'print_url' => null
                 ];
-            });
+            })
+            ->unique('ref_no')
+            ->values();
 
         $fromMovement = \App\Models\StockMovementItem::with(['stockMovement.fromWarehouse'])
             ->whereIn('product_batch_id', $batchIds)
@@ -351,7 +378,81 @@ class StockController extends Controller
                 ];
             });
 
-        $incoming = $fromSupplier->concat($fromMovement)->sortByDesc('date')->values();
+        // Determine which batch IDs already have incoming coverage
+        $movementBatchIds = \App\Models\StockMovementItem::whereIn('product_batch_id', $batchIds)
+            ->whereHas('stockMovement', function($q) use ($warehouseId) {
+                $q->where('to_warehouse_id', $warehouseId)->where('status', 'completed');
+            })
+            ->pluck('product_batch_id')
+            ->unique();
+
+        $coveredBatchNos = \App\Models\GoodsReceipt::whereIn('delivery_note_number', $batchNos)
+            ->pluck('delivery_note_number')
+            ->merge(
+                \App\Models\GoodsReceiptItem::whereIn('batch_no', $batchNos)->pluck('batch_no')
+            )
+            ->unique();
+
+        $manualEntries = $batches->filter(function($batch) use ($movementBatchIds, $coveredBatchNos) {
+            return !$movementBatchIds->contains($batch->id)
+                && !$coveredBatchNos->contains($batch->batch_no);
+        })->map(function($batch) use ($product, $warehouseId) {
+            $found = false;
+            $type = 'Input Manual';
+            $refNo = $batch->batch_no;
+            $source = 'Input Stok Manual';
+            $date = $batch->created_at ? $batch->created_at->format('Y-m-d') : '-';
+
+            // 0. If batch has supplier directly assigned, show it
+            if ($batch->relationLoaded('supplier') && $batch->supplier) {
+                $type = 'Penerimaan Barang';
+                $source = $batch->supplier->name;
+                $found = true;
+            }
+
+            // 1. For GR-XX batches, try direct GoodsReceiptItem lookup
+            if (!$found && preg_match('/^GR-(\d+)$/', $batch->batch_no, $m)) {
+                $grItem = \App\Models\GoodsReceiptItem::with('goodsReceipt.supplier')->find((int)$m[1]);
+                if ($grItem && $grItem->goodsReceipt && $grItem->goodsReceipt->supplier) {
+                    $gr = $grItem->goodsReceipt;
+                    $type = 'Penerimaan Barang';
+                    $refNo = $gr->sj_number ?? $batch->batch_no;
+                    $source = $gr->supplier->name;
+                    $date = $gr->received_date ? $gr->received_date->format('Y-m-d') : $date;
+                    $found = true;
+                }
+            }
+
+            // 2. If not found, try matching by product name with GoodsReceiptItem
+            if (!$found) {
+                $grItem = \App\Models\GoodsReceiptItem::with('goodsReceipt.supplier')
+                    ->where('product_name', 'like', '%' . $product->name . '%')
+                    ->whereHas('goodsReceipt', function($q) use ($warehouseId) {
+                        $q->where('warehouse_id', $warehouseId);
+                    })
+                    ->where('quantity_received', $batch->qty)
+                    ->first();
+
+                if ($grItem && $grItem->goodsReceipt && $grItem->goodsReceipt->supplier) {
+                    $gr = $grItem->goodsReceipt;
+                    $type = 'Penerimaan Barang';
+                    $refNo = $gr->sj_number ?? $batch->batch_no;
+                    $source = $gr->supplier->name;
+                    $date = $gr->received_date ? $gr->received_date->format('Y-m-d') : $date;
+                    $found = true;
+                }
+            }
+
+            return [
+                'type' => $type,
+                'ref_no' => $refNo,
+                'source' => $source,
+                'date' => $date,
+                'print_url' => null
+            ];
+        });
+
+        $incoming = $fromSupplier->concat($fromMovement)->concat($manualEntries)->sortByDesc('date')->values();
 
         // 3. Outgoing History (Transactions + Stock Movements)
         $transactions = \App\Models\TransactionItem::with(['transaction.customer', 'batch'])
@@ -437,7 +538,9 @@ class StockController extends Controller
         $variantId = $request->variant_id;
         $warehouseId = $request->warehouse_id;
 
-        return view('admin.manage_master.stock.detail', compact('productId', 'variantId', 'warehouseId'))->with('sb', 'Stock');
+        $suppliers = \App\Models\Supplier::orderBy('name')->get(['id', 'name']);
+
+        return view('admin.manage_master.stock.detail', compact('productId', 'variantId', 'warehouseId', 'suppliers'))->with('sb', 'Stock');
     }
 
     public function expired()

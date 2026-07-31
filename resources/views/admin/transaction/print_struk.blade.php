@@ -214,6 +214,14 @@
                 <span>- Rp {{ number_format(($transaction->discount ?? 0) + $transaction->items->sum('discount'), 0, ',', '.') }}</span>
             </div>
             @endif
+            @if(!empty($transaction->other_fees) && is_array($transaction->other_fees))
+                @foreach($transaction->other_fees as $fee)
+                <div class="summary-row">
+                    <span>Biaya Lain ({{ $fee['name'] ?? '-' }}{{ !empty($fee['keterangan']) ? ' - '.$fee['keterangan'] : '' }})</span>
+                    <span>+ Rp {{ number_format($fee['amount'] ?? 0, 0, ',', '.') }}</span>
+                </div>
+                @endforeach
+            @endif
             <div class="summary-row total">
                 <span>TOTAL</span>
                 <span>Rp {{ number_format($transaction->total_amount, 0, ',', '.') }}</span>

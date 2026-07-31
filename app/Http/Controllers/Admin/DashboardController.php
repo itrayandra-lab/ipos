@@ -60,7 +60,7 @@ class DashboardController extends Controller
         }
 
         // Base Query for Transactions
-        $baseTransaction = Transaction::query()
+        $baseTransaction = Transaction::where('is_sample', false)
             ->when($warehouseId, function($q) use ($warehouseId) {
                 $q->where('warehouse_id', $warehouseId);
             });

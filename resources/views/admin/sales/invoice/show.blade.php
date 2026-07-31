@@ -127,6 +127,14 @@
                                 <div class="h6 mb-0 text-danger">- Rp {{ number_format($transaction->discount, 0, ',', '.') }}</div>
                             </div>
                             @endif
+                            @if(!empty($transaction->other_fees) && is_array($transaction->other_fees))
+                                @foreach($transaction->other_fees as $fee)
+                                <div class="d-flex justify-content-end align-items-center mt-1">
+                                    <div class="mr-5 text-muted">Biaya Lain ({{ $fee['name'] ?? '-' }}{{ !empty($fee['keterangan']) ? ' - '.$fee['keterangan'] : '' }})</div>
+                                    <div class="h6 mb-0 text-warning">+ Rp {{ number_format($fee['amount'] ?? 0, 0, ',', '.') }}</div>
+                                </div>
+                                @endforeach
+                            @endif
                             <hr>
                             <div class="d-flex justify-content-end align-items-center">
                                 <div class="mr-5 h5 mb-0">Grand Total</div>

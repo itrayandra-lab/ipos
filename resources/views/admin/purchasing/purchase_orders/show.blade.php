@@ -30,9 +30,6 @@
     .po-number-lg { font-size: 22px; font-weight: 800; color: var(--teal-600); letter-spacing: .5px; }
     .po-supplier { font-size: 15px; font-weight: 600; color: var(--slate-800); }
     .po-meta { font-size: 13px; color: var(--slate-400); }
-    .po-stat-value { font-size: 20px; font-weight: 800; }
-    .po-stat-label { font-size: 11px; text-transform: uppercase; letter-spacing: .5px; color: var(--slate-400); font-weight: 700; }
-
     .badge-semantic {
         font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: .5px;
         padding: 5px 14px; border-radius: 20px;
@@ -86,42 +83,9 @@
     .timeline-ref { font-size: 12px; color: var(--teal-600); font-weight: 600; }
     .timeline-detail { font-size: 13px; color: var(--slate-600); margin-top: 4px; }
 
-    /* ===== ZONA 4 — FINANCIAL SIDEBAR ===== */
-    .finance-sidebar {
-        background: #fff; border-radius: 16px; box-shadow: 0 1px 3px rgba(0,0,0,.06);
-        padding: 24px;
-    }
-    .finance-sidebar.is-sticky { position: sticky; top: 24px; }
-    .finance-sidebar-title {
-        font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px;
-        color: var(--slate-400); margin-bottom: 20px; padding-bottom: 12px;
-        border-bottom: 1px solid var(--slate-100);
-    }
     .fin-row { display: flex; justify-content: space-between; margin-bottom: 10px; }
     .fin-label { font-size: 13px; color: var(--slate-400); }
     .fin-value { font-size: 13px; font-weight: 600; color: var(--slate-800); }
-    .fin-divider { border-top: 1px dashed var(--slate-200); margin: 14px 0; }
-    .fin-grand .fin-value { font-size: 24px; font-weight: 800; color: var(--teal-600); }
-    .fin-paid .fin-value { color: var(--green-600); }
-    .fin-due .fin-value { color: var(--red-500); }
-
-    /* ===== ACTIONS DROPDOWN ===== */
-    .actions-dropdown .dropdown-toggle {
-        border-radius: 10px; font-weight: 700; font-size: 13px;
-        padding: 8px 18px; border: 1px solid var(--slate-200);
-        background: #fff; color: var(--slate-600);
-    }
-    .actions-dropdown .dropdown-toggle:hover { border-color: var(--teal-600); color: var(--teal-600); }
-    .actions-dropdown .dropdown-item { font-size: 13px; padding: 8px 18px; }
-    .actions-dropdown .dropdown-item i { width: 18px; color: var(--slate-400); }
-
-    .main-layout { display: flex; gap: 28px; align-items: flex-start; }
-    .main-layout-left { flex: 1; min-width: 0; }
-    .main-layout-right { width: 340px; flex-shrink: 0; }
-    @media (max-width: 991.98px) {
-        .main-layout { flex-direction: column; }
-        .main-layout-right { width: 100%; }
-    }
 </style>
 @endpush
 
@@ -179,56 +143,100 @@
                 $totalQtyPaid = $po->items->sum('paid_qty');
             @endphp
 
-            <div class="po-summary-card">
-                <div class="row align-items-center">
-                    <div class="col-md-4">
-                        <div class="po-number-lg">{{ $po->po_number }}</div>
-                        <div class="po-supplier mt-1"><i class="fas fa-building mr-1" style="color:var(--slate-400);width:16px;"></i>{{ $po->supplier->name }}</div>
-                        <div class="po-meta mt-1"><i class="fas fa-warehouse mr-1" style="width:16px;"></i>Gudang: {{ $po->warehouse->name ?? '-' }}</div>
-                    </div>
-                    <div class="col-md-4">
-                        <div class="d-flex flex-wrap align-items-center" style="gap:12px;">
-                            <div class="text-center">
-                                <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--slate-400);margin-bottom:2px;">PO</div>
-                                <span class="badge-semantic {{ $statusClasses[$po->status] ?? 'badge-neutral' }}">{{ $statusLabels[$po->status] ?? $po->status }}</span>
-                            </div>
-                            <div class="text-center">
-                                <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--slate-400);margin-bottom:2px;">Terima</div>
-                                <span class="badge-semantic {{ $receiptClasses[$receiptStatus] }}">{{ $receiptLabels[$receiptStatus] }}</span>
-                            </div>
-                            @if($po->payment_status)
-                            <div class="text-center">
-                                <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--slate-400);margin-bottom:2px;">Bayar</div>
-                                <span class="badge-semantic {{ $paymentStatusClasses[$po->payment_status] ?? 'badge-neutral' }}">{{ $paymentLabels[$po->payment_status] ?? $po->payment_status }}</span>
-                            </div>
-                            @endif
+            <div class="po-summary-card" style="margin-bottom:28px;padding:20px 24px;">
+                <div class="row">
+                    <div class="col-md-5">
+                        <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--slate-400);margin-bottom:8px;">
+                            <i class="fas fa-shopping-cart mr-1" style="color:var(--teal-600);"></i> Ringkasan Pembelian
                         </div>
-                        <div class="mt-2 small text-muted">
+                        <div class="po-number-lg" style="font-size:18px;">{{ $po->po_number }}</div>
+                        <div class="po-supplier" style="font-size:14px;"><i class="fas fa-building mr-1" style="color:var(--slate-400);width:14px;"></i>{{ $po->supplier->name }}</div>
+                        <div class="po-meta"><i class="fas fa-warehouse mr-1" style="width:14px;"></i>Gudang: {{ $po->warehouse->name ?? '-' }}</div>
+                        <div class="mt-1 small text-muted">
                             {{ $po->po_date->format('d M Y') }} &mdash; Estimasi: {{ $po->expected_delivery_date ? $po->expected_delivery_date->format('d M Y') : '-' }}
                         </div>
-                    </div>
-                    <div class="col-md-4">
-                        <div class="row">
-                            <div class="col-6">
-                                <div class="po-stat-label">Total PO</div>
-                                <div class="po-stat-value" style="color:var(--teal-600);">Rp {{ number_format($po->total, 0, ',', '.') }}</div>
-                            </div>
-                            <div class="col-6">
-                                <div class="po-stat-label">Outstanding</div>
-                                <div class="po-stat-value" style="color:var(--red-500);">Rp {{ number_format($outstanding, 0, ',', '.') }}</div>
-                            </div>
+                        <div class="d-flex mt-2" style="gap:6px;">
+                            <span class="badge-semantic {{ $statusClasses[$po->status] ?? 'badge-neutral' }}" style="font-size:10px;padding:3px 10px;">{{ $statusLabels[$po->status] ?? $po->status }}</span>
+                            <span class="badge-semantic {{ $receiptClasses[$receiptStatus] }}" style="font-size:10px;padding:3px 10px;">{{ $receiptLabels[$receiptStatus] }}</span>
+                            @if($po->payment_status)
+                            <span class="badge-semantic {{ $paymentStatusClasses[$po->payment_status] ?? 'badge-neutral' }}" style="font-size:10px;padding:3px 10px;">{{ $paymentLabels[$po->payment_status] ?? $po->payment_status }}</span>
+                            @endif
                         </div>
-                        <div class="mt-3">
-                            <div class="d-flex justify-content-between small mb-1">
-                                <span style="color:var(--slate-400);font-weight:600;">Progress Pembayaran</span>
-                                <span style="font-weight:700;">{{ $progressPct }}%</span>
+                    </div>
+                    <div class="col-md-7">
+                        <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--slate-400);margin-bottom:8px;">
+                            <i class="fas fa-calculator mr-1" style="color:var(--teal-600);"></i> Ringkasan Keuangan
+                        </div>
+                        <div class="row">
+                            <div class="col-4">
+                                <div class="fin-row" style="margin-bottom:4px;">
+                                    <span class="fin-label" style="font-size:12px;">Subtotal</span>
+                                </div>
+                                <div class="fin-row" style="margin-bottom:4px;">
+                                    <span class="fin-label" style="font-size:12px;">Diskon {{ $po->discount_type == 'percentage' ? '('.$po->discount_value.'%)' : '' }}</span>
+                                </div>
+                                <div class="fin-row" style="margin-bottom:4px;">
+                                    <span class="fin-label" style="font-size:12px;">Pajak (PPN {{ $po->tax_percentage }}%)</span>
+                                </div>
+                                <div style="border-top:1px dashed var(--slate-200);margin:4px 0;"></div>
+                                <div class="fin-row" style="margin-bottom:4px;">
+                                    <span class="fin-label" style="font-size:12px;font-weight:700;">Grand Total</span>
+                                </div>
+                                <div style="border-top:1px dashed var(--slate-200);margin:4px 0;"></div>
+                                <div class="fin-row" style="margin-bottom:4px;">
+                                    <span class="fin-label" style="font-size:12px;">Dibayar</span>
+                                </div>
+                                <div class="fin-row" style="margin-bottom:4px;">
+                                    <span class="fin-label" style="font-size:12px;">Sisa Tagihan</span>
+                                </div>
                             </div>
-                            <div class="progress progress-sm">
-                                <div class="progress-bar bg-success" role="progressbar" style="width:{{ $progressPct }}%;" aria-valuenow="{{ $progressPct }}" aria-valuemin="0" aria-valuemax="100"></div>
+                            <div class="col-4">
+                                <div class="fin-value" style="font-size:12px;margin-bottom:4px;">Rp {{ number_format($po->subtotal, 0, ',', '.') }}</div>
+                                <div class="fin-value" style="font-size:12px;color:var(--red-500);margin-bottom:4px;">- Rp {{ number_format($po->discount_amount, 0, ',', '.') }}</div>
+                                <div class="fin-value" style="font-size:12px;margin-bottom:4px;">Rp {{ number_format($po->tax_amount, 0, ',', '.') }}</div>
+                                <div style="border-top:1px dashed var(--slate-200);margin:4px 0;"></div>
+                                <div class="fin-value" style="font-size:16px;font-weight:800;color:var(--teal-600);margin-bottom:4px;">Rp {{ number_format($po->total, 0, ',', '.') }}</div>
+                                <div style="border-top:1px dashed var(--slate-200);margin:4px 0;"></div>
+                                <div class="fin-value" style="font-size:12px;color:var(--green-600);margin-bottom:4px;">Rp {{ number_format($totalPaid, 0, ',', '.') }}</div>
+                                <div class="fin-value" style="font-size:12px;color:var(--red-500);margin-bottom:4px;">Rp {{ number_format($outstanding, 0, ',', '.') }}</div>
                             </div>
-                            <div class="d-flex justify-content-between small mt-1">
-                                <span style="color:var(--green-600);font-weight:600;">Rp {{ number_format($totalPaid, 0, ',', '.') }}</span>
-                                <span style="color:var(--slate-400);">Rp {{ number_format($outstanding, 0, ',', '.') }}</span>
+                            <div class="col-4 d-flex flex-column justify-content-between">
+                                <div>
+                                    <div class="d-flex justify-content-between small mb-1">
+                                        <span style="font-size:11px;color:var(--slate-400);font-weight:600;">Progress</span>
+                                        <span style="font-size:11px;font-weight:700;">{{ $progressPct }}%</span>
+                                    </div>
+                                    <div class="progress progress-sm" style="height:6px;">
+                                        <div class="progress-bar bg-success" role="progressbar" style="width:{{ $progressPct }}%;" aria-valuenow="{{ $progressPct }}" aria-valuemin="0" aria-valuemax="100"></div>
+                                    </div>
+                                    <div class="d-flex justify-content-between small mt-1">
+                                        <span style="font-size:10px;color:var(--green-600);font-weight:600;">Rp {{ number_format($totalPaid, 0, ',', '.') }}</span>
+                                        <span style="font-size:10px;color:var(--slate-400);">Rp {{ number_format($outstanding, 0, ',', '.') }}</span>
+                                    </div>
+                                </div>
+                                <div class="mt-2 d-flex" style="gap:4px;">
+                                    @if(!auth()->user()->isFinance())
+                                    <a href="{{ route('admin.purchasing.purchase_orders.edit', $po->id) }}" class="btn btn-outline-warning btn-sm" style="border-radius:6px;font-weight:700;font-size:11px;padding:4px 10px;flex:1;">
+                                        <i class="fas fa-edit"></i>
+                                    </a>
+                                    @endif
+                                    <a href="{{ route('admin.purchasing.purchase_orders.print', $po->id) }}" target="_blank" class="btn btn-outline-info btn-sm" style="border-radius:6px;font-weight:700;font-size:11px;padding:4px 10px;flex:1;">
+                                        <i class="fas fa-print"></i>
+                                    </a>
+                                    @php
+                                        $totalAp = $po->approvals->count();
+                                        $approvedAp = $po->approvals->where('status', 'approved')->count();
+                                        $isVerified = $totalAp > 0 && $approvedAp === $totalAp;
+                                    @endphp
+                                    @if(!$isVerified)
+                                    <script>
+                                        document.currentScript.parentElement.querySelector('a[href*="print"]').addEventListener('click', function(e) {
+                                            e.preventDefault();
+                                            iziToast.warning({title:'Tidak bisa',message:'PO harus terverifikasi semua persetujuan sebelum print',position:'topRight'});
+                                        });
+                                    </script>
+                                    @endif
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -236,14 +244,8 @@
             </div>
 
             {{-- ============================================================
-                 MAIN LAYOUT: LEFT (Items + Timeline) | RIGHT (Financial Sidebar)
+                 ZONA 2 — ITEM PURCHASE ORDER (FULL WIDTH)
                  ============================================================ --}}
-            <div class="main-layout">
-                <div class="main-layout-left">
-
-                    {{-- ====================================================
-                         ZONA 2 — ITEM PURCHASE ORDER
-                         ==================================================== --}}
                     <div class="card" style="border-radius:16px;border:none;box-shadow:0 1px 3px rgba(0,0,0,.06);margin-bottom:28px;">
                         <div class="card-body p-0">
                             <div style="padding:20px 24px 0;">
@@ -302,6 +304,74 @@
                     </div>
 
                     {{-- ====================================================
+                         APPROVAL STATUS
+                         ==================================================== --}}
+                    @if($po->approvals->count() > 0)
+                    <div class="card" style="border-radius:16px;border:none;box-shadow:0 1px 3px rgba(0,0,0,.06);margin-bottom:28px;">
+                        <div class="card-body" style="padding:24px;">
+                            <h5 class="section-title"><i class="fas fa-user-check mr-2" style="color:var(--teal-600);"></i>Persetujuan</h5>
+                            <div class="row">
+                                @foreach($po->approvals as $app)
+                                @php
+                                    $appColors = match($app->status) {
+                                        'approved' => ['border' => '#16a34a', 'bg' => '#f0fdf4', 'icon' => 'fa-check-circle', 'iconColor' => '#16a34a'],
+                                        'rejected' => ['border' => '#dc2626', 'bg' => '#fef2f2', 'icon' => 'fa-times-circle', 'iconColor' => '#dc2626'],
+                                        default => ['border' => '#d97706', 'bg' => '#fffbeb', 'icon' => 'fa-clock', 'iconColor' => '#d97706']
+                                    };
+                                    $appLabel = match($app->status) {
+                                        'approved' => 'Disetujui',
+                                        'rejected' => 'Ditolak',
+                                        default => 'Menunggu'
+                                    };
+                                @endphp
+                                <div class="col-md-4 mb-3">
+                                    <div style="background:#fff;border-radius:12px;padding:16px;border-left:4px solid {{ $appColors['border'] }};box-shadow:0 1px 4px rgba(0,0,0,.06);">
+                                        <div class="d-flex align-items-center justify-content-between">
+                                            <div>
+                                                <div style="font-weight:700;color:var(--slate-800);font-size:14px;">{{ $app->user->name }}</div>
+                                                <div style="font-size:11px;color:var(--slate-400);text-transform:capitalize;">{{ str_replace('_', ' ', $app->user->role) }}</div>
+                                            </div>
+                                            <div style="width:40px;height:40px;border-radius:50%;background:{{ $appColors['bg'] }};display:flex;align-items:center;justify-content:center;">
+                                                <i class="fas {{ $appColors['icon'] }}" style="font-size:18px;color:{{ $appColors['iconColor'] }};"></i>
+                                            </div>
+                                        </div>
+                                        <div class="mt-3 d-flex align-items-center" style="gap:8px;">
+                                            <span style="display:inline-block;padding:4px 12px;border-radius:20px;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.3px;background:{{ $appColors['bg'] }};color:{{ $appColors['border'] }};">
+                                                <i class="fas {{ $appColors['icon'] }} mr-1"></i> {{ $appLabel }}
+                                            </span>
+                                            @if($app->approved_at)
+                                            <span style="font-size:11px;color:var(--slate-400);">
+                                                {{ $app->approved_at->format('d/m/Y H:i') }}
+                                            </span>
+                                            @endif
+                                        </div>
+                                        @if($app->status === 'rejected' && $app->rejected_reason)
+                                        <div style="font-size:12px;color:#991b1b;margin-top:10px;padding:10px 12px;background:#fef2f2;border-radius:8px;border:1px solid #fecaca;">
+                                            <i class="fas fa-comment mr-1"></i><strong>Alasan:</strong> {{ $app->rejected_reason }}
+                                        </div>
+                                        @endif
+                                        @if($app->status === 'pending')
+                                        <div class="mt-3">
+                                            @php $link = route('purchase-order.approval.show', $app->token); @endphp
+                                            <div class="input-group input-group-sm" style="border:1px solid #e2e8f0;border-radius:8px;overflow:hidden;">
+                                                <input type="text" class="form-control" value="{{ $link }}" readonly style="border:none;background:#f8fafc;font-size:11px;padding:6px 10px;border-radius:8px 0 0 8px;cursor:text;">
+                                                <div class="input-group-append">
+                                                    <button class="btn btn-sm" style="background:var(--teal-600);color:#fff;border:none;border-radius:0 8px 8px 0;padding:6px 12px;font-size:12px;font-weight:600;" onclick="copyLink(this,'{{ $link }}')">
+                                                        <i class="fas fa-copy mr-1"></i> Salin
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        @endif
+                                    </div>
+                                </div>
+                                @endforeach
+                            </div>
+                        </div>
+                    </div>
+                    @endif
+
+                    {{-- ====================================================
                          ZONA 3 — ACTIVITY TIMELINE
                          ==================================================== --}}
                     <div class="card" style="border-radius:16px;border:none;box-shadow:0 1px 3px rgba(0,0,0,.06);margin-bottom:28px;">
@@ -333,72 +403,34 @@
                         </div>
                     </div>
 
-                </div>{{-- /main-layout-left --}}
-
-                {{-- ========================================================
-                     ZONA 4 — FINANCIAL SIDEBAR (STICKY)
-                     ======================================================== --}}
-                <div class="main-layout-right">
-                    <div class="finance-sidebar is-sticky">
-                        <div class="finance-sidebar-title"><i class="fas fa-calculator mr-2"></i>Ringkasan Keuangan</div>
-
-                        <div class="fin-row">
-                            <span class="fin-label">Subtotal</span>
-                            <span class="fin-value">Rp {{ number_format($po->subtotal, 0, ',', '.') }}</span>
-                        </div>
-                        <div class="fin-row">
-                            <span class="fin-label">Diskon {{ $po->discount_type == 'percentage' ? '('.$po->discount_value.'%)' : '' }}</span>
-                            <span class="fin-value" style="color:var(--red-500);">- Rp {{ number_format($po->discount_amount, 0, ',', '.') }}</span>
-                        </div>
-                        <div class="fin-row">
-                            <span class="fin-label">Pajak (PPN {{ $po->tax_percentage }}%)</span>
-                            <span class="fin-value">Rp {{ number_format($po->tax_amount, 0, ',', '.') }}</span>
-                        </div>
-
-                        <div class="fin-divider"></div>
-
-                        <div class="fin-row fin-grand">
-                            <span class="fin-label" style="font-weight:700;">Grand Total</span>
-                            <span class="fin-value">Rp {{ number_format($po->total, 0, ',', '.') }}</span>
-                        </div>
-
-                        <div class="fin-divider"></div>
-
-                        <div class="fin-row fin-paid">
-                            <span class="fin-label">Dibayar</span>
-                            <span class="fin-value">Rp {{ number_format($totalPaid, 0, ',', '.') }}</span>
-                        </div>
-                        <div class="fin-row fin-due">
-                            <span class="fin-label">Sisa Tagihan</span>
-                            <span class="fin-value">Rp {{ number_format($outstanding, 0, ',', '.') }}</span>
-                        </div>
-
-                        <div class="mt-3">
-                            <div class="progress progress-sm">
-                                <div class="progress-bar bg-success" role="progressbar" style="width:{{ $progressPct }}%;" aria-valuenow="{{ $progressPct }}" aria-valuemin="0" aria-valuemax="100"></div>
-                            </div>
-                            <div style="font-size:11px;color:var(--slate-400);text-align:center;margin-top:6px;">Progress {{ $progressPct }}%</div>
-                        </div>
-
-                        <div class="mt-4 d-flex justify-content-between" style="gap:8px;">
-                            @if(!auth()->user()->isFinance())
-                            <a href="{{ route('admin.purchasing.purchase_orders.edit', $po->id) }}" class="btn btn-outline-warning btn-sm" style="border-radius:8px;font-weight:700;flex:1;">
-                                <i class="fas fa-edit"></i> Edit
-                            </a>
-                            @endif
-                            <a href="{{ route('admin.purchasing.purchase_orders.print', $po->id) }}" target="_blank" class="btn btn-outline-info btn-sm" style="border-radius:8px;font-weight:700;flex:1;">
-                                <i class="fas fa-print"></i> Print
-                            </a>
-                        </div>
-
-                        <div class="mt-3" style="font-size:11px;color:var(--slate-400);text-align:center;">
-                            <i class="fas fa-user mr-1"></i>Dibuat oleh: <strong>{{ $po->creator->name }}</strong>
-                            <br>{{ $po->created_at->format('d/m/Y H:i') }}
-                        </div>
-                    </div>
-                </div>
-            </div>{{-- /main-layout --}}
-        </div>
+        </div>{{-- /section-body --}}
     </section>
 </div>
+@push('scripts')
+<script>
+function copyLink(btn, url) {
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(url).then(function() {
+            $(btn).html('<i class="fas fa-check mr-1"></i> Tersalin');
+            setTimeout(function() { $(btn).html('<i class="fas fa-copy mr-1"></i> Salin'); }, 2000);
+            iziToast.success({ title: 'Berhasil', message: 'Link tersalin', position: 'topRight' });
+        }).catch(function() { fallbackCopy(btn, url); });
+    } else {
+        fallbackCopy(btn, url);
+    }
+}
+function fallbackCopy(btn, url) {
+    var $input = $(btn).closest('.input-group').find('input');
+    $input.focus().select();
+    try {
+        document.execCommand('copy');
+        $(btn).html('<i class="fas fa-check mr-1"></i> Tersalin');
+        setTimeout(function() { $(btn).html('<i class="fas fa-copy mr-1"></i> Salin'); }, 2000);
+        iziToast.success({ title: 'Berhasil', message: 'Link tersalin', position: 'topRight' });
+    } catch (e) {
+        iziToast.info({ title: 'Salin Manual', message: 'Sorot link lalu copy manual (Ctrl+C)', position: 'topRight' });
+    }
+}
+</script>
+@endpush
 @endsection

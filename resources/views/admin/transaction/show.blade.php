@@ -124,31 +124,18 @@
                                                 <th>Metode</th>
                                                 <td><span class="badge badge-light text-uppercase">{{ $transaction->payment_method ?? 'Cash' }}</span></td>
                                             </tr>
-                                            <tr>
-                                                <th>Subtotal</th>
-                                                <td>Rp {{ number_format($transaction->items->sum('subtotal') + $transaction->items->sum('discount'), 0, ',', '.') }}</td>
-                                            </tr>
-                                            <tr>
-                                                <th>Kode Voucher</th>
-                                                <td>{{ $transaction->voucher_code ?? '-' }}</td>
-                                            </tr>
-                                            <tr>
-                                                <th>Potongan Diskon</th>
-                                                <td class="text-danger">- Rp {{ number_format(($transaction->discount ?? 0) + $transaction->items->sum('discount'), 0, ',', '.') }}</td>
-                                            </tr>
-                                            <tr class="bg-light">
-                                                <th>Total Tagihan</th>
-                                                <td class="font-weight-bold text-primary">Rp {{ number_format($transaction->total_amount, 0, ',', '.') }}</td>
-                                            </tr>
                                             @php
                                                 $totalPaidActual = $transaction->payments->sum('amount');
                                                 $isPaidStatus = $transaction->payment_status === 'paid';
                                                 $remainingForAction = $transaction->total_amount - $totalPaidActual;
                                                 
-                                                // If paid, show full amount as paid and 0 remaining for UI purposes
                                                 $displayPaid = $isPaidStatus ? $transaction->total_amount : $totalPaidActual;
                                                 $displayRemaining = $isPaidStatus ? 0 : $remainingForAction;
                                             @endphp
+                                            <tr class="bg-light">
+                                                <th>Total Tagihan</th>
+                                                <td class="font-weight-bold text-primary h6">Rp {{ number_format($transaction->total_amount, 0, ',', '.') }}</td>
+                                            </tr>
                                             <tr>
                                                 <th>Total Terbayar</th>
                                                 <td class="text-success font-weight-bold">Rp {{ number_format($displayPaid, 0, ',', '.') }}</td>
@@ -272,7 +259,7 @@
                             </div>
                         </div>
 
-                        <div class="section-title mt-5">📦 Item Transaksi</div>
+                        <div class="section-title mt-5">Item Transaksi</div>
                         <div class="table-responsive">
                             <table class="table table-striped table-hover mt-2">
                             <thead>
@@ -309,15 +296,23 @@
                                          <th class="text-right">Rp {{ number_format($transaction->items->sum('subtotal') + $transaction->items->sum('discount'), 0, ',', '.') }}</th>
                                      </tr>
                                      @if (($transaction->discount ?? 0) + $transaction->items->sum('discount') > 0)
+                                          <tr>
+                                              <th colspan="5" class="text-right text-danger">Diskon</th>
+                                              <th class="text-right text-danger">- Rp {{ number_format(($transaction->discount ?? 0) + $transaction->items->sum('discount'), 0, ',', '.') }}</th>
+                                          </tr>
+                                      @endif
+                                     @if(!empty($transaction->other_fees) && is_array($transaction->other_fees))
+                                         @foreach($transaction->other_fees as $fee)
                                          <tr>
-                                             <th colspan="5" class="text-right text-danger">Diskon</th>
-                                             <th class="text-right text-danger">- Rp {{ number_format(($transaction->discount ?? 0) + $transaction->items->sum('discount'), 0, ',', '.') }}</th>
+                                              <th colspan="5" class="text-right text-warning">Biaya Lain ({{ $fee['name'] ?? '-' }}{{ !empty($fee['keterangan']) ? ' - '.$fee['keterangan'] : '' }})</th>
+                                             <th class="text-right text-warning">+ Rp {{ number_format($fee['amount'] ?? 0, 0, ',', '.') }}</th>
                                          </tr>
+                                         @endforeach
                                      @endif
-                                    <tr>
-                                        <th colspan="5" class="text-right h5">Grand Total</th>
-                                        <th class="text-right h5 text-primary">Rp {{ number_format($transaction->total_amount, 0, ',', '.') }}</th>
-                                    </tr>
+                                     <tr>
+                                         <th colspan="5" class="text-right h5">Grand Total</th>
+                                         <th class="text-right h5 text-primary">Rp {{ number_format($transaction->total_amount, 0, ',', '.') }}</th>
+                                     </tr>
                                 </tfoot>
                             </table>
                         </div>

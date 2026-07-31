@@ -13,11 +13,17 @@ class ProductBatch extends Model
         'product_id',
         'product_variant_id',
         'warehouse_id',
+        'supplier_id',
         'batch_no',
         'expiry_date',
         'qty',
         'buy_price',
     ];
+
+    public function supplier()
+    {
+        return $this->belongsTo(Supplier::class);
+    }
 
     protected $appends = ['current_stock'];
 

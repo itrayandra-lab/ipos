@@ -96,6 +96,7 @@ class OnlineSaleController extends Controller
             'items.*.product_batch_id' => 'required|exists:product_batches,id',
             'items.*.qty' => 'required|integer|min:1',
             'items.*.discount' => 'nullable|numeric|min:0',
+            'other_fees' => 'nullable|json',
             'payment_receipt' => 'nullable|file|mimes:jpg,jpeg,png,pdf|max:2048',
         ]);
 
@@ -172,6 +173,16 @@ class OnlineSaleController extends Controller
                     ];
                 }
 
+                $otherFees = [];
+                $otherFeesTotal = 0;
+                if ($request->other_fees) {
+                    $otherFees = json_decode($request->other_fees, true) ?? [];
+                    foreach ($otherFees as $fee) {
+                        $otherFeesTotal += (float)($fee['amount'] ?? 0);
+                    }
+                }
+                $totalAmount += $otherFeesTotal;
+
                 $whCode = \App\Models\Warehouse::where('id', $request->warehouse_id)->value('code') ?? '';
                 $transaction = Transaction::create([
                     'transaction_code' => \App\Services\TransactionCodeService::generate($request->transaction_date ? \Carbon\Carbon::parse($request->transaction_date) : now(), $whCode),
@@ -179,6 +190,7 @@ class OnlineSaleController extends Controller
                     'source' => $request->source,
                     'warehouse_id' => $request->warehouse_id,
                     'notes' => $request->notes,
+                    'other_fees' => $otherFees,
                     'total_amount' => $totalAmount,
                     'discount' => $request->discount ?? 0,
                     'discount_type' => 'fixed',
@@ -381,6 +393,7 @@ class OnlineSaleController extends Controller
             'items.*.product_batch_id' => 'required|exists:product_batches,id',
             'items.*.qty' => 'required|integer|min:1',
             'items.*.discount' => 'nullable|numeric|min:0',
+            'other_fees' => 'nullable|json',
             'payment_receipt' => 'nullable|file|mimes:jpg,jpeg,png,pdf|max:2048',
         ]);
 
@@ -447,11 +460,22 @@ class OnlineSaleController extends Controller
                     $product->decrement('stock', $item['qty']);
                 }
 
+                $otherFees = [];
+                $otherFeesTotal = 0;
+                if ($request->other_fees) {
+                    $otherFees = json_decode($request->other_fees, true) ?? [];
+                    foreach ($otherFees as $fee) {
+                        $otherFeesTotal += (float)($fee['amount'] ?? 0);
+                    }
+                }
+                $totalAmount += $otherFeesTotal;
+
                 // 4. Update Transaction
                 $transaction->update([
                     'source' => $request->source,
                     'warehouse_id' => $request->warehouse_id ?? $transaction->warehouse_id,
                     'notes' => $request->notes,
+                    'other_fees' => $otherFees,
                     'total_amount' => $totalAmount,
                     'discount' => $request->discount ?? 0,
                     'discount_type' => 'fixed',

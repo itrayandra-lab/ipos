@@ -88,10 +88,10 @@
         font-size: 11px;
         letter-spacing: 0.5px;
         border-top: none;
-        padding: 15px 25px !important;
+        padding: 8px 12px !important;
     }
     .table tbody td {
-        padding: 15px 25px !important;
+        padding: 8px 12px !important;
         vertical-align: middle;
         color: #334155;
         font-weight: 500;
@@ -123,7 +123,7 @@
     .dataTables_wrapper .dataTables_filter,
     .dataTables_wrapper .dataTables_info,
     .dataTables_wrapper .dataTables_paginate {
-        padding: 15px 25px !important;
+        padding: 8px 12px !important;
     }
 
     .stat-card {
@@ -176,6 +176,10 @@
         font-weight: 800;
         color: #1e293b;
         line-height: 1;
+    }
+    .disabled-link {
+        opacity: 0.5;
+        cursor: not-allowed !important;
     }
 </style>
 @endpush
@@ -319,13 +323,11 @@
                                 <table class="table table-hover w-100" id="table-po">
                                     <thead>
                                         <tr>
-                                            <th width="50px">#</th>
-                                            <th>No. PO</th>
-                                            <th>Tanggal</th>
-                                            <th>Supplier</th>
-                                            <th class="text-right">Total Nominal</th>
-                                            <th class="text-center">Status</th>
-                                            <th>PIC</th>
+                                            <th width="30px">#</th>
+                                            <th>Informasi PO</th>
+                                            <th>Produk</th>
+                                            <th>Detail Transaksi</th>
+                                            <th>Informasi Admin</th>
                                             <th width="80px">Aksi</th>
                                         </tr>
                                     </thead>
@@ -363,59 +365,15 @@
             },
             columns: [
                 { data: 'DT_RowIndex', name: 'DT_RowIndex', orderable: false, searchable: false },
-                { 
-                    data: 'po_number', 
-                    name: 'po_number',
-                    render: function(data) {
-                        return '<span class="po-number">' + data + '</span>';
-                    }
-                },
-                { data: 'po_date', name: 'po_date' },
-                { 
-                    data: 'supplier_name', 
-                    name: 'supplier.name',
-                    render: function(data) {
-                        return '<span class="font-weight-bold text-dark">' + data + '</span>';
-                    }
-                },
-                { 
-                    data: 'total', 
-                    name: 'total',
-                    className: 'text-right',
-                    render: function(data) {
-                        return '<span class="text-dark font-weight-bold">Rp ' + parseInt(data).toLocaleString('id-ID') + '</span>';
-                    }
-                },
-                { 
-                    data: 'status', 
-                    name: 'status',
-                    className: 'text-center',
-                    render: function(data) {
-                        let classes = {
-                            'draft': 'bg-soft-draft',
-                            'submitted': 'bg-soft-submitted',
-                            'approved': 'bg-soft-approved',
-                            'partial': 'bg-soft-partial',
-                            'received': 'bg-soft-received',
-                            'cancelled': 'bg-soft-cancelled'
-                        };
-                        let labels = {
-                            'draft': 'DRAFT',
-                            'submitted': 'DIKIRIM',
-                            'approved': 'DISETUJUI',
-                            'partial': 'SEBAGIAN',
-                            'received': 'DITERIMA',
-                            'cancelled': 'DIBATALKAN'
-                        };
-                        return `<span class="badge badge-status ${classes[data]}">${labels[data] || data.toUpperCase()}</span>`;
-                    }
-                },
-                { data: 'created_name', name: 'creator.name' },
+                { data: 'informasi_po', name: 'po_number' },
+                { data: 'produk', name: 'produk', orderable: false },
+                { data: 'detail_transaksi', name: 'detail_transaksi', orderable: false },
+                { data: 'informasi_admin', name: 'po_date' },
                 { data: 'action', name: 'action', orderable: false, searchable: false, className: 'text-center' }
             ],
             language: {
                 search: "_INPUT_",
-                searchPlaceholder: "Cari No. PO atau Supplier...",
+                searchPlaceholder: "Cari...",
                 lengthMenu: "_MENU_ baris",
                 paginate: {
                     previous: '<i class="fas fa-chevron-left"></i>',

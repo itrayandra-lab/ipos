@@ -57,13 +57,13 @@
                 color: #64748b !important;
                 text-transform: none !important;
                 font-weight: 600 !important;
-                padding: 15px 12px !important;
+                padding: 8px 10px !important;
                 border-top: none !important;
                 letter-spacing: 0.3px;
             }
 
             #transaction-table tbody td {
-                padding: 15px 12px !important;
+                padding: 8px 10px !important;
                 vertical-align: middle !important;
                 border-bottom: 1px solid #f1f5f9 !important;
             }
@@ -407,14 +407,13 @@
                             <table class="table table-premium table-hover mb-0" id="transaction-table" style="width: 100%;">
                                 <thead>
                                     <tr>
-                                        <th width="5%" class="text-center">#</th>
-                                        <th width="15%">ID Transaksi</th>
-                                        <th width="15%">Kasir / Admin</th>
-                                        <th width="15%">Total & Status</th>
-                                        <th width="15%">Saluran & Gudang</th>
-                                        <th width="10%">Pengiriman</th>
-                                        <th width="15%">Tanggal</th>
-                                        <th width="10%" class="text-center">Aksi</th>
+                                        <th width="30px" class="text-center">#</th>
+                                        <th>Transaksi</th>
+                                        <th>Pelanggan / Kasir</th>
+                                        <th>Total Bayar</th>
+                                        <th>Saluran / Gudang</th>
+                                        <th>Pengiriman</th>
+                                        <th width="80px" class="text-center">Aksi</th>
                                     </tr>
                                 </thead>
                                 <tbody>
@@ -520,67 +519,13 @@
                         d.end_date = $('#end_date').val();
                     }
                 },
-                columns: [
+columns: [
                     { data: 'DT_RowIndex', name: 'DT_RowIndex', orderable: false, searchable: false, className: 'text-center' },
-                    { 
-                        data: 'transaction_code', 
-                        name: 'transaction_code',
-                        render: function(data, type, row) {
-                            let code = data || '#'+row.id;
-                            let invoiceHtml = '';
-                            if (row.invoice_number) {
-                                invoiceHtml = `<div class="label-sub mt-1">${row.invoice_number}</div>`;
-                            }
-                            return `<div><span style="font-family:monospace;font-size:12px;font-weight:600;color:#475569">${code}</span>${invoiceHtml}</div>`;
-                        }
-                    },
-                    { data: 'user.name', name: 'user.name' },
-                    {
-                        data: 'total_amount',
-                        name: 'total_amount',
-                        render: function(data, type, row) {
-                            let cls = 'badge-soft-secondary';
-                            let label = (row.payment_status || '').toUpperCase();
-                            if(row.payment_status == 'paid' || row.payment_status == 'completed') cls = 'badge-soft-success';
-                            if(row.payment_status == 'pending' || row.payment_status == 'credit') cls = 'badge-soft-warning';
-                            if(row.payment_status == 'canceled' || row.payment_status == 'failed') cls = 'badge-soft-danger';
-                            let invoiceBadge = row.invoice_number
-                                ? `<span class="badge-soft badge-soft-info" style="align-self:flex-start">INVOICE</span>`
-                                : '';
-                            return `<div class="cell-merged" style="gap:2px"><span class="amount-text" style="font-size:13px">${data}</span><span class="badge-soft ${cls}" style="align-self:flex-start;font-size:9px;padding:1px 7px">${label}</span>${invoiceBadge}</div>`;
-                        }
-                    },
-                    {
-                        data: 'source',
-                        name: 'source',
-                        render: function(data, type, row) {
-                            if (!data || data == 'offline') return '<span class="badge badge-light">Offline</span>';
-                            let colors = {
-                                'shopee': 'badge-soft-warning',
-                                'tokopedia': 'badge-soft-success',
-                                'tiktok': 'badge-soft-secondary',
-                                'whatsapp': 'badge-soft-info',
-                                'offline-store': 'badge-soft-primary',
-                                'manual-invoice': 'badge-soft-primary'
-                            };
-                            let displayName = (data == 'offline-store' || data == 'manual-invoice') ? 'OFFLINE STORE' : data.toUpperCase();
-                            let cls = colors[data.toLowerCase()] || 'badge-soft-info';
-                            let wh = row.warehouse_name || 'Beautylatory';
-                            let sourceHtml = `<span class="badge-soft ${cls}">${displayName}</span>`;
-                            return `<div class="cell-merged">${sourceHtml}<span class="label-sub">${wh}</span></div>`;
-                        }
-                    },
-                    { 
-                        data: 'delivery_type', 
-                        name: 'delivery_type',
-                        render: function(data, type, row) {
-                            let cls = 'badge-soft-info';
-                            if(data == 'pickup') cls = 'badge-soft-info';
-                            if(data == 'delivery') cls = 'badge-soft-secondary';
-                            return `<span class="badge-soft ${cls}">${data.charAt(0).toUpperCase() + data.slice(1)}</span>`;
-                        }
-                    },
-                    { data: 'transaction_date', name: 'transaction_date' },
+                    { data: 'transaksi', name: 'transaction_code' },
+                    { data: 'pelanggan_kasir', name: 'pelanggan_kasir', orderable: false, searchable: false },
+                    { data: 'total_bayar', name: 'total_amount', className: 'text-right' },
+                    { data: 'saluran_gudang', name: 'source' },
+                    { data: 'pengiriman', name: 'transaction_date' },
                     { data: 'action', name: 'action', orderable: false, searchable: false, className: 'text-center' }
                 ]
             });

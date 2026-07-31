@@ -18,6 +18,15 @@
                         </select>
                     </div>
                     <div class="form-group">
+                        <label>Supplier</label>
+                        <select class="form-control select2" name="supplier_id">
+                            <option value="">Pilih Supplier</option>
+                            @foreach($suppliers as $supplier)
+                                <option value="{{ $supplier->id }}">{{ $supplier->name }}</option>
+                            @endforeach
+                        </select>
+                    </div>
+                    <div class="form-group">
                         <label>Produk <span class="text-danger">*</span></label>
                         <select class="form-control select2" name="product_id" id="product-add" required>
                             <option value="">Pilih Produk</option>

@@ -31,7 +31,7 @@ class SalesDocumentController extends Controller
     public function getInvoices(Request $request)
     {
         if ($request->ajax()) {
-            $query = Transaction::with(['user', 'customer', 'payments', 'warehouse'])
+            $query = Transaction::with(['user', 'customer', 'payments', 'warehouse', 'items.product.merek', 'items.variant.netto'])
                 ->whereNotNull('invoice_number');
 
             if ($request->has('payment_status') && !empty($request->payment_status)) {
@@ -50,11 +50,39 @@ class SalesDocumentController extends Controller
 
             return DataTables::of($data)
                 ->addIndexColumn()
-                ->editColumn('customer_name', fn($row) => $row->customer ? $row->customer->name : ($row->customer_name ?? '-'))
-                ->addColumn('warehouse_name', fn($row) => $row->warehouse?->name ?? 'Beautylatory')
-                ->editColumn('created_at', fn($row) => Carbon::parse($row->created_at)->format('d/m/Y H:i'))
-                ->editColumn('total_amount', fn($row) => 'Rp ' . number_format($row->total_amount, 0, ',', '.'))
-                ->editColumn('payment_status', function ($row) {
+                ->addColumn('invoice_info', function ($row) {
+                    $invNum = $row->invoice_number;
+                    $date = Carbon::parse($row->created_at)->format('d/m/Y');
+                    $customer = $row->customer ? $row->customer->name : ($row->customer_name ?? '-');
+                    return '<div>
+                        <div class="font-weight-700 text-primary">' . $invNum . '</div>
+                        <div class="text-muted small">' . $date . '</div>
+                        <div class="font-weight-600">' . $customer . '</div>
+                    </div>';
+                })
+                ->addColumn('produk', function ($row) {
+                    $items = $row->items;
+                    $html = '<div style="line-height: 1.8">';
+                    foreach ($items as $item) {
+                        if ($item->product) {
+                            $merek = $item->product->merek ? $item->product->merek->name . ' ' : '';
+                            $productName = $merek . $item->product->name;
+                            $netto = '';
+                            if ($item->variant && $item->variant->netto) {
+                                $nettoValue = trim($item->variant->netto->netto_value ?? '');
+                                $satuan = trim($item->variant->netto->satuan ?? '');
+                                if ($nettoValue) {
+                                    $netto = ' <span class="text-muted">' . $nettoValue . ' ' . $satuan . '</span>';
+                                }
+                            }
+                            $html .= '<div><span class="text-muted">' . e($productName) . '</span>' . $netto . '</div>';
+                        }
+                    }
+                    $html .= '</div>';
+                    return $html;
+                })
+                ->addColumn('payment_info', function ($row) {
+                    $total = 'Rp ' . number_format($row->total_amount, 0, ',', '.');
                     $totalPaid = $row->payments()->sum('amount');
                     $labels = [
                         'paid'     => '<span class="badge-soft badge-soft-success">Lunas</span>',
@@ -66,8 +94,13 @@ class SalesDocumentController extends Controller
                         'draft'    => '<span class="badge-soft badge-soft-secondary">Draft</span>',
                         'canceled' => '<span class="badge-soft badge-soft-danger">Batal</span>',
                     ];
-                    return $labels[$row->payment_status] ?? '<span class="badge-soft badge-soft-secondary">'.strtoupper($row->payment_status).'</span>';
+                    $statusBadge = $labels[$row->payment_status] ?? '<span class="badge-soft badge-soft-secondary">'.strtoupper($row->payment_status).'</span>';
+                    return '<div>
+                        <div class="amount-text">' . $total . '</div>
+                        <div class="mt-1">' . $statusBadge . '</div>
+                    </div>';
                 })
+                ->addColumn('warehouse_name', fn($row) => $row->warehouse?->name ?? 'Beautylatory')
                 ->addColumn('action', function ($row) {
                     $isFinance = auth()->user()->isFinance();
                     $editBtn = !$isFinance ? '<a class="dropdown-item has-icon" href="' . route('admin.sales.invoices.edit', $row->id) . '"><i class="fas fa-edit text-warning"></i> Edit</a>' : '';
@@ -88,7 +121,7 @@ class SalesDocumentController extends Controller
                         </div>
                     </div>';
                 })
-                ->rawColumns(['payment_status', 'action'])
+                ->rawColumns(['invoice_info', 'produk', 'payment_info', 'warehouse_name', 'action'])
                 ->make(true);
         }
     }
@@ -169,6 +202,7 @@ class SalesDocumentController extends Controller
             'items.*.price' => 'required|numeric|min:0',
             'items.*.discount' => 'nullable|numeric|min:0',
             'down_payment_amount' => 'nullable|numeric|min:0',
+            'other_fees' => 'nullable|json',
         ]);
 
         try {
@@ -219,11 +253,19 @@ class SalesDocumentController extends Controller
                         }
                     }
                 }
+                $otherFees = [];
+                $otherFeesTotal = 0;
+                if ($request->other_fees) {
+                    $otherFees = json_decode($request->other_fees, true) ?? [];
+                    foreach ($otherFees as $fee) {
+                        $otherFeesTotal += (float)($fee['amount'] ?? 0);
+                    }
+                }
                 $taxAmount    = (float) ($request->tax_amount ?? 0);
                 $discountVal  = (float) ($request->discount ?? 0);
                 $taxType      = $request->tax_type ?? 'none';
                 $discountType = $request->discount_type ?? 'fixed';
-                $grandTotal   = ($totalAmount + $taxAmount) - $discountVal;
+                $grandTotal   = ($totalAmount + $taxAmount) - $discountVal + $otherFeesTotal;
                 $txDate = $request->transaction_date ? Carbon::parse($request->transaction_date) : Carbon::now();
                 $mainWarehouseId = \App\Models\Warehouse::where('type', 'main')->value('id');
                 $transaction = Transaction::create([
@@ -240,6 +282,7 @@ class SalesDocumentController extends Controller
                     'is_dp'            => $request->payment_status === 'credit',
                     'down_payment'     => $request->down_payment_amount ?? 0,
                     'notes'            => $request->notes,
+                    'other_fees'       => $otherFees,
                     'total_amount'     => $grandTotal,
                     'discount'         => $discountVal,
                     'discount_type'    => $discountType,
@@ -395,11 +438,19 @@ class SalesDocumentController extends Controller
                     ];
                 }
                 
+                $otherFees = [];
+                $otherFeesTotal = 0;
+                if ($request->other_fees) {
+                    $otherFees = json_decode($request->other_fees, true) ?? [];
+                    foreach ($otherFees as $fee) {
+                        $otherFeesTotal += (float)($fee['amount'] ?? 0);
+                    }
+                }
                 $taxAmount    = (float) ($request->tax_amount ?? 0);
                 $discountVal  = (float) ($request->discount ?? 0);
                 $taxType      = $request->tax_type ?? 'none';
                 $discountType = $request->discount_type ?? 'fixed';
-                $grandTotal   = ($totalAmount + $taxAmount) - $discountVal;
+                $grandTotal   = ($totalAmount + $taxAmount) - $discountVal + $otherFeesTotal;
                 $txDate = $request->transaction_date ? Carbon::parse($request->transaction_date) : $transaction->created_at;
                 
                 $transaction->update([
@@ -409,6 +460,7 @@ class SalesDocumentController extends Controller
                     'customer_address' => $request->customer_address,
                     'bank_account_id'  => $request->bank_account_id,
                     'notes'            => $request->notes,
+                    'other_fees'       => $otherFees,
                     'total_amount'     => $grandTotal,
                     'discount'         => $discountVal,
                     'discount_type'    => $discountType,

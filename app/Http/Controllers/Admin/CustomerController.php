@@ -29,8 +29,8 @@ class CustomerController extends Controller
                 'customers.name',
                 'customers.phone',
                 'customers.email',
-                DB::raw('COUNT(transactions.id) as total_transactions'),
-                DB::raw('SUM(transactions.total_amount) as total_spending'),
+                DB::raw('COUNT(CASE WHEN transactions.is_sample = false THEN transactions.id END) as total_transactions'),
+                DB::raw('COALESCE(SUM(CASE WHEN transactions.is_sample = false THEN transactions.total_amount ELSE 0 END), 0) as total_spending'),
                 DB::raw('MAX(transactions.transaction_date) as last_transaction')
             )
             ->groupBy('customers.id', 'customers.name', 'customers.phone', 'customers.email');
@@ -151,9 +151,9 @@ class CustomerController extends Controller
         $customer = Customer::leftJoin('transactions', 'customers.id', '=', 'transactions.customer_id')
             ->select(
                 'customers.*',
-                DB::raw('COUNT(transactions.id) as total_transactions'),
-                DB::raw('SUM(transactions.total_amount) as total_spending'),
-                DB::raw('AVG(transactions.total_amount) as avg_transaction'),
+                DB::raw('COUNT(CASE WHEN transactions.is_sample = false THEN transactions.id END) as total_transactions'),
+                DB::raw('COALESCE(SUM(CASE WHEN transactions.is_sample = false THEN transactions.total_amount ELSE 0 END), 0) as total_spending'),
+                DB::raw('AVG(CASE WHEN transactions.is_sample = false THEN transactions.total_amount END) as avg_transaction'),
                 DB::raw('MAX(transactions.transaction_date) as last_transaction')
             )
             ->where('customers.id', $id)
@@ -202,12 +202,15 @@ class CustomerController extends Controller
     {
         $request->validate([
             'name' => 'required|string|max:255',
-            'phone' => 'required|string|unique:customers,phone',
+            'phone' => 'required|string|max:255',
             'email' => 'nullable|email|max:255',
             'address' => 'nullable|string|max:500',
         ]);
 
-        $customer = Customer::create($request->all());
+        $customer = Customer::updateOrCreate(
+            ['phone' => $request->phone],
+            ['name' => $request->name, 'email' => $request->email, 'address' => $request->address]
+        );
 
         return response()->json([
             'success' => true,

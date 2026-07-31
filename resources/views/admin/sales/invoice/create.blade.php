@@ -266,6 +266,15 @@
                                         </button>
                                     </div>
                                 </div>
+                                <div class="d-flex justify-content-between mb-3 align-items-center">
+                                    <span>Biaya Lain</span>
+                                    <div>
+                                        <span id="label-other-fees" class="text-success mr-2">Rp 0</span>
+                                        <button type="button" class="btn btn-sm btn-outline-success" data-toggle="modal" data-target="#otherFeesModal">
+                                            <i class="fas fa-plus"></i> Tambah
+                                        </button>
+                                    </div>
+                                </div>
                                 <div class="d-flex justify-content-between">
                                     <h5>Grand Total</h5>
                                     <h5 class="text-primary">Rp <span id="label-grand-total">0</span></h5>
@@ -293,6 +302,7 @@
                 <input type="hidden" name="discount" id="val-discount" value="0">
                 <input type="hidden" name="discount_type" id="val-discount-type" value="fixed">
                 <input type="hidden" name="tax_amount" id="val-tax-amount" value="0">
+                <input type="hidden" name="other_fees" id="val-other-fees" value="[]">
             </form>
         </div>
     </section>
@@ -328,8 +338,47 @@
     </div>
 </div>
 
+{{-- Other Fees Modal --}}
+<div class="modal fade" id="otherFeesModal" tabindex="-1" role="dialog" aria-hidden="true">
+    <div class="modal-dialog" role="document">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Atur Biaya Lain</h5>
+                <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                    <span aria-hidden="true">&times;</span>
+                </button>
+            </div>
+            <div class="modal-body">
+                <div class="table-responsive">
+                    <table class="table table-sm">
+                        <thead>
+                            <tr>
+                                <th>Nama Biaya</th>
+                                <th>Keterangan</th>
+                                <th>Nominal (Rp)</th>
+                                <th style="width:40px"></th>
+                            </tr>
+                        </thead>
+                        <tbody id="other-fees-list"></tbody>
+                    </table>
+                </div>
+                <button type="button" class="btn btn-sm btn-outline-success" id="btn-add-other-fee">
+                    <i class="fas fa-plus"></i> Tambah Biaya
+                </button>
+            </div>
+            <div class="modal-footer">
+                <div class="d-flex justify-content-between w-100 align-items-center">
+                    <span class="font-weight-bold">Total Biaya Lain: <span id="other-fees-modal-total" class="text-success">Rp 0</span></span>
+                    <button type="button" class="btn btn-primary" data-dismiss="modal">OK</button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
 <script>
 const batchData = @json($batchList);
+let otherFees = [];
 </script>
 @endsection
 
@@ -348,6 +397,37 @@ const batchData = @json($batchList);
             html += `<option value="${b.id}" data-price="${b.price}" data-stock="${b.stock}" ${sel}>${b.text}</option>`;
         });
         return html;
+    }
+
+    function getOtherFeesTotal() {
+        let total = 0;
+        otherFees.forEach(function(fee) { total += parseFloat(fee.amount) || 0; });
+        return total;
+    }
+
+    function saveOtherFees() {
+        $('#val-other-fees').val(JSON.stringify(otherFees));
+    }
+
+    function renderOtherFeesModal() {
+        let container = $('#other-fees-list');
+        container.empty();
+        if (otherFees.length === 0) {
+            container.append('<tr><td colspan="4" class="text-center text-muted py-3">Belum ada biaya tambahan</td></tr>');
+        } else {
+            otherFees.forEach(function(fee, i) {
+                container.append(`
+                    <tr>
+                        <td><input type="text" class="form-control form-control-sm other-fee-name" value="${fee.name}" data-index="${i}"></td>
+                        <td><input type="text" class="form-control form-control-sm other-fee-keterangan" value="${fee.keterangan || ''}" data-index="${i}" placeholder="Opsional"></td>
+                        <td><input type="number" class="form-control form-control-sm other-fee-amount" value="${fee.amount}" data-index="${i}" min="0"></td>
+                        <td class="text-center"><button class="btn btn-sm btn-danger remove-other-fee" data-index="${i}"><i class="fas fa-times"></i></button></td>
+                    </tr>
+                `);
+            });
+        }
+        let total = getOtherFeesTotal();
+        $('#other-fees-modal-total').text('Rp ' + formatNumber(total));
     }
 
     function recalc() {
@@ -383,8 +463,13 @@ const batchData = @json($batchList);
         $('#val-discount').val(discFinal);
         $('#val-discount-type').val(discType);
 
+        // Other Fees
+        let otherFeesTotal = getOtherFeesTotal();
+        $('#label-other-fees').text('Rp ' + formatNumber(otherFeesTotal));
+        saveOtherFees();
+
         // Grand Total
-        let grand = subtotal + tax - discFinal;
+        let grand = subtotal + tax - discFinal + otherFeesTotal;
         if (grand < 0) grand = 0;
         $('#label-grand-total').text(formatNumber(grand));
 
@@ -483,6 +568,41 @@ const batchData = @json($batchList);
         $(document).on('click', '.remove-row', function() { $(this).closest('tr').remove(); recalc(); });
         $(document).on('input', '.qty-input, .price-input', recalc);
         
+        // Other Fees Modal
+        $('#otherFeesModal').on('show.bs.modal', function() {
+            renderOtherFeesModal();
+        });
+
+        $('#btn-add-other-fee').on('click', function() {
+            otherFees.push({ name: '', keterangan: '', amount: 0 });
+            renderOtherFeesModal();
+            recalc();
+        });
+
+        $(document).on('click', '.remove-other-fee', function() {
+            let i = $(this).data('index');
+            otherFees.splice(i, 1);
+            renderOtherFeesModal();
+            recalc();
+        });
+
+        $(document).on('input', '.other-fee-name', function() {
+            let i = $(this).data('index');
+            otherFees[i].name = $(this).val();
+        });
+
+        $(document).on('input', '.other-fee-keterangan', function() {
+            let i = $(this).data('index');
+            otherFees[i].keterangan = $(this).val();
+        });
+
+        $(document).on('input', '.other-fee-amount', function() {
+            let i = $(this).data('index');
+            otherFees[i].amount = parseFloat($(this).val()) || 0;
+            $('#other-fees-modal-total').text('Rp ' + formatNumber(getOtherFeesTotal()));
+            recalc();
+        });
+
         // Item Discount Modal Trigger
         let activeRow = null;
         $(document).on('click', '.btn-item-discount', function() {

@@ -7,11 +7,14 @@ use App\Models\PurchaseOrder;
 use App\Models\PurchaseOrderItem;
 use App\Models\Supplier;
 use App\Models\Product;
+use App\Models\User;
+use App\Models\PurchaseOrderApproval;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Validator;
 use Yajra\DataTables\Facades\DataTables;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Str;
 
 class PurchaseOrderController extends Controller
 {
@@ -62,7 +65,7 @@ class PurchaseOrderController extends Controller
 
     public function getall(Request $request)
     {
-        $query = PurchaseOrder::with(['supplier', 'creator']);
+        $query = PurchaseOrder::with(['supplier', 'creator', 'items', 'approvals.user']);
 
         if ($request->filled('supplier_id')) {
             $query->where('supplier_id', $request->supplier_id);
@@ -84,17 +87,74 @@ class PurchaseOrderController extends Controller
 
         return DataTables::of($pos)
             ->addIndexColumn()
-            ->addColumn('supplier_name', function ($po) {
-            return $po->supplier ? $po->supplier->name : '-';
-        })
-            ->addColumn('created_name', function ($po) {
-            return $po->creator ? $po->creator->name : '-';
-        })
-            ->editColumn('po_date', function ($po) {
-            return $po->po_date->format('d/m/Y');
-        })
+            ->addColumn('informasi_po', function ($po) {
+                $poNumber = '<span class="po-number">' . e($po->po_number) . '</span>';
+                $supplier = '<small class="text-muted d-block">' . e($po->supplier ? $po->supplier->name : '-') . '</small>';
+                return $poNumber . $supplier;
+            })
+            ->addColumn('produk', function ($po) {
+                if ($po->items->isEmpty()) {
+                    return '-';
+                }
+                return $po->items->map(function ($item) {
+                    $name = e($item->product_name);
+                    $qty = number_format($item->quantity, 0);
+                    $satuan = e($item->satuan ?? 'pcs');
+                    $price = 'Rp ' . number_format($item->unit_price, 0, ',', '.');
+                    return '<div class="mb-1">' . $name . '</div>';
+                })->implode('');
+            })
+            ->addColumn('detail_transaksi', function ($po) {
+                $total = '<div class="font-weight-bold">Rp ' . number_format($po->total, 0, ',', '.') . '</div>';
+                $classes = [
+                    'draft' => 'bg-soft-draft',
+                    'submitted' => 'bg-soft-submitted',
+                    'approved' => 'bg-soft-approved',
+                    'partial' => 'bg-soft-partial',
+                    'received' => 'bg-soft-received',
+                    'cancelled' => 'bg-soft-cancelled'
+                ];
+                $labels = [
+                    'draft' => 'DRAFT',
+                    'submitted' => 'DIKIRIM',
+                    'approved' => 'DISETUJUI',
+                    'partial' => 'SEBAGIAN',
+                    'received' => 'DITERIMA',
+                    'cancelled' => 'DIBATALKAN'
+                ];
+                $label = $labels[$po->status] ?? strtoupper($po->status);
+                $class = $classes[$po->status] ?? 'bg-soft-draft';
+                $status = '<span class="badge badge-status ' . $class . '">' . $label . '</span>';
+                return $total . $status;
+            })
+            ->addColumn('informasi_admin', function ($po) {
+                $date = '<span>' . $po->po_date->format('d/m/Y') . '</span>';
+                $pic = '<small class="text-muted d-block">' . e($po->creator ? $po->creator->name : '-') . '</small>';
+
+                $totalAp = $po->approvals->count();
+                $approvedAp = $po->approvals->where('status', 'approved')->count();
+                $rejectedAp = $po->approvals->where('status', 'rejected')->count();
+                $pendingAp = $po->approvals->where('status', 'pending')->count();
+
+                if ($totalAp === 0) {
+                    $verifBadge = '<span class="badge badge-status bg-soft-gray mt-1">—</span>';
+                } elseif ($rejectedAp > 0) {
+                    $verifBadge = '<span class="badge badge-status bg-soft-danger mt-1"><i class="fas fa-times-circle mr-1"></i> Ditolak</span>';
+                } elseif ($approvedAp === $totalAp) {
+                    $verifBadge = '<span class="badge badge-status bg-soft-success mt-1"><i class="fas fa-check-circle mr-1"></i> Terverifikasi</span>';
+                } else {
+                    $verifBadge = '<span class="badge badge-status bg-soft-warning mt-1"><i class="fas fa-clock mr-1"></i> Menunggu</span>';
+                }
+
+                return $date . $pic . $verifBadge;
+            })
             ->addColumn('action', function ($po) {
                 $isFinance = auth()->user()->isFinance();
+
+                $totalAp = $po->approvals->count();
+                $approvedAp = $po->approvals->where('status', 'approved')->count();
+                $isVerified = $totalAp > 0 && $approvedAp === $totalAp;
+
                 $editBtn = !$isFinance ? '
                         <a class="dropdown-item has-icon" href="' . route('admin.purchasing.purchase_orders.edit', $po->id) . '">
                             <i class="fas fa-edit text-primary"></i> Edit
@@ -104,6 +164,14 @@ class PurchaseOrderController extends Controller
                         <a class="dropdown-item has-icon btn-delete text-danger" href="#" data-id="' . $po->id . '">
                             <i class="fas fa-trash"></i> Hapus
                         </a>' : '';
+
+                $printBtn = $isVerified
+                    ? '<a class="dropdown-item has-icon" href="' . route('admin.purchasing.purchase_orders.print', $po->id) . '" target="_blank">
+                            <i class="fas fa-print text-success"></i> Print PO
+                        </a>'
+                    : '<a class="dropdown-item has-icon disabled-link" href="#" onclick="event.preventDefault();iziToast.warning({title:\'Tidak bisa\',message:\'PO harus terverifikasi semua persetujuan sebelum print\',position:\'topRight\'});">
+                            <i class="fas fa-print text-muted"></i> Print PO
+                        </a>';
 
                 return '
                 <div class="dropdown d-inline">
@@ -115,14 +183,21 @@ class PurchaseOrderController extends Controller
                             <i class="fas fa-eye text-info"></i> Detail
                         </a>
                         ' . $editBtn . '
-                        <a class="dropdown-item has-icon" href="' . route('admin.purchasing.purchase_orders.print', $po->id) . '" target="_blank">
-                            <i class="fas fa-print text-success"></i> Print PO
-                        </a>
+                        ' . $printBtn . '
                         ' . $deleteBtn . '
                     </div>
                 </div>';
             })
-            ->rawColumns(['action'])
+            ->rawColumns(['informasi_po', 'produk', 'detail_transaksi', 'informasi_admin', 'action'])
+            ->filterColumn('produk', function ($query, $keyword) {
+                $query->whereHas('items', function ($q) use ($keyword) {
+                    $q->where('product_name', 'like', "%{$keyword}%");
+                });
+            })
+            ->filterColumn('detail_transaksi', function ($query, $keyword) {
+                $query->where('total', 'like', "%{$keyword}%")
+                      ->orWhere('status', 'like', "%{$keyword}%");
+            })
             ->make(true);
     }
 
@@ -131,21 +206,28 @@ class PurchaseOrderController extends Controller
         $po_number = PurchaseOrder::generatePONumber();
         $suppliers = Supplier::where('status', 'active')->get();
         $warehouses = \App\Models\Warehouse::where('status', 'active')->get();
-        return view('admin.purchasing.purchase_orders.create', compact('po_number', 'suppliers', 'warehouses'))->with('sb', 'PurchaseOrder');
+        $users = User::whereIn('role', ['super_admin', 'store_manager', 'admin'])->orderBy('name')->get();
+        return view('admin.purchasing.purchase_orders.create', compact('po_number', 'suppliers', 'warehouses', 'users'))->with('sb', 'PurchaseOrder');
     }
 
     public function getProducts(Request $request)
     {
         $search = $request->search;
+        $words = array_filter(explode(' ', $search));
+
         $products = Product::with(['merek', 'variants.netto'])
-            ->where(function($q) use ($search) {
-                $q->where('name', 'like', "%$search%")
-                  ->orWhereHas('merek', function($mq) use ($search) {
-                      $mq->where('name', 'like', "%$search%");
-                  })
-                  ->orWhereHas('variants', function ($vq) use ($search) {
-                      $vq->where('sku_code', 'like', "%$search%");
-                  });
+            ->when($words, function ($q) use ($words) {
+                foreach ($words as $word) {
+                    $q->where(function ($subQ) use ($word) {
+                        $subQ->where('name', 'like', "%{$word}%")
+                            ->orWhereHas('merek', function ($mq) use ($word) {
+                                $mq->where('name', 'like', "%{$word}%");
+                            })
+                            ->orWhereHas('variants', function ($vq) use ($word) {
+                                $vq->where('sku_code', 'like', "%{$word}%");
+                            });
+                    });
+                }
             })
             ->limit(20)
             ->get();
@@ -196,7 +278,7 @@ class PurchaseOrderController extends Controller
                         }
                     }
 
-                    $name = implode(' - ', array_filter($parts));
+                    $name = implode(' ', array_filter($parts));
                     $name = preg_replace('/\s+/', ' ', $name);
 
                     $results[] = [
@@ -229,6 +311,7 @@ class PurchaseOrderController extends Controller
     public function store(Request $request)
     {
         $validator = Validator::make($request->all(), [
+            'po_number' => 'required|string|max:50',
             'supplier_id' => 'required|exists:suppliers,id',
             'warehouse_id' => 'required|exists:warehouses,id',
             'po_date' => 'required|date',
@@ -246,7 +329,7 @@ class PurchaseOrderController extends Controller
             DB::beginTransaction();
 
             $po = PurchaseOrder::create([
-                'po_number' => PurchaseOrder::generatePONumber(),
+                'po_number' => $request->po_number,
                 'supplier_id' => $request->supplier_id,
                 'warehouse_id' => $request->warehouse_id,
                 'po_date' => $request->po_date,
@@ -282,8 +365,19 @@ class PurchaseOrderController extends Controller
                 ]);
             }
 
+            if ($request->filled('approvers') && is_array($request->approvers)) {
+                foreach ($request->approvers as $userId) {
+                    PurchaseOrderApproval::create([
+                        'purchase_order_id' => $po->id,
+                        'user_id' => $userId,
+                        'token' => Str::random(64),
+                        'status' => 'pending',
+                    ]);
+                }
+            }
+
             DB::commit();
-            return response()->json(['status' => 'success', 'message' => 'Purchase Order berhasil dibuat', 'redirect' => route('admin.purchasing.purchase_orders.index')]);
+            return response()->json(['status' => 'success', 'message' => 'Purchase Order berhasil dibuat', 'redirect' => route('admin.purchasing.purchase_orders.show', $po->id)]);
 
         } catch (\Exception $e) {
             DB::rollBack();
@@ -293,15 +387,17 @@ class PurchaseOrderController extends Controller
 
     public function edit($id)
     {
-        $po = PurchaseOrder::with('items.product')->findOrFail($id);
+        $po = PurchaseOrder::with(['items.product', 'approvals'])->findOrFail($id);
         $suppliers = Supplier::where('status', 'active')->get();
         $warehouses = \App\Models\Warehouse::where('status', 'active')->get();
-        return view('admin.purchasing.purchase_orders.edit', compact('po', 'suppliers', 'warehouses'))->with('sb', 'PurchaseOrder');
+        $users = User::whereIn('role', ['super_admin', 'store_manager', 'admin'])->orderBy('name')->get();
+        return view('admin.purchasing.purchase_orders.edit', compact('po', 'suppliers', 'warehouses', 'users'))->with('sb', 'PurchaseOrder');
     }
 
     public function update(Request $request, $id)
     {
         $validator = Validator::make($request->all(), [
+            'po_number' => 'required|string|max:50',
             'supplier_id' => 'required|exists:suppliers,id',
             'warehouse_id' => 'required|exists:warehouses,id',
             'po_date' => 'required|date',
@@ -320,6 +416,7 @@ class PurchaseOrderController extends Controller
 
             $po = PurchaseOrder::findOrFail($id);
             $po->update([
+                'po_number' => $request->po_number,
                 'supplier_id' => $request->supplier_id,
                 'warehouse_id' => $request->warehouse_id,
                 'po_date' => $request->po_date,
@@ -371,6 +468,32 @@ class PurchaseOrderController extends Controller
                 }
             }
 
+            // Sync approvers — only reset if still pending
+            if ($request->has('approvers') && is_array($request->approvers)) {
+                $newUserIds = collect($request->approvers)->map(fn($v) => (int) $v);
+                $po->load('approvals');
+
+                // Remove approvers no longer selected (only if still pending)
+                foreach ($po->approvals as $app) {
+                    if ($app->status === 'pending' && !$newUserIds->contains($app->user_id)) {
+                        $app->delete();
+                    }
+                }
+
+                // Add new approvers
+                $existingUserIds = $po->approvals->where('status', 'pending')->pluck('user_id');
+                foreach ($newUserIds as $userId) {
+                    if (!$existingUserIds->contains($userId)) {
+                        PurchaseOrderApproval::create([
+                            'purchase_order_id' => $po->id,
+                            'user_id' => $userId,
+                            'token' => Str::random(64),
+                            'status' => 'pending',
+                        ]);
+                    }
+                }
+            }
+
             DB::commit();
             return response()->json(['status' => 'success', 'message' => 'Purchase Order berhasil diperbarui', 'redirect' => route('admin.purchasing.purchase_orders.index')]);
 
@@ -388,7 +511,8 @@ class PurchaseOrderController extends Controller
             'items.product.merek',
             'items.goodsReceiptItems',
             'goodsReceipts.items',
-            'goodsReceipts.receiver'
+            'goodsReceipts.receiver',
+            'approvals.user'
         ])->findOrFail($id);
 
         $productIds = $po->items->pluck('product_id')->filter()->unique()->toArray();

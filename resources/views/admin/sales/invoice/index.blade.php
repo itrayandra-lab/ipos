@@ -203,12 +203,10 @@
                             <thead>
                                 <tr>
                                     <th>#</th>
-                                    <th>No. Invoice</th>
-                                    <th>Tanggal</th>
-                                    <th>Customer</th>
+                                    <th>Invoice</th>
+                                    <th>Produk</th>
+                                    <th>Pembayaran</th>
                                     <th>Gudang</th>
-                                    <th>Total</th>
-                                    <th>Status</th>
                                     <th>Aksi</th>
                                 </tr>
                             </thead>
@@ -238,14 +236,23 @@
             columns: [
                 { data: 'DT_RowIndex', name: 'DT_RowIndex', orderable: false, searchable: false },
                 { 
-                    data: 'invoice_number', 
+                    data: 'invoice_info', 
                     name: 'invoice_number',
-                    render: function(data) {
-                        return `<span class="font-weight-700 text-primary">${data}</span>`;
-                    }
+                    orderable: true,
+                    searchable: true
                 },
-                { data: 'created_at', name: 'created_at' },
-                { data: 'customer_name', name: 'customer_name' },
+                { 
+                    data: 'produk', 
+                    name: 'produk', 
+                    orderable: false, 
+                    searchable: false 
+                },
+                { 
+                    data: 'payment_info', 
+                    name: 'payment_info', 
+                    orderable: false, 
+                    searchable: false 
+                },
                 { 
                     data: 'warehouse_name',
                     name: 'warehouse_name',
@@ -255,14 +262,6 @@
                         return `<span class="badge badge-light">${data}</span>`;
                     }
                 },
-                { 
-                    data: 'total_amount', 
-                    name: 'total_amount',
-                    render: function(data) {
-                        return `<span class="amount-text">${data}</span>`;
-                    }
-                },
-                { data: 'payment_status', name: 'payment_status', orderable: false, searchable: false },
                 { data: 'action', name: 'action', orderable: false, searchable: false }
             ]
         });

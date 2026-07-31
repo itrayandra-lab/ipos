@@ -169,6 +169,85 @@
 .item-card-select .select2-container--default .select2-selection--single .select2-selection__arrow {
     height: 36px !important;
 }
+/* select2 multi (approvers) */
+.select2-container--default .select2-selection--multiple {
+    border: 2px solid var(--slate-200) !important;
+    border-radius: 10px !important;
+    min-height: 56px !important;
+    padding: 4px 8px !important;
+    display: flex !important;
+    align-items: center !important;
+    flex-wrap: wrap !important;
+    gap: 4px !important;
+    transition: border-color .15s, box-shadow .15s;
+}
+.select2-container--default.select2-container--focus .select2-selection--multiple {
+    border-color: var(--po-teal) !important;
+    box-shadow: 0 0 0 3px rgba(13,148,136,.1) !important;
+}
+.select2-container--default .select2-selection--multiple .select2-selection__choice {
+    background: #f0fdfa !important;
+    border: 1.5px solid #14b8a6 !important;
+    border-radius: 8px !important;
+    padding: 4px 10px !important;
+    margin: 2px !important;
+    font-size: 13px !important;
+    font-weight: 600 !important;
+    color: #0d9488 !important;
+}
+.select2-container--default .select2-selection--multiple .select2-selection__choice__remove {
+    color: #0d9488 !important;
+    margin-right: 4px !important;
+    font-weight: 700 !important;
+}
+.select2-container--default .select2-selection--multiple .select2-selection__choice__remove:hover {
+    color: #dc2626 !important;
+    background: transparent !important;
+}
+.select2-container--default .select2-selection--multiple .select2-selection__rendered {
+    padding: 0 !important;
+    display: flex !important;
+    align-items: center !important;
+    flex-wrap: wrap !important;
+    gap: 2px !important;
+}
+.select2-container--default .select2-search--inline .select2-search__field {
+    margin-top: 0 !important;
+    height: 32px !important;
+    font-size: 14px !important;
+    padding-left: 4px !important;
+    min-width: 180px !important;
+}
+.select2-container--default .select2-search--inline .select2-search__field::placeholder {
+    color: var(--slate-400);
+    font-weight: 400;
+}
+.select2-container--default .select2-results > .select2-results__options {
+    max-height: 240px;
+    padding: 6px;
+}
+.select2-container--default .select2-results__option {
+    padding: 10px 12px !important;
+    border-radius: 8px !important;
+    font-size: 14px !important;
+    margin-bottom: 2px !important;
+}
+.select2-container--default .select2-results__option--highlighted[aria-selected] {
+    background: #f0fdfa !important;
+    color: #0d9488 !important;
+}
+.select2-container--default .select2-results__option[aria-selected=true] {
+    background: #ccfbf1 !important;
+    color: #0f766e !important;
+    font-weight: 700 !important;
+}
+.select2-dropdown {
+    border: 1px solid #e2e8f0 !important;
+    border-radius: 12px !important;
+    box-shadow: 0 8px 24px rgba(0,0,0,.1) !important;
+    overflow: hidden;
+    padding: 4px;
+}
 .item-card-remove {
     flex-shrink: 0;
     width: 32px; height: 32px;
@@ -236,7 +315,7 @@
     padding: 6px 0;
 }
 .item-notes {
-    margin-top: 8px;
+    min-width: 140px;
 }
 .item-notes .form-control {
     border-radius: 6px;
@@ -378,7 +457,7 @@
                         <div class="row">
                             <div class="col-md-4 info-field">
                                 <label>Nomor PO</label>
-                                <input type="text" value="{{ $po->po_number }}" class="form-control" readonly>
+                                <input type="text" value="{{ $po->po_number }}" class="form-control" name="po_number">
                             </div>
                             <div class="col-md-4 info-field">
                                 <label>Supplier <span class="text-danger">*</span></label>
@@ -428,10 +507,31 @@
                         </div>
                         <div id="items-container">
                             {{-- Items rendered by JS --}}
-                        </div>
                     </div>
-
                 </div>
+
+                {{-- APPROVERS --}}
+                <div class="info-card" style="margin-bottom:20px;">
+                    <div class="info-card-title"><i class="fas fa-user-check mr-1" style="color:var(--po-teal);"></i> Persetujuan</div>
+                    <div class="info-field">
+                        <label>Pilih 1-3 orang approver <span class="text-danger">*</span></label>
+                        <select name="approvers[]" id="approvers" class="form-control select2" multiple="multiple" required>
+                            @foreach($users as $user)
+                                <option value="{{ $user->id }}" {{ $po->approvals->pluck('user_id')->contains($user->id) ? 'selected' : '' }}>
+                                    {{ $user->name }} ({{ ucfirst(str_replace('_', ' ', $user->role)) }})
+                                </option>
+                            @endforeach
+                        </select>
+                        <small class="text-muted" style="margin-top:8px;display:block;"><i class="fas fa-info-circle mr-1"></i>Approver akan menerima link untuk menyetujui PO ini tanpa login.</small>
+                        @if($po->approvals->where('status', 'approved')->count() > 0)
+                        <div style="margin-top:10px;padding:10px 14px;background:#f0fdf4;border-radius:8px;border:1px solid #bbf7d0;font-size:12px;color:#15803d;">
+                            <i class="fas fa-check-circle mr-1"></i> {{ $po->approvals->where('status', 'approved')->count() }} approver sudah menyetujui — mengubah daftar approver akan menambahkan token baru untuk approver baru.
+                        </div>
+                        @endif
+                    </div>
+                </div>
+
+            </div>
 
                 {{-- ===== RIGHT COLUMN — SUMMARY ===== --}}
                 <div class="col-lg-4">
@@ -526,25 +626,26 @@ function itemCardHTML(idx, data) {
             </div>
             <div class="item-card-body">
                 <div class="item-fields-row">
-                    <div class="item-field" style="flex:0 0 100px;">
+                    <div class="item-field" style="flex:0 0 80px;">
                         <label>Qty</label>
                         <input type="text" name="items[${idx}][qty]" class="form-control qty-input" value="${formatNumberId(qty)}" required>
                     </div>
-                    <div class="item-field" style="flex:1;">
+                    <div class="item-field" style="flex:0 0 180px;">
                         <label>Harga</label>
                         <div class="input-group">
                             <div class="input-group-prepend"><span class="input-group-text">Rp</span></div>
                             <input type="text" name="items[${idx}][price]" class="form-control price-input" value="${formatNumberId(price)}" required>
                         </div>
                     </div>
-                    <div class="item-field" style="flex:0 0 140px;">
+                    <div class="item-field" style="flex:0 0 130px;">
                         <label>Subtotal</label>
                         <div class="item-total row-total-display">Rp ${formatNumberId(qty * price)}</div>
                     </div>
-                </div>
-                <div class="item-notes">
-                    <input type="text" name="items[${idx}][description]" class="form-control" value="${desc}" placeholder="Catatan item (ukuran, batch, exp)">
-                    <input type="hidden" name="items[${idx}][satuan]" value="">
+                    <div class="item-notes" style="flex:1;">
+                        <label style="font-size:11px;font-weight:600;color:var(--slate-400);text-transform:uppercase;letter-spacing:.3px;display:block;margin-bottom:2px;">Catatan</label>
+                        <input type="text" name="items[${idx}][description]" class="form-control" value="${desc}" placeholder="Ukuran, batch, exp...">
+                        <input type="hidden" name="items[${idx}][satuan]" value="">
+                    </div>
                 </div>
             </div>
         </div>
@@ -616,6 +717,15 @@ function calculateTotal() {
 }
 
 function submitPO() {
+    let approvers = $('#approvers').val();
+    if (!approvers || approvers.length === 0) {
+        iziToast.warning({ title: 'Peringatan', message: 'Pilih minimal 1 approver', position: 'topRight' });
+        return;
+    }
+    if (approvers.length > 3) {
+        iziToast.warning({ title: 'Peringatan', message: 'Maksimal 3 approver', position: 'topRight' });
+        return;
+    }
     let allFilled = true;
     $('.product-name-hidden').each(function() {
         if (!$(this).val().trim()) { allFilled = false; return false; }

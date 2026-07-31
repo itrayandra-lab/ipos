@@ -24,6 +24,7 @@ class SalesReportController extends Controller
         }
 
         $baseQuery = Transaction::where('payment_status', 'paid')
+            ->where('is_sample', false)
             ->whereBetween('transaction_date', [$start, $end]);
 
         if ($warehouseIds !== null) {
