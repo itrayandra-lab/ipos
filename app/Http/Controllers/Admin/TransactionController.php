@@ -879,7 +879,22 @@ class TransactionController extends Controller
               ->orWhereNotNull('transaction_items.parent_item_id');
         });
 
-        $query->groupBy('transaction_items.product_id', 'transaction_items.product_variant_id', 'merek.name', 'products.name', 'product_variants.variant_name', 'product_variants.sku_code', 'product_variants.product_hpp', 'product_nettos.netto_value', 'product_nettos.satuan')
+        $query->groupBy(
+                'transaction_items.product_id',
+                'transaction_items.product_variant_id',
+                'merek.name',
+                'products.name',
+                'products.price_real',
+                'products.price',
+                'product_variants.variant_name',
+                'product_variants.sku_code',
+                'product_variants.product_hpp',
+                'product_variants.is_approved',
+                'product_variants.het_online',
+                'product_variants.price',
+                'product_nettos.netto_value',
+                'product_nettos.satuan'
+            )
               ->orderBy('total_qty', 'desc');
 
         return DataTables::of($query)
@@ -969,7 +984,22 @@ class TransactionController extends Controller
               ->orWhereNotNull('transaction_items.parent_item_id');
         });
 
-        $items = $query->groupBy('transaction_items.product_id', 'transaction_items.product_variant_id', 'merek.name', 'products.name', 'product_variants.variant_name', 'product_variants.sku_code', 'product_variants.product_hpp', 'product_nettos.netto_value', 'product_nettos.satuan')
+        $items = $query->groupBy(
+                'transaction_items.product_id',
+                'transaction_items.product_variant_id',
+                'merek.name',
+                'products.name',
+                'products.price_real',
+                'products.price',
+                'product_variants.variant_name',
+                'product_variants.sku_code',
+                'product_variants.product_hpp',
+                'product_variants.is_approved',
+                'product_variants.het_online',
+                'product_variants.price',
+                'product_nettos.netto_value',
+                'product_nettos.satuan'
+            )
               ->orderBy('total_qty', 'desc')
               ->get();
 
