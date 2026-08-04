@@ -189,6 +189,7 @@ class OnlineSaleController extends Controller
                     'user_id' => auth()->id(),
                     'source' => $request->source,
                     'warehouse_id' => $request->warehouse_id,
+                    'customer_name' => $request->customer_name,
                     'notes' => $request->notes,
                     'other_fees' => $otherFees,
                     'total_amount' => $totalAmount,
@@ -474,6 +475,7 @@ class OnlineSaleController extends Controller
                 $transaction->update([
                     'source' => $request->source,
                     'warehouse_id' => $request->warehouse_id ?? $transaction->warehouse_id,
+                    'customer_name' => $request->customer_name,
                     'notes' => $request->notes,
                     'other_fees' => $otherFees,
                     'total_amount' => $totalAmount,

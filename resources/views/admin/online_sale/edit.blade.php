@@ -204,7 +204,7 @@
                             <div class="col-md-3">
                                 <div class="form-group">
                                     <label class="form-label-custom">Nama Customer</label>
-                                    <input type="text" name="customer_name" class="form-control form-control-premium" value="{{ $transaction->notes }}">
+                                    <input type="text" name="customer_name" class="form-control form-control-premium" value="{{ old('customer_name', $transaction->customer_name) }}">
                                 </div>
                             </div>
                             <div class="col-md-3">

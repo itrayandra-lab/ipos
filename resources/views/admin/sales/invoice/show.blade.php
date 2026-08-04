@@ -56,6 +56,29 @@
                             </div>
                         </div>
                         <div class="card-body p-0">
+                            @php
+                                $custName = $transaction->customer_name ?? ($transaction->customer->name ?? '');
+                                $custPhone = $transaction->customer_phone ?? ($transaction->customer->phone ?? '');
+                                $custAddress = $transaction->customer_address ?? ($transaction->customer->address ?? '');
+                            @endphp
+                            @if($custName)
+                            <div class="d-flex flex-wrap justify-content-between align-items-start p-3 border-bottom" style="background:#f8fafc;">
+                                <div class="pr-3">
+                                    <div class="text-muted small font-weight-bold text-uppercase mb-1" style="letter-spacing:.5px;">Kepada</div>
+                                    <div class="h5 mb-1 text-dark font-weight-bold">{{ $custName }}</div>
+                                    @if($custPhone)
+                                        <div class="small text-muted"><i class="fas fa-phone mr-1"></i>{{ $custPhone }}</div>
+                                    @endif
+                                    @if($custAddress)
+                                        <div class="small text-muted mt-1" style="max-width:420px;"><i class="fas fa-map-marker-alt mr-1"></i>{{ $custAddress }}</div>
+                                    @endif
+                                </div>
+                                <div class="text-right">
+                                    <div class="text-muted small font-weight-bold text-uppercase mb-1" style="letter-spacing:.5px;">No. Invoice</div>
+                                    <div class="font-weight-bold text-primary">{{ $transaction->invoice_number ?? '-' }}</div>
+                                </div>
+                            </div>
+                            @endif
                             <div class="table-responsive">
                                 <table class="table table-striped table-md">
                                     <thead>
@@ -279,7 +302,13 @@
                             <div class="mb-4 border-top pt-3 mt-3">
                                 <label class="font-weight-bold text-muted small text-uppercase">Customer</label>
                                 <div class="h6 mb-0">{{ $transaction->customer_name ?? ($transaction->customer->name ?? 'Pelanggan Umum') }}</div>
-                                <div class="text-muted small">{{ $transaction->customer_phone ?? ($transaction->customer->phone ?? '-') }}</div>
+                                @if($transaction->customer_phone || ($transaction->customer && $transaction->customer->phone))
+                                <div class="text-muted small"><i class="fas fa-phone mr-1"></i>{{ $transaction->customer_phone ?? $transaction->customer->phone }}</div>
+                                @endif
+                                @php $custAddr = $transaction->customer_address ?? ($transaction->customer->address ?? ''); @endphp
+                                @if($custAddr)
+                                <div class="text-muted small mt-1"><i class="fas fa-map-marker-alt mr-1"></i>{{ $custAddr }}</div>
+                                @endif
                             </div>
 
                             <div class="mb-0 border-top pt-3 text-muted small">
