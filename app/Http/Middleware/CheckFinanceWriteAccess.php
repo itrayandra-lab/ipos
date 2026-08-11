@@ -29,6 +29,12 @@ class CheckFinanceWriteAccess
                     return $next($request);
                 }
 
+                // Allow all roles (including finance) to upload payment proof images
+                if ($request->is('admin/transactions/quick-upload-receipt/*') ||
+                    $request->is('admin/transactions/update-payment-receipt')) {
+                    return $next($request);
+                }
+
                 // For other routes, we try to determine if they belong to Finance group
                 // In this system, we'll block by default unless explicitly allowed
                 
