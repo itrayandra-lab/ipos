@@ -14,7 +14,7 @@ class PettyCashController extends Controller
 {
     public function index()
     {
-        if (!auth()->user()->hasPermission('access_petty_cash') && !auth()->user()->hasPermission('access_finance')) {
+        if (!auth()->user()->hasPermission('access_petty_cash') && !auth()->user()->hasPermission('access_finance_menu')) {
             abort(403, 'Anda tidak memiliki akses ke Petty Cash.');
         }
 
