@@ -156,8 +156,8 @@
             @endif
 
             {{-- Pembelian Group --}}
-            @if($user->hasPermission('access_purchasing_menu') || $user->hasPermission('access_suppliers') || $user->hasPermission('access_purchase_orders') || $user->hasPermission('access_goods_receipts') || $user->hasPermission('access_purchasing_returns'))
-            <li class="nav-item dropdown @if ($sb == 'PurchaseOrder' || $sb == 'GoodsReceipt' || $sb == 'Supplier' || $sb == 'ReturnToSupplier') active @endif">
+            @if($user->hasPermission('access_purchasing_menu') || $user->hasPermission('access_suppliers') || $user->hasPermission('access_purchase_orders') || $user->hasPermission('access_goods_receipts') || $user->hasPermission('access_purchasing_returns') || $user->hasPermission('access_supplier_delivery_notes'))
+            <li class="nav-item dropdown @if ($sb == 'PurchaseOrder' || $sb == 'GoodsReceipt' || $sb == 'Supplier' || $sb == 'ReturnToSupplier' || $sb == 'SupplierDeliveryNote') active @endif">
                 <a href="#" class="nav-link has-dropdown" data-toggle="dropdown"><i class="fas fa-shopping-cart"></i>
                     <span>Pembelian</span></a>
                 <ul class="dropdown-menu">
@@ -169,6 +169,11 @@
                     @if($user->hasPermission('access_purchasing_menu') || $user->hasPermission('access_goods_receipts'))
                     <li class="@if ($sb == 'GoodsReceipt') active @endif"><a class="nav-link"
                             href="{{ route('admin.purchasing.goods_receipts.index') }}">Penerimaan Barang</a></li>
+                    @endif
+
+                    @if($user->hasPermission('access_purchasing_menu') || $user->hasPermission('access_supplier_delivery_notes'))
+                    <li class="@if ($sb == 'SupplierDeliveryNote') active @endif"><a class="nav-link"
+                            href="{{ route('admin.purchasing.supplier_delivery_notes.index') }}">Surat Jalan Supplier</a></li>
                     @endif
 
                     @if($user->hasPermission('access_purchasing_menu') || $user->hasPermission('access_purchasing_returns'))

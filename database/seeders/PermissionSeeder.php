@@ -47,6 +47,7 @@ class PermissionSeeder extends Seeder
             ['name' => 'Supplier', 'slug' => 'access_suppliers', 'group' => 'Pembelian'],
             ['name' => 'Pesanan Pembelian (PO)', 'slug' => 'access_purchase_orders', 'group' => 'Pembelian'],
             ['name' => 'Penerimaan Barang', 'slug' => 'access_goods_receipts', 'group' => 'Pembelian'],
+            ['name' => 'Surat Jalan Supplier', 'slug' => 'access_supplier_delivery_notes', 'group' => 'Pembelian'],
             ['name' => 'Return Pembelian', 'slug' => 'access_purchasing_returns', 'group' => 'Pembelian'],
 
             // Grup Penjualan

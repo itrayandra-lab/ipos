@@ -479,6 +479,19 @@ Route::prefix('admin')->middleware(['auth', 'role:super_admin,store_manager,fina
                     Route::delete('/returns/{id}', 'destroy')->name('admin.purchasing.returns.destroy');
                 });
 
+                // Supplier Delivery Notes (Surat Jalan Supplier)
+                Route::controller(\App\Http\Controllers\Admin\Purchasing\SupplierDeliveryNoteController::class)->group(function () {
+                    Route::get('/supplier-delivery-notes', 'index')->name('admin.purchasing.supplier_delivery_notes.index');
+                    Route::get('/supplier-delivery-notes/all', 'getall')->name('admin.purchasing.supplier_delivery_notes.getall');
+                    Route::get('/supplier-delivery-notes/create', 'create')->name('admin.purchasing.supplier_delivery_notes.create');
+                    Route::post('/supplier-delivery-notes', 'store')->name('admin.purchasing.supplier_delivery_notes.store');
+                    Route::get('/supplier-delivery-notes/batches', 'getBatches')->name('admin.purchasing.supplier_delivery_notes.get_batches');
+                    Route::get('/supplier-delivery-notes/{id}', 'show')->name('admin.purchasing.supplier_delivery_notes.show');
+                    Route::get('/supplier-delivery-notes/{id}/edit', 'edit')->name('admin.purchasing.supplier_delivery_notes.edit');
+                    Route::put('/supplier-delivery-notes/{id}', 'update')->name('admin.purchasing.supplier_delivery_notes.update');
+                    Route::delete('/supplier-delivery-notes/{id}', 'destroy')->name('admin.purchasing.supplier_delivery_notes.destroy');
+                });
+
                 // Stock Movements
                 Route::controller(\App\Http\Controllers\Admin\Inventory\StockMovementController::class)->group(function () {
                     Route::get('/stock-movements', 'index')->name('admin.stock_movements.index');
