@@ -18,10 +18,15 @@ class GoodsReceiptItem extends Model
         'description',
         'satuan',
         'batch_no',
+        'expiry_date',
         'quantity_ordered',
         'quantity_received',
         'quantity_difference',
         'notes',
+    ];
+
+    protected $casts = [
+        'expiry_date' => 'date',
     ];
 
     public function productBatches()

@@ -99,9 +99,11 @@
                                 <table class="table table-hover" id="table-det-incoming">
                                     <thead>
                                         <tr>
+                                            <th>No Batch</th>
                                             <th>Tipe</th>
                                             <th>No. Ref / SJ</th>
                                             <th>Asal / Supplier</th>
+                                            <th class="text-right">Qty Masuk</th>
                                             <th>Tgl Terima</th>
                                         </tr>
                                     </thead>
@@ -263,6 +265,11 @@
                 $('#det-info-warehouse').text(res.product.warehouse);
                 $('#det-info-netto').text(res.product.netto || '-');
 
+                // Update variant_id if auto-detected from batches
+                if (res.product.variant_id && !activeVariantId) {
+                    activeVariantId = res.product.variant_id;
+                }
+
                 if (activeVariantId) {
                     $('#btn-edit-netto').show();
                     $('#btn-add-netto').hide();
@@ -312,15 +319,17 @@
                         let badge = i.type === 'Penerimaan Barang' ? 'badge-primary' : (i.type === 'Mutasi Masuk' ? 'badge-dark' : 'badge-secondary');
                         $('#table-det-incoming tbody').append(`
                             <tr>
+                                <td class="font-weight-bold text-dark">${i.batch_no || '-'}</td>
                                 <td><span class="badge ${badge}">${i.type}</span></td>
                                 <td class="font-weight-bold">${i.ref_no}</td>
                                 <td>${i.source}</td>
+                                <td class="text-right font-weight-bold">${i.qty}</td>
                                 <td>${new Date(i.date).toLocaleDateString('id-ID')}</td>
                             </tr>
                         `);
                     });
                 } else {
-                    $('#table-det-incoming tbody').append('<tr><td colspan="4" class="text-center text-muted">Tidak ada data incoming</td></tr>');
+                    $('#table-det-incoming tbody').append('<tr><td colspan="6" class="text-center text-muted">Tidak ada data incoming</td></tr>');
                 }
 
                 // Render Outgoing
@@ -346,7 +355,7 @@
                         `);
                     });
                 } else {
-                    $('#table-det-outgoing tbody').append('<tr><td colspan="6" class="text-center text-muted">Tidak ada data outgoing</td></tr>');
+                    $('#table-det-outgoing tbody').append('<tr><td colspan="7" class="text-center text-muted">Tidak ada data outgoing</td></tr>');
                 }
             }
         }).fail(function(xhr) {

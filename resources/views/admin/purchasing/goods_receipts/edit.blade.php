@@ -214,6 +214,7 @@
                                                 <th style="width: 30px;">#</th>
                                                 <th style="min-width: 250px;">Nama Produk</th>
                                                 <th style="width: 130px;">No. Batch</th>
+                                                <th style="width: 130px;">Exp. Date</th>
                                                 <th style="width: 140px;">Harga Beli</th>
                                                 <th style="width: 120px;">Qty Terima</th>
                                                 <th>Catatan</th>
@@ -264,6 +265,9 @@
                                                     <input type="text" name="items[{{ $index }}][batch_no]" value="{{ $item->batch_no }}" class="form-control" placeholder="Batch No...">
                                                 </td>
                                                 <td>
+                                                    <input type="date" name="items[{{ $index }}][expiry_date]" value="{{ $item->expiry_date ? $item->expiry_date->format('Y-m-d') : '' }}" class="form-control">
+                                                </td>
+                                                <td>
                                                     @php
                                                         $buyPrice = 0;
                                                         if ($item->purchase_order_item_id) {
@@ -288,7 +292,7 @@
                                         </tbody>
                                         <tfoot>
                                             <tr id="row-manual-btn">
-                                                <td colspan="7" class="text-center">
+                                                <td colspan="8" class="text-center">
                                                     <button type="button" class="btn btn-sm btn-outline-info" id="btn-add-manual">
                                                         <i class="fas fa-box"></i> Tambah Item Produk
                                                     </button>
@@ -493,6 +497,9 @@
                                 <input type="text" name="items[${index}][batch_no]" class="form-control" placeholder="Batch No...">
                             </td>
                             <td>
+                                <input type="date" name="items[${index}][expiry_date]" class="form-control">
+                            </td>
+                            <td>
                                 <input type="text" name="items[${index}][buy_price]" value="${formatNumberId(item.unit_price || 0)}" class="form-control buy-price-input text-center" readonly>
                             </td>
                             <td>
@@ -562,6 +569,9 @@
                     <input type="text" name="items[${index}][batch_no]" class="form-control" placeholder="Batch No...">
                 </td>
                 <td>
+                    <input type="date" name="items[${index}][expiry_date]" class="form-control">
+                </td>
+                <td>
                     <input type="text" name="items[${index}][buy_price]" value="0" class="form-control buy-price-input text-center">
                 </td>
                 <td>
@@ -627,6 +637,9 @@
                 </td>
                 <td>
                     <input type="text" name="items[${index}][batch_no]" class="form-control" placeholder="Batch No...">
+                </td>
+                <td>
+                    <input type="date" name="items[${index}][expiry_date]" class="form-control">
                 </td>
                 <td>
                     <input type="text" name="items[${index}][buy_price]" value="0" class="form-control buy-price-input text-center">

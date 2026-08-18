@@ -85,58 +85,53 @@ class GoodsReceiptController extends Controller
                 return $gr->items->map(function ($item) {
                     $parts = [];
 
-                    // Priority 1: direct relationship (product_id di goods_receipt_items)
+                    // Try all sources to find best brand + name + netto
+                    $brand = null;
+                    $name = null;
+                    $nettoText = null;
+
+                    // Source 1: direct product relationship
                     if ($item->product) {
-                        if ($item->product->merek) {
-                            $parts[] = e($item->product->merek->name);
-                        }
-                        $parts[] = e($item->product->name);
+                        if ($item->product->merek) $brand = $item->product->merek->name;
+                        $name = $item->product->name;
                         if ($item->productVariant && $item->productVariant->netto) {
                             $n = $item->productVariant->netto;
                             $nettoText = trim($n->netto_value . ' ' . $n->satuan);
-                            if ($nettoText) {
-                                $parts[] = e($nettoText);
-                            }
                         }
                     }
 
-                    // Priority 2: via ProductBatch
-                    if (empty($parts)) {
+                    // Source 2: via ProductBatch
+                    if (!$brand || !$nettoText) {
                         $batch = $item->productBatches->first();
                         if ($batch && $batch->product) {
-                            $product = $batch->product;
-                            if ($product->merek) {
-                                $parts[] = e($product->merek->name);
-                            }
-                            $parts[] = e($product->name);
-                            if ($batch->variant && $batch->variant->netto) {
+                            if (!$brand && $batch->product->merek) $brand = $batch->product->merek->name;
+                            if (!$name) $name = $batch->product->name;
+                            if (!$nettoText && $batch->variant && $batch->variant->netto) {
                                 $n = $batch->variant->netto;
                                 $nettoText = trim($n->netto_value . ' ' . $n->satuan);
-                                if ($nettoText) {
-                                    $parts[] = e($nettoText);
+                            }
+                        }
+                    }
+
+                    // Source 3: via PurchaseOrderItem
+                    if (!$brand || !$nettoText) {
+                        if ($item->purchaseOrderItem && $item->purchaseOrderItem->product) {
+                            $product = $item->purchaseOrderItem->product;
+                            if (!$brand && $product->merek) $brand = $product->merek->name;
+                            if (!$name) $name = $product->name;
+                            if (!$nettoText) {
+                                $variant = $product->variants->first();
+                                if ($variant && $variant->netto) {
+                                    $n = $variant->netto;
+                                    $nettoText = trim($n->netto_value . ' ' . $n->satuan);
                                 }
                             }
                         }
                     }
 
-                    // Priority 3: via PurchaseOrderItem
-                    if (empty($parts)) {
-                        if ($item->purchaseOrderItem && $item->purchaseOrderItem->product) {
-                            $product = $item->purchaseOrderItem->product;
-                            if ($product->merek) {
-                                $parts[] = e($product->merek->name);
-                            }
-                            $parts[] = e($product->name);
-                            $variant = $product->variants->first();
-                            if ($variant && $variant->netto) {
-                                $n = $variant->netto;
-                                $nettoText = trim($n->netto_value . ' ' . $n->satuan);
-                                if ($nettoText) {
-                                    $parts[] = e($nettoText);
-                                }
-                            }
-                        }
-                    }
+                    if ($brand) $parts[] = e($brand);
+                    if ($name) $parts[] = e($name);
+                    if ($nettoText) $parts[] = e($nettoText);
 
                     if ($parts) {
                         return '<div>' . implode(' ', $parts) . '</div>';
@@ -358,15 +353,19 @@ class GoodsReceiptController extends Controller
                 $productId = null;
                 $variantId = null;
 
-                if (!empty($item['purchase_order_item_id'])) {
+                if (!empty($item['product_id'])) {
+                    $productId = $item['product_id'];
+                    $variantId = $item['variant_id'] ?? null;
+                } elseif (!empty($item['purchase_order_item_id'])) {
                     $poItem = PurchaseOrderItem::with('product')->find($item['purchase_order_item_id']);
                     if ($poItem) {
                         $productId = $poItem->product_id;
-                        $poId = $poItem->purchase_order_id;
                     }
-                } elseif (!empty($item['product_id'])) {
-                    $productId = $item['product_id'];
-                    $variantId = $item['variant_id'] ?? null;
+                }
+
+                if (!empty($item['purchase_order_item_id'])) {
+                    $poItem = PurchaseOrderItem::find($item['purchase_order_item_id']);
+                    if ($poItem) $poId = $poItem->purchase_order_id;
                 }
 
                 $grItem = GoodsReceiptItem::create([
@@ -378,6 +377,7 @@ class GoodsReceiptController extends Controller
                     'description' => $item['description'],
                     'satuan' => $item['satuan'] ?? null,
                     'batch_no' => $batchNo,
+                    'expiry_date' => $item['expiry_date'] ?? null,
                     'quantity_ordered' => $item['qty_ordered'] ?? 0,
                     'quantity_received' => $item['qty_received'],
                     'quantity_difference' => $item['qty_received'] - ($item['qty_ordered'] ?? 0),
@@ -403,15 +403,32 @@ class GoodsReceiptController extends Controller
                         }
                     }
 
-                    ProductBatch::create([
-                        'goods_receipt_item_id' => $grItem->id,
-                        'product_id' => $productId,
-                        'product_variant_id' => $variantId,
-                        'warehouse_id' => $gr->warehouse_id,
-                        'batch_no' => $batchNo ?: 'GR-' . $grItem->id,
-                        'qty' => (int)$item['qty_received'],
-                        'buy_price' => $buyPrice,
-                    ]);
+                    $finalBatchNo = $batchNo ?: 'GR-' . $grItem->id;
+                    $existingBatch = ProductBatch::where('product_id', $productId)
+                        ->where('product_variant_id', $variantId)
+                        ->where('warehouse_id', $gr->warehouse_id)
+                        ->where('batch_no', $finalBatchNo)
+                        ->first();
+
+                    if ($existingBatch) {
+                        $existingBatch->update([
+                            'goods_receipt_item_id' => $grItem->id,
+                            'qty' => (int)$item['qty_received'],
+                            'buy_price' => $buyPrice,
+                            'expiry_date' => $item['expiry_date'] ?? $existingBatch->expiry_date,
+                        ]);
+                    } else {
+                        ProductBatch::create([
+                            'goods_receipt_item_id' => $grItem->id,
+                            'product_id' => $productId,
+                            'product_variant_id' => $variantId,
+                            'warehouse_id' => $gr->warehouse_id,
+                            'batch_no' => $finalBatchNo,
+                            'expiry_date' => $item['expiry_date'] ?? null,
+                            'qty' => (int)$item['qty_received'],
+                            'buy_price' => $buyPrice,
+                        ]);
+                    }
                 }
             }
 
@@ -454,7 +471,7 @@ class GoodsReceiptController extends Controller
 
     public function edit($id)
     {
-        $gr = GoodsReceipt::with(['supplier', 'purchaseOrder', 'receiver', 'items.product.merek', 'items.productVariant.netto', 'items.productBatches'])->findOrFail($id);
+        $gr = GoodsReceipt::with(['supplier', 'purchaseOrder', 'receiver', 'items.product.merek', 'items.productVariant.netto', 'items.productBatches', 'items.purchaseOrderItem.product.merek', 'items.purchaseOrderItem.product.variants.netto'])->findOrFail($id);
         $pos = PurchaseOrder::whereIn('status', ['submitted', 'approved', 'partial', 'received'])->get();
         $suppliers = Supplier::where('status', 'active')->get();
         $warehouses = \App\Models\Warehouse::where('status', 'active')->get();
@@ -527,15 +544,19 @@ class GoodsReceiptController extends Controller
                 $productId = null;
                 $variantId = null;
 
-                if (!empty($item['purchase_order_item_id'])) {
+                if (!empty($item['product_id'])) {
+                    $productId = $item['product_id'];
+                    $variantId = $item['variant_id'] ?? null;
+                } elseif (!empty($item['purchase_order_item_id'])) {
                     $poItem = PurchaseOrderItem::with('product')->find($item['purchase_order_item_id']);
                     if ($poItem) {
                         $productId = $poItem->product_id;
-                        $newPoId = $poItem->purchase_order_id;
                     }
-                } elseif (!empty($item['product_id'])) {
-                    $productId = $item['product_id'];
-                    $variantId = $item['variant_id'] ?? null;
+                }
+
+                if (!empty($item['purchase_order_item_id'])) {
+                    $poItem = PurchaseOrderItem::find($item['purchase_order_item_id']);
+                    if ($poItem) $newPoId = $poItem->purchase_order_id;
                 }
 
                 $grItem = GoodsReceiptItem::create([
@@ -547,6 +568,7 @@ class GoodsReceiptController extends Controller
                     'description' => $item['description'],
                     'satuan' => $item['satuan'] ?? null,
                     'batch_no' => $batchNo,
+                    'expiry_date' => $item['expiry_date'] ?? null,
                     'quantity_ordered' => $item['qty_ordered'] ?? 0,
                     'quantity_received' => $item['qty_received'],
                     'quantity_difference' => $item['qty_received'] - ($item['qty_ordered'] ?? 0),
@@ -572,15 +594,32 @@ class GoodsReceiptController extends Controller
                         }
                     }
 
-                    ProductBatch::create([
-                        'goods_receipt_item_id' => $grItem->id,
-                        'product_id' => $productId,
-                        'product_variant_id' => $variantId,
-                        'warehouse_id' => $gr->warehouse_id,
-                        'batch_no' => $batchNo ?: 'GR-' . $grItem->id,
-                        'qty' => (int)$item['qty_received'],
-                        'buy_price' => $buyPrice,
-                    ]);
+                    $finalBatchNo = $batchNo ?: 'GR-' . $grItem->id;
+                    $existingBatch = ProductBatch::where('product_id', $productId)
+                        ->where('product_variant_id', $variantId)
+                        ->where('warehouse_id', $gr->warehouse_id)
+                        ->where('batch_no', $finalBatchNo)
+                        ->first();
+
+                    if ($existingBatch) {
+                        $existingBatch->update([
+                            'goods_receipt_item_id' => $grItem->id,
+                            'qty' => (int)$item['qty_received'],
+                            'buy_price' => $buyPrice,
+                            'expiry_date' => $item['expiry_date'] ?? $existingBatch->expiry_date,
+                        ]);
+                    } else {
+                        ProductBatch::create([
+                            'goods_receipt_item_id' => $grItem->id,
+                            'product_id' => $productId,
+                            'product_variant_id' => $variantId,
+                            'warehouse_id' => $gr->warehouse_id,
+                            'batch_no' => $finalBatchNo,
+                            'expiry_date' => $item['expiry_date'] ?? null,
+                            'qty' => (int)$item['qty_received'],
+                            'buy_price' => $buyPrice,
+                        ]);
+                    }
                 }
             }
 
@@ -693,7 +732,7 @@ class GoodsReceiptController extends Controller
 
     public function show($id)
     {
-        $gr = GoodsReceipt::with(['supplier', 'purchaseOrder', 'receiver', 'items.product.merek', 'items.productVariant.netto'])->findOrFail($id);
+        $gr = GoodsReceipt::with(['supplier', 'purchaseOrder', 'receiver', 'items.product.merek', 'items.productVariant.netto', 'items.productBatches.product.merek', 'items.productBatches.variant.netto', 'items.purchaseOrderItem.product.merek', 'items.purchaseOrderItem.product.variants.netto'])->findOrFail($id);
         return view('admin.purchasing.goods_receipts.show', compact('gr'))->with('sb', 'GoodsReceipt');
     }
 }

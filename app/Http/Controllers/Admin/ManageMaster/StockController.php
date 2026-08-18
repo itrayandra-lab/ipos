@@ -301,8 +301,6 @@ class StockController extends Controller
 
         if ($variantId && $variantId !== 'null' && $variantId !== '') {
             $batchesQuery->where('product_variant_id', $variantId);
-        } else {
-            $batchesQuery->whereNull('product_variant_id');
         }
 
         $batches = $batchesQuery->get()
@@ -312,6 +310,14 @@ class StockController extends Controller
                 $batch->current_qty = $batch->qty - $sold - $returned;
                 return $batch;
             });
+
+        // Auto-detect variant_id from batches if not provided
+        if ((!$variantId || $variantId === 'null' || $variantId === '') && $batches->isNotEmpty()) {
+            $detectedVariantId = $batches->firstWhere('product_variant_id', '!=', null)?->product_variant_id;
+            if ($detectedVariantId) {
+                $variantId = $detectedVariantId;
+            }
+        }
 
         $product = Product::with('merek')->find($productId);
         $warehouse = \App\Models\Warehouse::find($warehouseId);
@@ -336,7 +342,7 @@ class StockController extends Controller
             });
 
         // Supplier from GoodsReceipt (by delivery_note_number, items.batch_no, or GR item ID)
-        $fromSupplier = \App\Models\GoodsReceipt::with(['purchaseOrder', 'supplier'])
+        $fromSupplier = \App\Models\GoodsReceipt::with(['purchaseOrder', 'supplier', 'items'])
             ->where(function($q) use ($batchNos, $grItemIds) {
                 $q->whereIn('delivery_note_number', $batchNos)
                   ->orWhereHas('items', function($q) use ($batchNos) {
@@ -349,11 +355,16 @@ class StockController extends Controller
                 }
             })
             ->get()
-            ->map(function($item) {
+            ->map(function($item) use ($batchNos) {
+                $matchedBatch = $item->items->first(function($grItem) use ($batchNos) {
+                    return $batchNos->contains($grItem->batch_no);
+                });
                 return [
                     'type' => 'Penerimaan Barang',
-                    'ref_no' => $item->sj_number ?? $item->delivery_note_number,
+                    'ref_no' => $item->delivery_note_number ?? $item->sj_number,
                     'source' => $item->supplier ? $item->supplier->name : '-',
+                    'batch_no' => $matchedBatch ? $matchedBatch->batch_no : '-',
+                    'qty' => $matchedBatch ? $matchedBatch->quantity_received : $item->items->sum('quantity_received'),
                     'date' => $item->received_date ? $item->received_date->format('Y-m-d') : '-',
                     'print_url' => null
                 ];
@@ -361,7 +372,7 @@ class StockController extends Controller
             ->unique('ref_no')
             ->values();
 
-        $fromMovement = \App\Models\StockMovementItem::with(['stockMovement.fromWarehouse'])
+        $fromMovement = \App\Models\StockMovementItem::with(['stockMovement.fromWarehouse', 'batch'])
             ->whereIn('product_batch_id', $batchIds)
             ->whereHas('stockMovement', function($q) use ($warehouseId) {
                 $q->where('to_warehouse_id', $warehouseId)
@@ -373,6 +384,8 @@ class StockController extends Controller
                     'type' => 'Mutasi Masuk',
                     'ref_no' => $item->stockMovement->reference_number,
                     'source' => 'Dari: ' . ($item->stockMovement->fromWarehouse->name ?? '-'),
+                    'batch_no' => $item->batch->batch_no ?? '-',
+                    'qty' => $item->qty,
                     'date' => $item->stockMovement->received_at ? $item->stockMovement->received_at->format('Y-m-d') : '-',
                     'print_url' => null
                 ];
@@ -416,7 +429,7 @@ class StockController extends Controller
                 if ($grItem && $grItem->goodsReceipt && $grItem->goodsReceipt->supplier) {
                     $gr = $grItem->goodsReceipt;
                     $type = 'Penerimaan Barang';
-                    $refNo = $gr->sj_number ?? $batch->batch_no;
+                    $refNo = $gr->delivery_note_number ?? $gr->sj_number;
                     $source = $gr->supplier->name;
                     $date = $gr->received_date ? $gr->received_date->format('Y-m-d') : $date;
                     $found = true;
@@ -436,7 +449,7 @@ class StockController extends Controller
                 if ($grItem && $grItem->goodsReceipt && $grItem->goodsReceipt->supplier) {
                     $gr = $grItem->goodsReceipt;
                     $type = 'Penerimaan Barang';
-                    $refNo = $gr->sj_number ?? $batch->batch_no;
+                    $refNo = $gr->delivery_note_number ?? $gr->sj_number;
                     $source = $gr->supplier->name;
                     $date = $gr->received_date ? $gr->received_date->format('Y-m-d') : $date;
                     $found = true;
@@ -447,6 +460,8 @@ class StockController extends Controller
                 'type' => $type,
                 'ref_no' => $refNo,
                 'source' => $source,
+                'batch_no' => $batch->batch_no,
+                'qty' => $batch->qty,
                 'date' => $date,
                 'print_url' => null
             ];
@@ -525,6 +540,7 @@ class StockController extends Controller
                 'name'      => ($product->merek ? $product->merek->name . ' ' : '') . $product->name,
                 'warehouse' => $warehouse->name,
                 'netto'     => $nettoInfo,
+                'variant_id' => $variantId ?: null,
             ],
             'batches' => $batches,
             'incoming' => $incoming,

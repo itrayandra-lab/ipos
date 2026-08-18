@@ -220,6 +220,7 @@
                                                 <th style="width:40px;" class="text-center">#</th>
                                                 <th style="min-width:260px;">Nama Produk</th>
                                                 <th style="width:120px;">No. Batch</th>
+                                                <th style="width:130px;">Exp. Date</th>
                                                 <th style="width:140px;">Harga Beli</th>
                                                 <th style="width:110px;" class="text-center">Qty PO</th>
                                                 <th style="width:110px;" class="text-center">Qty Terima <span class="text-danger">*</span></th>
@@ -229,7 +230,7 @@
                                         </thead>
                                         <tbody id="tbody-items">
                                             <tr id="empty-row">
-                                                <td colspan="8" class="text-center text-muted py-4">
+                                                <td colspan="9" class="text-center text-muted py-4">
                                                     <i class="fas fa-box-open fa-2x mb-2 d-block opacity-50"></i>
                                                     Pilih PO untuk auto-isi item, atau tambah item manual di bawah
                                                 </td>
@@ -456,6 +457,9 @@
                                 <input type="text" name="items[${rowIndex}][batch_no]" class="form-control" placeholder="Batch No...">
                             </td>
                             <td>
+                                <input type="date" name="items[${rowIndex}][expiry_date]" class="form-control">
+                            </td>
+                            <td>
                                 <input type="text" name="items[${rowIndex}][buy_price]" value="${formatNum(buyPrice)}" class="form-control buy-price-input text-right">
                             </td>
                             <td class="text-center">
@@ -523,6 +527,9 @@
                 <input type="text" name="items[${rowIndex}][batch_no]" class="form-control" placeholder="Batch No...">
             </td>
             <td>
+                <input type="date" name="items[${rowIndex}][expiry_date]" class="form-control">
+            </td>
+            <td>
                 <input type="text" name="items[${rowIndex}][buy_price]" value="0" class="form-control buy-price-input text-right">
             </td>
             <td class="text-center text-muted">—</td>
@@ -583,6 +590,9 @@
             </td>
             <td>
                 <input type="text" name="items[${rowIndex}][batch_no]" class="form-control" placeholder="Batch No...">
+            </td>
+            <td>
+                <input type="date" name="items[${rowIndex}][expiry_date]" class="form-control">
             </td>
             <td>
                 <input type="text" name="items[${rowIndex}][buy_price]" value="0" class="form-control buy-price-input text-right">
