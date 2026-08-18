@@ -323,7 +323,7 @@
                                 <td><span class="badge ${badge}">${i.type}</span></td>
                                 <td class="font-weight-bold">${i.ref_no}</td>
                                 <td>${i.source}</td>
-                                <td class="text-right font-weight-bold">${i.qty}</td>
+                                <td class="text-right font-weight-bold">${parseInt(i.qty)}</td>
                                 <td>${new Date(i.date).toLocaleDateString('id-ID')}</td>
                             </tr>
                         `);
