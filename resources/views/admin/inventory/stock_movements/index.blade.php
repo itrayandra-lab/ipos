@@ -7,7 +7,7 @@
     <section class="section">
         <div class="section-header">
             <h1>Stock Movements</h1>
-            @if(!auth()->user()->isFinance())
+            @if(auth()->user()->canEdit('access_stock_movement'))
             <div class="section-header-button">
                 <a href="{{ route('admin.stock_movements.create') }}" class="btn btn-primary">Tambah Movement</a>
             </div>
@@ -63,6 +63,41 @@
                 {data: 'status', name: 'status'},
                 {data: 'action', name: 'action', orderable: false, searchable: false},
             ]
+        });
+
+        $(document).on('click', '.btn-delete', function() {
+            let id = $(this).data('id');
+            Swal.fire({
+                title: 'Hapus Movement?',
+                text: 'Data movement akan dihapus permanen.',
+                icon: 'warning',
+                showCancelButton: true,
+                confirmButtonColor: '#dc3545',
+                cancelButtonColor: '#6c757d',
+                confirmButtonText: 'Ya, Hapus!',
+                cancelButtonText: 'Batal',
+            }).then((result) => {
+                if (result.isConfirmed) {
+                    let url = "{{ route('admin.stock_movements.destroy', ':id') }}".replace(':id', id);
+                    Swal.fire({ title: 'Memproses...', text: 'Mohon tunggu sebentar.', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
+                    $.ajax({
+                        url: url,
+                        method: 'DELETE',
+                        data: { _token: '{{ csrf_token() }}' },
+                        success: function(res) {
+                            if (res.status === 'success') {
+                                Swal.fire({ icon: 'success', title: 'Berhasil!', text: res.message, timer: 2000, showConfirmButton: false })
+                                    .then(() => table.ajax.reload());
+                            } else {
+                                Swal.fire({ icon: 'error', title: 'Gagal', text: res.message });
+                            }
+                        },
+                        error: function(err) {
+                            Swal.fire({ icon: 'error', title: 'Error', text: err.responseJSON?.message || 'Terjadi kesalahan server.' });
+                        }
+                    });
+                }
+            });
         });
 
         $(document).on('click', '.btn-ship', function() {

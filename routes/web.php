@@ -498,6 +498,9 @@ Route::prefix('admin')->middleware(['auth', 'role:super_admin,store_manager,fina
                     Route::get('/stock-movements/create', 'create')->name('admin.stock_movements.create');
                     Route::get('/stock-movements/all', 'getall')->name('admin.stock_movements.getall');
                     Route::post('/stock-movements', 'store')->name('admin.stock_movements.store');
+                    Route::get('/stock-movements/{id}/edit', 'edit')->name('admin.stock_movements.edit');
+                    Route::put('/stock-movements/{id}', 'update')->name('admin.stock_movements.update');
+                    Route::delete('/stock-movements/{id}', 'destroy')->name('admin.stock_movements.destroy');
                     Route::get('/stock-movements/{id}', 'show')->name('admin.stock_movements.show');
                     Route::post('/stock-movements/{id}/ship', 'ship')->name('admin.stock_movements.ship');
                     Route::post('/stock-movements/{id}/receive', 'receive')->name('admin.stock_movements.receive');

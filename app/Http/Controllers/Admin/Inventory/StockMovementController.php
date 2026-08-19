@@ -15,6 +15,25 @@ use Illuminate\Support\Facades\Auth;
 
 class StockMovementController extends Controller
 {
+    public function __construct()
+    {
+        $this->middleware(function ($request, $next) {
+            $user = auth()->user();
+            $restrictedMethods = ['create', 'store', 'edit', 'update', 'destroy'];
+
+            if ($user && in_array($request->route()->getActionMethod(), $restrictedMethods)) {
+                if (!$user->canEdit('access_stock_movement')) {
+                    if ($request->ajax()) {
+                        return response()->json(['status' => 'error', 'message' => 'Anda tidak memiliki akses untuk tindakan ini.'], 403);
+                    }
+                    return redirect()->route('admin.stock_movements.index')->with('error', 'Anda tidak memiliki akses untuk tindakan ini.');
+                }
+            }
+
+            return $next($request);
+        });
+    }
+
     public function index()
     {
         return view('admin.inventory.stock_movements.index')->with('sb', 'StockMovement');
@@ -41,14 +60,15 @@ class StockMovementController extends Controller
             ->addColumn('action', function ($m) {
                 $btn = '<div class="btn-group">';
                 $btn .= '<a href="' . route('admin.stock_movements.show', $m->id) . '" class="btn btn-sm btn-info"><i class="fas fa-eye"></i></a>';
-                
-                // Role Finance only sees Detail
-                if (auth()->user()->isFinance()) {
+
+                if (!auth()->user()->canEdit('access_stock_movement')) {
                     $btn .= '</div>';
                     return $btn;
                 }
 
                 if ($m->status === 'pending') {
+                    $btn .= '<a href="' . route('admin.stock_movements.edit', $m->id) . '" class="btn btn-sm btn-warning ml-1" title="Edit"><i class="fas fa-edit"></i></a>';
+                    $btn .= '<button class="btn btn-sm btn-danger btn-delete ml-1" data-id="' . $m->id . '" title="Hapus"><i class="fas fa-trash"></i></button>';
                     $btn .= '<button class="btn btn-sm btn-primary btn-ship ml-1" data-id="' . $m->id . '"><i class="fas fa-truck"></i> Kirim</button>';
                 }
                 if ($m->status === 'transit') {
@@ -129,6 +149,101 @@ class StockMovementController extends Controller
         ])->findOrFail($id);
 
         return view('admin.inventory.stock_movements.show', compact('movement'))->with('sb', 'StockMovement');
+    }
+
+    public function edit($id)
+    {
+        $movement = StockMovement::with([
+            'items.product',
+            'items.variant',
+            'items.batch',
+            'fromWarehouse',
+            'toWarehouse',
+        ])->findOrFail($id);
+
+        if ($movement->status !== 'pending') {
+            return redirect()->route('admin.stock_movements.index')->with('error', 'Movement yang sudah diproses tidak dapat diedit.');
+        }
+
+        $warehouses = Warehouse::where('status', 'active')->get();
+
+        return view('admin.inventory.stock_movements.edit', compact('movement', 'warehouses'))->with('sb', 'StockMovement');
+    }
+
+    public function update(Request $request, $id)
+    {
+        $validator = Validator::make($request->all(), [
+            'from_warehouse_id'        => 'required|exists:warehouses,id',
+            'to_warehouse_id'          => 'required|exists:warehouses,id|different:from_warehouse_id',
+            'items'                    => 'required|array|min:1',
+            'items.*.product_batch_id' => 'required|exists:product_batches,id',
+            'items.*.qty'              => 'required|numeric|min:1',
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json(['status' => 'error', 'message' => $validator->errors()->first()], 422);
+        }
+
+        try {
+            DB::beginTransaction();
+
+            $movement = StockMovement::with('items')->findOrFail($id);
+
+            if ($movement->status !== 'pending') {
+                throw new \Exception('Movement yang sudah diproses tidak dapat diedit.');
+            }
+
+            $movement->update([
+                'from_warehouse_id' => $request->from_warehouse_id,
+                'to_warehouse_id'   => $request->to_warehouse_id,
+                'notes'             => $request->notes,
+            ]);
+
+            $movement->items()->delete();
+
+            foreach ($request->items as $item) {
+                $batch = ProductBatch::findOrFail($item['product_batch_id']);
+                StockMovementItem::create([
+                    'stock_movement_id'  => $movement->id,
+                    'product_id'         => $batch->product_id,
+                    'product_variant_id' => $batch->product_variant_id ?: null,
+                    'product_batch_id'   => $batch->id,
+                    'qty'                => $item['qty'],
+                ]);
+            }
+
+            DB::commit();
+            return response()->json([
+                'status'   => 'success',
+                'message'  => 'Stock Movement berhasil diperbarui',
+                'redirect' => route('admin.stock_movements.index'),
+            ]);
+        } catch (\Exception $e) {
+            DB::rollBack();
+            return response()->json(['status' => 'error', 'message' => $e->getMessage()], 500);
+        }
+    }
+
+    public function destroy($id)
+    {
+        try {
+            DB::beginTransaction();
+
+            $movement = StockMovement::with('items')->findOrFail($id);
+
+            if ($movement->status !== 'pending') {
+                throw new \Exception('Movement yang sudah diproses tidak dapat dihapus.');
+            }
+
+            $movement->items()->delete();
+            $movement->delete();
+
+            DB::commit();
+            return response()->json(['status' => 'success', 'message' => 'Stock Movement berhasil dihapus']);
+        } catch (\Exception $e) {
+            DB::rollBack();
+            return response()->json(['status' => 'error', 'message' => $e->getMessage()], 500);
+        }
     }
 
     public function ship($id)

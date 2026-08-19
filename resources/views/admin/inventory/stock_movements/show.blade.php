@@ -50,9 +50,12 @@
                                 </li>
                             </ul>
                         </div>
-                        @if(in_array($movement->status, ['pending', 'transit']) && !auth()->user()->isFinance())
+                        @if(in_array($movement->status, ['pending', 'transit']) && auth()->user()->canEdit('access_stock_movement'))
                         <div class="card-footer bg-whitesmoke text-right">
                             @if($movement->status === 'pending')
+                                <a href="{{ route('admin.stock_movements.edit', $movement->id) }}" class="btn btn-warning btn-block mb-2">
+                                    <i class="fas fa-edit mr-1"></i> Edit Movement
+                                </a>
                                 <button type="button" class="btn btn-primary btn-block" id="btn-process-ship">
                                     <i class="fas fa-truck mr-1"></i> Kirim Barang (Ship)
                                 </button>
