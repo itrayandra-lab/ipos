@@ -526,14 +526,16 @@
 
         // Delete
         window.deleteTransaction = function(id) {
-            swal({
+            Swal.fire({
                 title: 'Hapus Transaksi?',
                 text: 'Data ini akan dihapus dan saldo akan direcalculate.',
                 icon: 'warning',
-                buttons: ['Batal', 'Hapus'],
-                dangerMode: true,
-            }).then((willDelete) => {
-                if (willDelete) {
+                showCancelButton: true,
+                confirmButtonText: 'Hapus',
+                cancelButtonText: 'Batal',
+                confirmButtonColor: '#dc3545',
+            }).then((result) => {
+                if (result.isConfirmed) {
                     $.ajax({
                         url: '{{ url("admin/finance/petty-cash") }}/' + id,
                         type: 'DELETE',
@@ -546,6 +548,9 @@
                             } else {
                                 iziToast.error({ title: 'Gagal', message: res.message, position: 'topRight' });
                             }
+                        },
+                        error: function(xhr) {
+                            iziToast.error({ title: 'Error', message: xhr.responseJSON?.message || 'Terjadi kesalahan', position: 'topRight' });
                         }
                     });
                 }
