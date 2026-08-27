@@ -507,8 +507,16 @@ class GoodsReceiptController extends Controller
                     $poItem = PurchaseOrderItem::find($oldItem->purchase_order_item_id);
                     if ($poItem) $poId = $poItem->purchase_order_id;
                 }
-                // Remove old FK-linked batches
-                ProductBatch::where('goods_receipt_item_id', $oldItem->id)->delete();
+                // Remove old FK-linked batches (skip batches already used in stock history)
+                ProductBatch::where('goods_receipt_item_id', $oldItem->id)
+                    ->get()
+                    ->each(function ($batch) {
+                        if ($batch->hasStockHistory()) {
+                            $batch->update(['goods_receipt_item_id' => null]);
+                        } else {
+                            $batch->delete();
+                        }
+                    });
                 // Remove old manual batches (no FK)
                 $oldProductId = null;
                 if ($oldItem->purchase_order_item_id) {
@@ -520,7 +528,12 @@ class GoodsReceiptController extends Controller
                         ->where('batch_no', $oldItem->batch_no)
                         ->where('warehouse_id', $gr->warehouse_id)
                         ->whereNull('goods_receipt_item_id')
-                        ->delete();
+                        ->get()
+                        ->each(function ($batch) {
+                            if (!$batch->hasStockHistory()) {
+                                $batch->delete();
+                            }
+                        });
                 }
             }
 
@@ -675,7 +688,15 @@ class GoodsReceiptController extends Controller
                     if ($poItem) $poId = $poItem->purchase_order_id;
                 }
 
-                ProductBatch::where('goods_receipt_item_id', $item->id)->delete();
+                ProductBatch::where('goods_receipt_item_id', $item->id)
+                    ->get()
+                    ->each(function ($batch) {
+                        if ($batch->hasStockHistory()) {
+                            $batch->update(['goods_receipt_item_id' => null]);
+                        } else {
+                            $batch->delete();
+                        }
+                    });
 
                 // Also clean up old manual batches where FK was null
                 $productId = null;
@@ -688,7 +709,12 @@ class GoodsReceiptController extends Controller
                         ->where('batch_no', $item->batch_no)
                         ->where('warehouse_id', $gr->warehouse_id)
                         ->whereNull('goods_receipt_item_id')
-                        ->delete();
+                        ->get()
+                        ->each(function ($batch) {
+                            if (!$batch->hasStockHistory()) {
+                                $batch->delete();
+                            }
+                        });
                 }
             }
 

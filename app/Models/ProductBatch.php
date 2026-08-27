@@ -56,6 +56,24 @@ class ProductBatch extends Model
         return $this->hasMany(SupplierReturnItem::class, 'product_batch_id');
     }
 
+    public function stockMovementItems()
+    {
+        return $this->hasMany(StockMovementItem::class, 'product_batch_id');
+    }
+
+    public function supplierDeliveryNoteItems()
+    {
+        return $this->hasMany(SupplierDeliveryNoteItem::class, 'product_batch_id');
+    }
+
+    public function hasStockHistory(): bool
+    {
+        return $this->stockMovementItems()->exists()
+            || $this->supplierDeliveryNoteItems()->exists()
+            || $this->transactionItems()->exists()
+            || $this->supplierReturnItems()->exists();
+    }
+
     /**
      * Get current stock for this batch.
      * Formula: qty (initial) - SUM(transaction_items.qty)
