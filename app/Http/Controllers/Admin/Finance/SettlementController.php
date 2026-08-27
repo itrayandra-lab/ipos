@@ -102,10 +102,6 @@ class SettlementController extends Controller
     private function getSummary(Request $request)
     {
         $query = DB::table('transaction_items')
-            ->select(
-                DB::raw('SUM(transaction_items.qty) as total_qty'),
-                DB::raw('SUM(transaction_items.qty * COALESCE(NULLIF(transaction_items.buy_price, 0), product_variants.product_hpp, 0)) as total_cost')
-            )
             ->join('products', 'transaction_items.product_id', '=', 'products.id')
             ->leftJoin('suppliers', 'products.supplier_id', '=', 'suppliers.id')
             ->leftJoin('merek', 'products.merek_id', '=', 'merek.id')
@@ -147,8 +143,8 @@ class SettlementController extends Controller
         $query->whereNull('transaction_items.supplier_payment_id');
         
         $totals = $query->select(
-            DB::raw('COALESCE(SUM(total_qty), 0) as grand_total_qty'),
-            DB::raw('COALESCE(SUM(total_cost), 0) as grand_total_cost')
+            DB::raw('COALESCE(SUM(transaction_items.qty), 0) as grand_total_qty'),
+            DB::raw('COALESCE(SUM(transaction_items.qty * COALESCE(NULLIF(transaction_items.buy_price, 0), product_variants.product_hpp, 0)), 0) as grand_total_cost')
         )->first();
 
         $supplier = null;
