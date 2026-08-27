@@ -101,14 +101,55 @@ class SettlementController extends Controller
 
     private function getSummary(Request $request)
     {
-        $query = $this->getFilteredQuery($request);
-        
-        $totals = DB::table($query)
+        $query = DB::table('transaction_items')
             ->select(
-                DB::raw('COALESCE(SUM(total_qty), 0) as grand_total_qty'),
-                DB::raw('COALESCE(SUM(total_cost), 0) as grand_total_cost')
+                DB::raw('SUM(transaction_items.qty) as total_qty'),
+                DB::raw('SUM(transaction_items.qty * COALESCE(NULLIF(transaction_items.buy_price, 0), product_variants.product_hpp, 0)) as total_cost')
             )
-            ->first();
+            ->join('products', 'transaction_items.product_id', '=', 'products.id')
+            ->leftJoin('suppliers', 'products.supplier_id', '=', 'suppliers.id')
+            ->leftJoin('merek', 'products.merek_id', '=', 'merek.id')
+            ->leftJoin('product_variants', 'transaction_items.product_variant_id', '=', 'product_variants.id')
+            ->join('transactions', 'transaction_items.transaction_id', '=', 'transactions.id');
+
+        // When search is active, skip date/supplier filters so search works on all data
+        $search = $request->input('search.value');
+
+        if (!$search) {
+            if ($request->has('start_date') && !empty($request->start_date)) {
+                $query->where('transactions.transaction_date', '>=', Carbon::parse($request->start_date)->startOfDay());
+            }
+            if ($request->has('end_date') && !empty($request->end_date)) {
+                $query->where('transactions.transaction_date', '<=', Carbon::parse($request->end_date)->endOfDay());
+            }
+
+            if ($request->has('supplier_id') && !empty($request->supplier_id)) {
+                $query->where('products.supplier_id', $request->supplier_id);
+            }
+        } else {
+            $keyword = '%' . $search . '%';
+            $query->where(function ($q) use ($keyword) {
+                $q->where('products.name', 'like', $keyword)
+                  ->orWhere('suppliers.name', 'like', $keyword)
+                  ->orWhere('merek.name', 'like', $keyword)
+                  ->orWhere('product_variants.variant_name', 'like', $keyword)
+                  ->orWhere('product_variants.sku_code', 'like', $keyword);
+            });
+        }
+
+        // Bundling Logic: Show components, hide bundle parents
+        $query->where(function($q) {
+            $q->where('products.is_bundle', 0)
+              ->orWhereNotNull('transaction_items.parent_item_id');
+        });
+
+        // ONLY SHOW UNPAID ITEMS
+        $query->whereNull('transaction_items.supplier_payment_id');
+        
+        $totals = $query->select(
+            DB::raw('COALESCE(SUM(total_qty), 0) as grand_total_qty'),
+            DB::raw('COALESCE(SUM(total_cost), 0) as grand_total_cost')
+        )->first();
 
         $supplier = null;
         if ($request->has('supplier_id') && !empty($request->supplier_id)) {
