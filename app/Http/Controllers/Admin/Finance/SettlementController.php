@@ -19,7 +19,7 @@ class SettlementController extends Controller
         $suppliers = \App\Models\Supplier::select('id', 'name')->orderBy('name', 'ASC')->get();
         return view('admin.finance.settlement_report')->with([
             'sb' => 'FinanceSettlement',
-            'suppliers' => $suppliers
+            'suppliers' => $suppliers,
         ]);
     }
 
@@ -27,86 +27,165 @@ class SettlementController extends Controller
     {
         try {
             $query = $this->getFilteredQuery($request);
+
             $summary = $this->getSummary($request);
 
             \Log::debug('Settlement search params', $request->only(['start_date', 'end_date', 'supplier_id', 'search']));
 
             return DataTables::of($query)
+
                 ->addIndexColumn()
-                ->orderColumn('buy_price', 'COALESCE(NULLIF(transaction_items.buy_price, 0), product_variants.product_hpp, 0) $1')
-                ->orderColumn('total_qty', 'SUM(transaction_items.qty) $1')
-                ->orderColumn('total_cost', 'SUM(transaction_items.qty * COALESCE(NULLIF(transaction_items.buy_price, 0), product_variants.product_hpp, 0)) $1')
-                ->editColumn('product_name', function($row) {
+
+                /*
+                 * Sorting menggunakan alias hasil SELECT.
+                 */
+                ->orderColumn('buy_price', 'buy_price $1')
+
+                ->orderColumn('total_qty', 'total_qty $1')
+
+                ->orderColumn('total_cost', 'total_cost $1')
+
+                /*
+                 * PRODUCT NAME
+                 */
+                ->editColumn('product_name', function ($row) {
                     $merekName = trim((string) ($row->merek_name ?? ''));
+
                     $productName = trim((string) ($row->product_name ?? ''));
+
                     $variantName = trim((string) ($row->variant_name ?? ''));
 
                     $originalParts = array_filter([$merekName, $productName, $variantName]);
+
                     $finalParts = [];
+
                     foreach ($originalParts as $p1) {
                         $isSubPart = false;
+
                         foreach ($originalParts as $p2) {
                             if ($p1 !== $p2 && stripos($p2, $p1) !== false && strlen($p2) > strlen($p1)) {
                                 $isSubPart = true;
                                 break;
                             }
                         }
+
                         if (!$isSubPart) {
                             $finalParts[] = $p1;
                         }
                     }
+
                     $labelText = implode(' ', array_unique($finalParts));
+
                     return '<div class="font-weight-600">' . e($labelText) . '</div>';
                 })
+
+                /*
+                 * BUY PRICE
+                 */
                 ->editColumn('buy_price', function ($row) {
                     $price = (float) ($row->buy_price ?? 0);
+
                     return 'Rp ' . number_format($price, 0, ',', '.');
                 })
+
+                /*
+                 * TOTAL QTY
+                 */
+                ->editColumn('total_qty', function ($row) {
+                    $qty = (float) ($row->total_qty ?? 0);
+
+                    if (floor($qty) == $qty) {
+                        return number_format($qty, 0, ',', '.');
+                    }
+
+                    return number_format($qty, 2, ',', '.');
+                })
+
+                /*
+                 * TOTAL COST
+                 */
                 ->editColumn('total_cost', function ($row) {
                     $cost = (float) ($row->total_cost ?? 0);
+
                     return 'Rp ' . number_format($cost, 0, ',', '.');
                 })
+
+                /*
+                 * RAW BUY PRICE
+                 */
                 ->addColumn('raw_buy_price', function ($row) {
                     return (float) ($row->buy_price ?? 0);
                 })
+
+                /*
+                 * RAW TOTAL COST
+                 */
                 ->addColumn('raw_total_cost', function ($row) {
                     return (float) ($row->total_cost ?? 0);
                 })
-                ->addColumn('action', function($row) {
+
+                /*
+                 * ACTION
+                 */
+                ->addColumn('action', function ($row) {
                     $pid = $row->product_id ?? '';
                     $vid = $row->product_variant_id ?? '';
-                    $bp  = (float) ($row->buy_price ?? 0);
-                    $pn  = e($row->product_name ?? '');
-                    $vn  = e($row->variant_name ?? '');
-                    return '<button type="button" class="btn btn-info btn-sm btn-detail" 
-                                data-product-id="' . $pid . '" 
-                                data-variant-id="' . $vid . '"
-                                data-buy-price="' . $bp . '"
-                                data-product-name="' . $pn . '"
-                                data-variant-name="' . $vn . '">
-                                <i class="fas fa-eye"></i> Detail
-                            </button>';
+
+                    $bp = (float) ($row->buy_price ?? 0);
+
+                    $pn = e($row->product_name ?? '');
+
+                    $vn = e($row->variant_name ?? '');
+
+                    return '
+                        <button
+                            type="button"
+                            class="btn btn-info btn-sm btn-detail"
+                            data-product-id="' .
+                        $pid .
+                        '"
+                            data-variant-id="' .
+                        $vid .
+                        '"
+                            data-buy-price="' .
+                        $bp .
+                        '"
+                            data-product-name="' .
+                        $pn .
+                        '"
+                            data-variant-name="' .
+                        $vn .
+                        '"
+                        >
+                            <i class="fas fa-eye"></i>
+                            Detail
+                        </button>
+                    ';
                 })
+
                 ->rawColumns(['product_name', 'action'])
+
                 ->with('summary', $summary)
+
                 ->make(true);
         } catch (\Throwable $e) {
             \Log::error('Settlement data error: ' . $e->getMessage(), [
                 'trace' => $e->getTraceAsString(),
-                'request' => $request->all()
+                'request' => $request->all(),
             ]);
-            return response()->json(['error' => $e->getMessage()], 500);
+
+            return response()->json(
+                [
+                    'error' => $e->getMessage(),
+                ],
+                500,
+            );
         }
     }
 
     private function getSummary(Request $request)
     {
-        $query = DB::table('transaction_items')
-            ->join('products', 'transaction_items.product_id', '=', 'products.id')
-            ->leftJoin('suppliers', 'products.supplier_id', '=', 'suppliers.id')
-            ->leftJoin('merek', 'products.merek_id', '=', 'merek.id')
-            ->leftJoin('product_variants', 'transaction_items.product_variant_id', '=', 'product_variants.id')
-            ->join('transactions', 'transaction_items.transaction_id', '=', 'transactions.id');
+        $query = DB::table('transaction_items')->join('products', 'transaction_items.product_id', '=', 'products.id')->leftJoin('suppliers', 'products.supplier_id', '=', 'suppliers.id')->leftJoin('merek', 'products.merek_id', '=', 'merek.id')->leftJoin('product_variants', 'transaction_items.product_variant_id', '=', 'product_variants.id')->join('transactions', 'transaction_items.transaction_id', '=', 'transactions.id');
 
         // When search is active, skip date/supplier filters so search works on all data
         $search = $request->input('search.value');
@@ -125,27 +204,19 @@ class SettlementController extends Controller
         } else {
             $keyword = '%' . $search . '%';
             $query->where(function ($q) use ($keyword) {
-                $q->where('products.name', 'like', $keyword)
-                  ->orWhere('suppliers.name', 'like', $keyword)
-                  ->orWhere('merek.name', 'like', $keyword)
-                  ->orWhere('product_variants.variant_name', 'like', $keyword)
-                  ->orWhere('product_variants.sku_code', 'like', $keyword);
+                $q->where('products.name', 'like', $keyword)->orWhere('suppliers.name', 'like', $keyword)->orWhere('merek.name', 'like', $keyword)->orWhere('product_variants.variant_name', 'like', $keyword)->orWhere('product_variants.sku_code', 'like', $keyword);
             });
         }
 
         // Bundling Logic: Show components, hide bundle parents
-        $query->where(function($q) {
-            $q->where('products.is_bundle', 0)
-              ->orWhereNotNull('transaction_items.parent_item_id');
+        $query->where(function ($q) {
+            $q->where('products.is_bundle', 0)->orWhereNotNull('transaction_items.parent_item_id');
         });
 
         // ONLY SHOW UNPAID ITEMS
         $query->whereNull('transaction_items.supplier_payment_id');
-        
-        $totals = $query->select(
-            DB::raw('COALESCE(SUM(transaction_items.qty), 0) as grand_total_qty'),
-            DB::raw('COALESCE(SUM(transaction_items.qty * COALESCE(NULLIF(transaction_items.buy_price, 0), product_variants.product_hpp, 0)), 0) as grand_total_cost')
-        )->first();
+
+        $totals = $query->select(DB::raw('COALESCE(SUM(transaction_items.qty), 0) as grand_total_qty'), DB::raw('COALESCE(SUM(transaction_items.qty * COALESCE(NULLIF(transaction_items.buy_price, 0), product_variants.product_hpp, 0)), 0) as grand_total_cost'))->first();
 
         $supplier = null;
         if ($request->has('supplier_id') && !empty($request->supplier_id)) {
@@ -155,75 +226,108 @@ class SettlementController extends Controller
         return [
             'total_qty' => (int) ($totals->grand_total_qty ?? 0),
             'total_cost' => (int) ($totals->grand_total_cost ?? 0),
-            'supplier' => $supplier
+            'supplier' => $supplier,
         ];
     }
 
     private function getFilteredQuery(Request $request)
     {
         $query = DB::table('transaction_items')
-            ->select(
+            ->select([
                 'transaction_items.product_id',
                 'transaction_items.product_variant_id',
-                DB::raw('COALESCE(NULLIF(transaction_items.buy_price, 0), product_variants.product_hpp, 0) as buy_price'),
+
+                DB::raw("
+                COALESCE(
+                    NULLIF(transaction_items.buy_price, 0),
+                    product_variants.product_hpp,
+                    0
+                ) AS buy_price
+            "),
+
                 'merek.name as merek_name',
                 'products.name as product_name',
                 'suppliers.name as supplier_name',
                 'product_variants.variant_name',
                 'product_variants.sku_code',
-                DB::raw('SUM(transaction_items.qty) as total_qty'),
-                DB::raw('SUM(transaction_items.qty * COALESCE(NULLIF(transaction_items.buy_price, 0), product_variants.product_hpp, 0)) as total_cost')
-            )
+
+                DB::raw('SUM(transaction_items.qty) AS total_qty'),
+
+                DB::raw("
+                SUM(
+                    transaction_items.qty *
+                    COALESCE(
+                        NULLIF(transaction_items.buy_price, 0),
+                        product_variants.product_hpp,
+                        0
+                    )
+                ) AS total_cost
+            "),
+            ])
+
             ->join('products', 'transaction_items.product_id', '=', 'products.id')
+
             ->leftJoin('suppliers', 'products.supplier_id', '=', 'suppliers.id')
+
             ->leftJoin('merek', 'products.merek_id', '=', 'merek.id')
+
             ->leftJoin('product_variants', 'transaction_items.product_variant_id', '=', 'product_variants.id')
+
             ->join('transactions', 'transaction_items.transaction_id', '=', 'transactions.id');
 
-        // When search is active, skip date/supplier filters so search works on all data
-        $search = $request->input('search.value');
-
-        if (!$search) {
-            if ($request->has('start_date') && !empty($request->start_date)) {
-                $query->where('transactions.transaction_date', '>=', Carbon::parse($request->start_date)->startOfDay());
-            }
-            if ($request->has('end_date') && !empty($request->end_date)) {
-                $query->where('transactions.transaction_date', '<=', Carbon::parse($request->end_date)->endOfDay());
-            }
-
-            if ($request->has('supplier_id') && !empty($request->supplier_id)) {
-                $query->where('products.supplier_id', $request->supplier_id);
-            }
-        } else {
-            $keyword = '%' . $search . '%';
-            $query->where(function ($q) use ($keyword) {
-                $q->where('products.name', 'like', $keyword)
-                  ->orWhere('suppliers.name', 'like', $keyword)
-                  ->orWhere('merek.name', 'like', $keyword)
-                  ->orWhere('product_variants.variant_name', 'like', $keyword)
-                  ->orWhere('product_variants.sku_code', 'like', $keyword);
-            });
+        /*
+         * FILTER TANGGAL
+         */
+        if ($request->filled('start_date')) {
+            $query->where('transactions.transaction_date', '>=', $request->start_date . ' 00:00:00');
         }
 
-        // Bundling Logic: Show components, hide bundle parents
-        $query->where(function($q) {
-            $q->where('products.is_bundle', 0)
-              ->orWhereNotNull('transaction_items.parent_item_id');
+        if ($request->filled('end_date')) {
+            $query->where('transactions.transaction_date', '<=', $request->end_date . ' 23:59:59');
+        }
+
+        /*
+         * FILTER SUPPLIER
+         */
+        if ($request->filled('supplier_id')) {
+            $query->where('products.supplier_id', $request->supplier_id);
+        }
+
+        /*
+         * PRODUK BUNDLE
+         */
+        $query->where(function ($q) {
+            $q->where('products.is_bundle', 0)->orWhereNotNull('transaction_items.parent_item_id');
         });
 
-        // ONLY SHOW UNPAID ITEMS
+        /*
+         * BELUM MASUK SUPPLIER PAYMENT
+         */
         $query->whereNull('transaction_items.supplier_payment_id');
 
-        return $query->groupBy(
-            'transaction_items.product_id', 
-            'transaction_items.product_variant_id', 
-            DB::raw('COALESCE(NULLIF(transaction_items.buy_price, 0), product_variants.product_hpp, 0)'),
-            'merek.name', 
-            'products.name', 
+        /*
+         * GROUP BY
+         *
+         * PENTING:
+         * Jangan menggunakan COALESCE(...) di GROUP BY.
+         * Gunakan kolom sumbernya langsung.
+         */
+        $query->groupBy([
+            'transaction_items.product_id',
+            'transaction_items.product_variant_id',
+
+            // INI YANG MEMPERBAIKI ERROR 1055
+            'transaction_items.buy_price',
+            'product_variants.product_hpp',
+
+            'merek.name',
+            'products.name',
             'suppliers.name',
-            'product_variants.variant_name', 
-            'product_variants.sku_code'
-        );
+            'product_variants.variant_name',
+            'product_variants.sku_code',
+        ]);
+
+        return $query;
     }
 
     public function exportExcel(Request $request)
@@ -248,7 +352,7 @@ class SettlementController extends Controller
         $suppliers = \App\Models\Supplier::select('id', 'name')->orderBy('name', 'ASC')->get();
         return view('admin.finance.payment_history')->with([
             'sb' => 'FinanceSettlement',
-            'suppliers' => $suppliers
+            'suppliers' => $suppliers,
         ]);
     }
 
@@ -258,19 +362,7 @@ class SettlementController extends Controller
             abort(403);
         }
 
-        $query = DB::table('supplier_payments')
-            ->select(
-                'supplier_payments.id',
-                'supplier_payments.payment_number',
-                'supplier_payments.payment_date',
-                'supplier_payments.total_amount',
-                'supplier_payments.payment_proof',
-                'supplier_payments.notes',
-                'suppliers.name as supplier_name',
-                'users.name as cashier_name'
-            )
-            ->leftJoin('suppliers', 'supplier_payments.supplier_id', '=', 'suppliers.id')
-            ->leftJoin('users', 'supplier_payments.created_by', '=', 'users.id');
+        $query = DB::table('supplier_payments')->select('supplier_payments.id', 'supplier_payments.payment_number', 'supplier_payments.payment_date', 'supplier_payments.total_amount', 'supplier_payments.payment_proof', 'supplier_payments.notes', 'suppliers.name as supplier_name', 'users.name as cashier_name')->leftJoin('suppliers', 'supplier_payments.supplier_id', '=', 'suppliers.id')->leftJoin('users', 'supplier_payments.created_by', '=', 'users.id');
 
         if ($request->has('start_date') && !empty($request->start_date)) {
             $query->where('supplier_payments.payment_date', '>=', $request->start_date);
@@ -284,20 +376,20 @@ class SettlementController extends Controller
 
         return DataTables::of($query)
             ->addIndexColumn()
-            ->editColumn('payment_date', function($row) {
+            ->editColumn('payment_date', function ($row) {
                 return Carbon::parse($row->payment_date)->format('d-m-Y');
             })
-            ->editColumn('total_amount', function($row) {
+            ->editColumn('total_amount', function ($row) {
                 return 'Rp ' . number_format($row->total_amount, 0, ',', '.');
             })
-            ->addColumn('payment_proof_link', function($row) {
+            ->addColumn('payment_proof_link', function ($row) {
                 if ($row->payment_proof) {
-                    return '<a href="'.asset('storage/'.$row->payment_proof).'" target="_blank" class="btn btn-sm btn-info"><i class="fas fa-file-invoice"></i> Lihat</a>';
+                    return '<a href="' . asset('storage/' . $row->payment_proof) . '" target="_blank" class="btn btn-sm btn-info"><i class="fas fa-file-invoice"></i> Lihat</a>';
                 }
                 return '-';
             })
-            ->addColumn('action', function($row) {
-                return '<button type="button" class="btn btn-sm btn-primary btn-view-payment" data-id="'.$row->id.'"><i class="fas fa-eye"></i> Detail</button>';
+            ->addColumn('action', function ($row) {
+                return '<button type="button" class="btn btn-sm btn-primary btn-view-payment" data-id="' . $row->id . '"><i class="fas fa-eye"></i> Detail</button>';
             })
             ->rawColumns(['payment_proof_link', 'action'])
             ->make(true);
@@ -311,24 +403,7 @@ class SettlementController extends Controller
         $startDate = $request->start_date;
         $endDate = $request->end_date;
 
-        $query = DB::table('transaction_items')
-            ->select(
-                'transactions.id',
-                'transactions.transaction_code',
-                'transactions.invoice_number',
-                'transactions.transaction_date',
-                'transaction_items.qty',
-                DB::raw('COALESCE(NULLIF(transaction_items.buy_price, 0), product_variants.product_hpp, 0) as buy_price'),
-                DB::raw('transaction_items.qty * COALESCE(NULLIF(transaction_items.buy_price, 0), product_variants.product_hpp, 0) as total_hpp'),
-                'transaction_items.price',
-                'transactions.source',
-                'users.name as cashier_name'
-            )
-            ->join('transactions', 'transaction_items.transaction_id', '=', 'transactions.id')
-            ->leftJoin('users', 'transactions.user_id', '=', 'users.id')
-            ->leftJoin('product_variants', 'transaction_items.product_variant_id', '=', 'product_variants.id')
-            ->where('transaction_items.product_id', $productId)
-            ->whereNull('transaction_items.supplier_payment_id');
+        $query = DB::table('transaction_items')->select('transactions.id', 'transactions.transaction_code', 'transactions.invoice_number', 'transactions.transaction_date', 'transaction_items.qty', DB::raw('COALESCE(NULLIF(transaction_items.buy_price, 0), product_variants.product_hpp, 0) as buy_price'), DB::raw('transaction_items.qty * COALESCE(NULLIF(transaction_items.buy_price, 0), product_variants.product_hpp, 0) as total_hpp'), 'transaction_items.price', 'transactions.source', 'users.name as cashier_name')->join('transactions', 'transaction_items.transaction_id', '=', 'transactions.id')->leftJoin('users', 'transactions.user_id', '=', 'users.id')->leftJoin('product_variants', 'transaction_items.product_variant_id', '=', 'product_variants.id')->where('transaction_items.product_id', $productId)->whereNull('transaction_items.supplier_payment_id');
 
         if ($variantId && $variantId != 'null') {
             $query->where('transaction_items.product_variant_id', $variantId);
@@ -350,60 +425,43 @@ class SettlementController extends Controller
         $sales = $query->orderBy('transactions.transaction_date', 'desc')->get();
 
         return response()->json([
-            'sales' => $sales
+            'sales' => $sales,
         ]);
     }
 
     public function paymentDetail($id)
     {
-        $payment = DB::table('supplier_payments')
-            ->select(
-                'supplier_payments.*',
-                'suppliers.name as supplier_name',
-                'users.name as cashier_name'
-            )
-            ->leftJoin('suppliers', 'supplier_payments.supplier_id', '=', 'suppliers.id')
-            ->leftJoin('users', 'supplier_payments.created_by', '=', 'users.id')
-            ->where('supplier_payments.id', $id)
-            ->first();
+        $payment = DB::table('supplier_payments')->select('supplier_payments.*', 'suppliers.name as supplier_name', 'users.name as cashier_name')->leftJoin('suppliers', 'supplier_payments.supplier_id', '=', 'suppliers.id')->leftJoin('users', 'supplier_payments.created_by', '=', 'users.id')->where('supplier_payments.id', $id)->first();
 
         if (!$payment) {
             return response()->json(['status' => 'error', 'message' => 'Data tidak ditemukan'], 404);
         }
 
-        $items = DB::table('supplier_payment_items')
-            ->select(
-                'supplier_payment_items.*',
-                'products.name as product_name',
-                'product_variants.variant_name',
-                'merek.name as merek_name'
-            )
-            ->leftJoin('products', 'supplier_payment_items.product_id', '=', 'products.id')
-            ->leftJoin('product_variants', 'supplier_payment_items.product_variant_id', '=', 'product_variants.id')
-            ->leftJoin('merek', 'products.merek_id', '=', 'merek.id')
-            ->where('supplier_payment_items.supplier_payment_id', $id)
-            ->get();
+        $items = DB::table('supplier_payment_items')->select('supplier_payment_items.*', 'products.name as product_name', 'product_variants.variant_name', 'merek.name as merek_name')->leftJoin('products', 'supplier_payment_items.product_id', '=', 'products.id')->leftJoin('product_variants', 'supplier_payment_items.product_variant_id', '=', 'product_variants.id')->leftJoin('merek', 'products.merek_id', '=', 'merek.id')->where('supplier_payment_items.supplier_payment_id', $id)->get();
 
         return response()->json([
             'status' => 'success',
             'payment' => $payment,
-            'items' => $items
+            'items' => $items,
         ]);
     }
 
     public function pay(Request $request)
     {
-        $request->validate([
-            'supplier_id' => 'required',
-            'payment_date' => 'required|date',
-            'payment_proof' => 'nullable|file|mimes:jpg,jpeg,png,pdf|max:2048',
-            'products' => 'required|string', // JSON string from frontend
-            'actual_payment_amount' => 'required|numeric',
-        ], [
-            'payment_proof.max' => 'Ukuran file bukti pembayaran tidak boleh lebih dari 2 MB.',
-            'payment_proof.uploaded' => 'File bukti pembayaran gagal diunggah, kemungkinan besar karena ukuran file terlalu besar melebihi batas sistem.',
-            'payment_proof.mimes' => 'Format file bukti pembayaran harus berupa JPG, JPEG, PNG, atau PDF.'
-        ]);
+        $request->validate(
+            [
+                'supplier_id' => 'required',
+                'payment_date' => 'required|date',
+                'payment_proof' => 'nullable|file|mimes:jpg,jpeg,png,pdf|max:2048',
+                'products' => 'required|string', // JSON string from frontend
+                'actual_payment_amount' => 'required|numeric',
+            ],
+            [
+                'payment_proof.max' => 'Ukuran file bukti pembayaran tidak boleh lebih dari 2 MB.',
+                'payment_proof.uploaded' => 'File bukti pembayaran gagal diunggah, kemungkinan besar karena ukuran file terlalu besar melebihi batas sistem.',
+                'payment_proof.mimes' => 'Format file bukti pembayaran harus berupa JPG, JPEG, PNG, atau PDF.',
+            ],
+        );
 
         $products = json_decode($request->products, true);
         if (!$products || count($products) == 0) {
@@ -419,7 +477,7 @@ class SettlementController extends Controller
 
             $payDate = $request->payment_date;
             $month = date('m', strtotime($payDate));
-            $year  = date('y', strtotime($payDate));
+            $year = date('y', strtotime($payDate));
             $prefix = "PAY{$month}{$year}-";
 
             $lastPayment = DB::table('supplier_payments')
@@ -445,7 +503,7 @@ class SettlementController extends Controller
                 'notes' => $request->notes ?? null,
                 'created_by' => auth()->id(),
                 'created_at' => now(),
-                'updated_at' => now()
+                'updated_at' => now(),
             ]);
 
             $totalAmount = 0;
@@ -454,17 +512,8 @@ class SettlementController extends Controller
                 $productId = $prod['product_id'];
                 $variantId = isset($prod['variant_id']) && $prod['variant_id'] != 'null' && $prod['variant_id'] != '' ? $prod['variant_id'] : null;
 
-                $query = DB::table('transaction_items')
-                    ->select(
-                        'transaction_items.id',
-                        'transaction_items.qty',
-                        DB::raw('COALESCE(NULLIF(transaction_items.buy_price, 0), product_variants.product_hpp, 0) as buy_price'),
-                        'transaction_items.product_variant_id'
-                    )
-                    ->leftJoin('product_variants', 'transaction_items.product_variant_id', '=', 'product_variants.id')
-                    ->where('transaction_items.product_id', $productId)
-                    ->whereNull('transaction_items.supplier_payment_id');
-                
+                $query = DB::table('transaction_items')->select('transaction_items.id', 'transaction_items.qty', DB::raw('COALESCE(NULLIF(transaction_items.buy_price, 0), product_variants.product_hpp, 0) as buy_price'), 'transaction_items.product_variant_id')->leftJoin('product_variants', 'transaction_items.product_variant_id', '=', 'product_variants.id')->where('transaction_items.product_id', $productId)->whereNull('transaction_items.supplier_payment_id');
+
                 if ($variantId) {
                     $query->where('transaction_items.product_variant_id', $variantId);
                 } else {
@@ -479,7 +528,7 @@ class SettlementController extends Controller
 
                 foreach ($items as $item) {
                     $qty += $item->qty;
-                    $cost += ($item->qty * $item->buy_price);
+                    $cost += $item->qty * $item->buy_price;
                     $buyPrice = $item->buy_price;
                     $idsToUpdate[] = $item->id;
                 }
@@ -493,12 +542,14 @@ class SettlementController extends Controller
                         'buy_price' => $buyPrice,
                         'subtotal' => $cost,
                         'created_at' => now(),
-                        'updated_at' => now()
+                        'updated_at' => now(),
                     ]);
 
-                    DB::table('transaction_items')->whereIn('id', $idsToUpdate)->update([
-                        'supplier_payment_id' => $paymentId
-                    ]);
+                    DB::table('transaction_items')
+                        ->whereIn('id', $idsToUpdate)
+                        ->update([
+                            'supplier_payment_id' => $paymentId,
+                        ]);
 
                     $totalAmount += $cost;
 
@@ -506,7 +557,9 @@ class SettlementController extends Controller
                 }
             }
 
-            DB::table('supplier_payments')->where('id', $paymentId)->update(['total_amount' => $request->actual_payment_amount]);
+            DB::table('supplier_payments')
+                ->where('id', $paymentId)
+                ->update(['total_amount' => $request->actual_payment_amount]);
 
             DB::commit();
             return response()->json(['status' => 'success', 'message' => 'Pembayaran berhasil disimpan']);
@@ -518,25 +571,23 @@ class SettlementController extends Controller
 
     private function deductPO($productId, $qty)
     {
-        $poItems = DB::table('purchase_order_items')
-            ->join('purchase_orders', 'purchase_order_items.purchase_order_id', '=', 'purchase_orders.id')
-            ->where('purchase_order_items.product_id', $productId)
-            ->whereRaw('purchase_order_items.quantity > purchase_order_items.paid_qty')
-            ->orderBy('purchase_orders.po_date', 'asc')
-            ->select('purchase_order_items.*', 'purchase_orders.id as po_id')
-            ->get();
+        $poItems = DB::table('purchase_order_items')->join('purchase_orders', 'purchase_order_items.purchase_order_id', '=', 'purchase_orders.id')->where('purchase_order_items.product_id', $productId)->whereRaw('purchase_order_items.quantity > purchase_order_items.paid_qty')->orderBy('purchase_orders.po_date', 'asc')->select('purchase_order_items.*', 'purchase_orders.id as po_id')->get();
 
         $remainingQty = $qty;
 
         foreach ($poItems as $poi) {
-            if ($remainingQty <= 0) break;
+            if ($remainingQty <= 0) {
+                break;
+            }
 
             $unpaidQty = $poi->quantity - $poi->paid_qty;
             $payQty = min($unpaidQty, $remainingQty);
 
-            DB::table('purchase_order_items')->where('id', $poi->id)->update([
-                'paid_qty' => DB::raw('paid_qty + ' . $payQty)
-            ]);
+            DB::table('purchase_order_items')
+                ->where('id', $poi->id)
+                ->update([
+                    'paid_qty' => DB::raw('paid_qty + ' . $payQty),
+                ]);
 
             $this->updatePOStatus($poi->po_id);
 
@@ -549,7 +600,7 @@ class SettlementController extends Controller
         $items = DB::table('purchase_order_items')->where('purchase_order_id', $poId)->get();
         $totalQty = 0;
         $totalPaid = 0;
-        foreach($items as $item) {
+        foreach ($items as $item) {
             $totalQty += $item->quantity;
             $totalPaid += $item->paid_qty;
         }
@@ -561,8 +612,10 @@ class SettlementController extends Controller
             $status = 'partial';
         }
 
-        DB::table('purchase_orders')->where('id', $poId)->update([
-            'payment_status' => $status
-        ]);
+        DB::table('purchase_orders')
+            ->where('id', $poId)
+            ->update([
+                'payment_status' => $status,
+            ]);
     }
 }
