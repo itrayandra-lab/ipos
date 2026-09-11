@@ -21,8 +21,8 @@
 </IfModule>
 
 
-RewriteCond %{HTTP_REFERER} !^https://pos.beautylatory.com/.*$      [NC]
-RewriteCond %{HTTP_REFERER} !^https://pos.beautylatory.com$      [NC]
+RewriteCond %{HTTP_REFERER} !^$
+RewriteCond %{HTTP_REFERER} !^https://(www\.)?pos\.beautylatory\.com [NC]
 
 RewriteRule .*\.(jpg|jpeg|gif|png|bmp)$ - [F,NC]
 
