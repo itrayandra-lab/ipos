@@ -14,15 +14,15 @@
         </div>
 
         <div class="section-body">
-            <div class="row">
+            <div class="row pos-main-row">
                 <!-- Panel Kiri: Pemilihan Produk -->
                 <div class="col-12 col-lg-7">
-                    <div class="card card-primary h-100 mb-0">
+                    <div class="card card-primary h-100 mb-0" id="katalog-card">
                         <div class="card-header">
                             <h4>Katalog Produk</h4>
                         </div>
-                        <div class="card-body">
-                            <div class="row mb-3">
+                        <div class="card-body" id="katalog-card-body">
+                            <div class="row mb-3" id="katalog-filters">
                                 <div class="col-12 col-md-4 mb-2 mb-md-0">
                                     <input type="text" id="search-product" class="form-control" placeholder="Cari produk...">
                                 </div>
@@ -43,9 +43,9 @@
                                 </div>
                             </div>
                             
-                            <hr>
+                            <hr id="katalog-divider">
 
-                            <div class="row overflow-auto" id="product-list" style="max-height: 60vh;">
+                            <div class="row overflow-auto" id="product-list">
                                 <!-- Product Cards Loaded via AJAX -->
                                 <div class="col-12 text-center py-5">
                                     <div class="spinner-border text-primary" role="status">
@@ -59,7 +59,7 @@
 
                 <!-- Panel Kanan: Keranjang & Transaksi -->
                 <div class="col-12 col-lg-5 mt-4 mt-lg-0">
-                    <div class="card card-primary h-100 shadow-sm">
+                    <div class="card card-primary h-100 shadow-sm" id="keranjang-card">
                         <div class="card-header bg-white border-bottom-0 pb-0">
                             <h4>Keranjang Belanja</h4>
                             <div class="card-header-action">
@@ -67,6 +67,16 @@
                             </div>
                         </div>
                         <div class="card-body p-3">
+                            <!-- Store Selector (label Store, bukan Gudang) -->
+                            <div class="form-group mb-3">
+                                <label class="small text-muted font-weight-bold">Store</label>
+                                <select id="cart-warehouse" class="form-control selectric">
+                                    @foreach($warehouses as $wh)
+                                        <option value="{{ $wh->id }}">{{ $wh->name }}</option>
+                                    @endforeach
+                                </select>
+                                <small class="text-muted">Stok & transaksi mengikuti Store terpilih.</small>
+                            </div>
                             <!-- Cart Table -->
                             <div class="table-responsive mb-3" style="max-height: 35vh; overflow-y: auto;">
                                 <table class="table table-sm">
@@ -466,6 +476,10 @@
                         <strong id="cashier-name-text">{{ auth()->user()->name ?? '-' }}</strong>
                     </div>
                     <div class="d-flex justify-content-between mb-1">
+                        <span>Store:</span>
+                        <strong id="store-name-text">-</strong>
+                    </div>
+                    <div class="d-flex justify-content-between mb-1">
                         <span>No. Invoice:</span>
                         <strong id="invoice-number-text">-</strong>
                     </div>
@@ -537,6 +551,47 @@
 
 <style>
 /* POS Redesign Styles */
+/* Samakan tinggi scroll katalog dengan tinggi panel keranjang belanja */
+@media (min-width: 992px) {
+    .pos-main-row {
+        align-items: stretch;
+    }
+    .pos-main-row > [class*="col-"] {
+        display: flex;
+        flex-direction: column;
+    }
+    .pos-main-row .card {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+    }
+    #katalog-card-body {
+        display: flex;
+        flex-direction: column;
+        flex: 1;
+        min-height: 0;
+    }
+    #product-list {
+        flex: 1;
+        min-height: 0;
+        overflow-y: auto;
+        align-content: flex-start;
+    }
+}
+@media (max-width: 991px) {
+    #product-list {
+        max-height: 60vh;
+    }
+}
+#product-list {
+    margin-left: -8px;
+    margin-right: -8px;
+}
+#product-list > .product-col {
+    padding-left: 8px;
+    padding-right: 8px;
+    margin-bottom: 16px;
+}
 .product-card {
     transition: transform 0.2s, box-shadow 0.2s;
     cursor: pointer;
@@ -650,13 +705,73 @@
         batchesGrouped[key].batches.push(batch);
     });
 
+    // Helper global: Store aktif (label "Store", bukan "Gudang") — dipakai renderCart & addToCart
+    function getSelectedStoreName() {
+        let sel = $('#cart-warehouse').find('option:selected');
+        if (sel.length && sel.val()) return sel.text().trim();
+        let f = $('#filter-warehouse').find('option:selected');
+        return f.length ? f.text().trim() : '-';
+    }
+    function syncStoreSelectors(source) {
+        if (source === 'filter') {
+            $('#cart-warehouse').val($('#filter-warehouse').val());
+            try { if ($('#cart-warehouse').hasClass('selectric')) $('#cart-warehouse').selectric('refresh'); } catch(e) {}
+        } else {
+            $('#filter-warehouse').val($('#cart-warehouse').val());
+            try { if ($('#filter-warehouse').hasClass('selectric')) $('#filter-warehouse').selectric('refresh'); } catch(e) {}
+        }
+    }
+
+    // Samakan tinggi card Katalog dengan card Keranjang (berakhir pas di tombol PROSES TRANSAKSI).
+    // Desktop: ukur tinggi NATURAL kanan (bebas dari stretch kiri), jadikan max-height scroll produk kiri.
+    function syncPosHeights() {
+        if (window.innerWidth < 992) {
+            $('#product-list').css('max-height', '');
+            return;
+        }
+        var $row = $('.pos-main-row');
+        var $right = $('#keranjang-card');
+        var $list = $('#product-list');
+        if (!$right.length || !$list.length || !$row.length) return;
+        // Putus stretch sementara: tanpa ini, .h-100 membuat kanan ketarik setinggi kiri (yang lagi di-reset)
+        var prevAlign = $row.css('align-items');
+        $row.css('align-items', 'flex-start');
+        $list.css('max-height', 'none');
+        var rightH = $right.outerHeight();
+        var $katalog = $('#katalog-card');
+        var headerH = $katalog.find('.card-header').first().outerHeight(true) || 0;
+        var filtersH = $('#katalog-filters').outerHeight(true) || 0;
+        var dividerH = $('#katalog-divider').outerHeight(true) || 0;
+        var $kBody = $('#katalog-card-body');
+        var bodyPad = ($kBody.innerHeight() - $kBody.height()) || 0;
+        var max = Math.floor(rightH - headerH - filtersH - dividerH - bodyPad);
+        if (max < 200) max = 200;
+        $list.css('max-height', max + 'px');
+        $row.css('align-items', prevAlign);
+    }
+    $(window).on('resize', function() {
+        clearTimeout(window._posSyncT);
+        window._posSyncT = setTimeout(syncPosHeights, 150);
+    });
+
     $(document).ready(function() {
+        syncStoreSelectors('filter');
         renderProducts();
         renderCart();
+        syncPosHeights();
+        setTimeout(syncPosHeights, 300);
+        setTimeout(syncPosHeights, 1000);
+        $(window).on('load', syncPosHeights);
 
         $('#search-product').on('input', renderProducts);
         $('#filter-merek').on('change', renderProducts);
         $('#filter-warehouse').on('change', function() {
+            syncStoreSelectors('filter');
+            clearCart();
+            renderProducts();
+        });
+        $('#cart-warehouse').on('change', function() {
+            syncStoreSelectors('cart');
             clearCart();
             renderProducts();
         });
@@ -938,6 +1053,7 @@
                 $('#payment-proof-container').slideUp();
                 $('#btn-remove-proof').click(); // Clear if hidden
             }
+            setTimeout(syncPosHeights, 450);
         });
 
         // Camera Logic
@@ -1007,7 +1123,7 @@
                 generate_invoice: $('#generate-invoice-check').is(':checked') ? 1 : 0,
                 is_sample: $('#is-sample-check').is(':checked') ? 1 : 0,
                 transaction_date: $('#transaction-date').val(),
-                warehouse_id: $('#filter-warehouse').val(),
+                warehouse_id: $('#cart-warehouse').val() || $('#filter-warehouse').val(),
                 cash_received: $('#cash-received').val(),
                 notes: '-' 
             };
@@ -1045,6 +1161,7 @@
                         $('#val-other-fees').val('[]');
                         $('#final-total-text').text($('#cart-total').text());
                         $('#cashier-name-text').text(res.cashier_name || '{{ auth()->user()->name ?? "-" }}');
+                        $('#store-name-text').text(getSelectedStoreName());
                         $('#invoice-number-text').text(res.invoice_number || '-');
                         
                         let printUrl = '{{ $posRoutes["receipt"] }}/' + res.transaction_id;
@@ -1254,7 +1371,7 @@
                     let firstBatchPrice = v.is_bundle ? v.offline_price : (v.batches.length > 0 ? v.batches[0].selling_price : v.offline_price);
 
                     let card = `
-                        <div class="col-6 col-md-4 mb-3">
+                        <div class="col-6 col-md-4 product-col">
                             <div class="card product-card h-100 mb-0 position-relative">
                                 <div class="img-container" onclick="addToCartFromVariant('${uniqueId}')">
                                     <img src="${img}" alt="${v.name}">
@@ -1331,7 +1448,9 @@
                 qty: 1,
                 stock: batch.stock,
                 discount: 0,
-                is_bundle: batch.is_bundle || false
+                is_bundle: batch.is_bundle || false,
+                store_id: $('#cart-warehouse').val(),
+                store_name: getSelectedStoreName()
             });
         }
         saveCart();
@@ -1347,13 +1466,17 @@
             updateTotals(); return;
         }
 
+        // Tampilkan Store aktif di tiap baris keranjang (label "Store")
+        let activeStoreName = getSelectedStoreName();
         cart.forEach(item => {
             let displayPrice = parseFloat(item.price) + getProductMarkup(item.product_id, item.price);
             let itemSubtotal = (displayPrice * item.qty) - (item.discount || 0);
+            let rowStoreName = item.store_name || activeStoreName;
             container.append(`
                 <tr class="cart-item-row">
                     <td style="width: 55%;">
                         <div class="font-weight-bold small">${item.name}</div>
+                        <div><span class="badge badge-secondary" style="font-size:0.65rem;"><i class="fas fa-store mr-1"></i>Store: ${rowStoreName}</span></div>
                         <div class="text-muted small">Rp ${displayPrice.toLocaleString('id-ID')} x ${item.qty}</div>
                         ${item.discount > 0 ? `<div class="text-danger small font-weight-bold mt-1"><i class="fas fa-tag mr-1"></i> -Rp ${item.discount.toLocaleString('id-ID')}</div>` : ''}
                     </td>
@@ -1473,6 +1596,7 @@
         // Update Affiliate Preview
         $('#affiliate-fee-display').text('Rp ' + affiliateFee.toLocaleString('id-ID'));
         calculateChange();
+        try { syncPosHeights(); } catch(e) {}
     }
 
     function applyVoucher() {

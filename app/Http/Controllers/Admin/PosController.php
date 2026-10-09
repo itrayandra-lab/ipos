@@ -298,9 +298,12 @@ class PosController extends Controller
                     throw new \Exception('Sesi login tidak valid. Silakan login ulang.');
                 }
 
-                $mainWarehouse = \App\Models\Warehouse::where('type', 'main')->first();
-                $warehouseId = $mainWarehouse ? $mainWarehouse->id : 1;
-                $whCode = $mainWarehouse ? ($mainWarehouse->code ?? '') : '';
+                $requestedWarehouseId = $request->warehouse_id ? (int)$request->warehouse_id : null;
+                $selectedWarehouse = $requestedWarehouseId
+                    ? \App\Models\Warehouse::find($requestedWarehouseId)
+                    : \App\Models\Warehouse::where('type', 'main')->first();
+                $warehouseId = $selectedWarehouse ? $selectedWarehouse->id : 1;
+                $whCode = $selectedWarehouse ? ($selectedWarehouse->code ?? '') : '';
 
                 $totalAmount = 0;
                 $itemsToCreate = [];
@@ -629,7 +632,7 @@ class PosController extends Controller
 
     public function printReceipt($id)
     {
-        $transaction = Transaction::with(['items.product', 'user'])->findOrFail($id);
+        $transaction = Transaction::with(['items.product', 'user', 'warehouse'])->findOrFail($id);
         return view('admin.pos.receipt', compact('transaction'));
     }
 

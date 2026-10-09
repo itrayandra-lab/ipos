@@ -60,6 +60,9 @@
         <tr>
             <td>Kasir: {{ $transaction->user->name }}</td>
         </tr>
+        <tr>
+            <td>Store: {{ $transaction->warehouse->name ?? '-' }}</td>
+        </tr>
         @if($transaction->customer_name)
         <tr>
             <td>Cust: {{ $transaction->customer_name }}</td>
