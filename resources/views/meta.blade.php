@@ -30,3 +30,7 @@
 <link rel="apple-touch-icon" sizes="152x152" href="{{ asset('assets/img/logo-black.png') }}">
 <link rel="apple-touch-icon" sizes="167x167" href="{{ asset('assets/img/logo-black.png') }}">
 <link rel="apple-touch-icon" sizes="180x180" href="{{ asset('assets/img/logo-black.png') }}">
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:ital,wght@0,200..800;1,200..800&display=swap" rel="stylesheet">
