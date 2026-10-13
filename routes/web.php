@@ -168,6 +168,8 @@ Route::prefix('admin')->middleware(['auth', 'role:super_admin,store_manager,fina
                 Route::prefix('stock')->group(function () {
                     Route::get('/', [\App\Http\Controllers\Admin\ManageMaster\StockController::class , 'index']);
                     Route::get('/all', [\App\Http\Controllers\Admin\ManageMaster\StockController::class , 'getall']);
+                    Route::get('/export/excel', [\App\Http\Controllers\Admin\ManageMaster\StockController::class , 'exportExcel'])->name('admin.stock.export.excel');
+                    Route::get('/export/pdf', [\App\Http\Controllers\Admin\ManageMaster\StockController::class , 'exportPdf'])->name('admin.stock.export.pdf');
                     Route::post('/', [\App\Http\Controllers\Admin\ManageMaster\StockController::class , 'create']);
                     Route::post('/get', [\App\Http\Controllers\Admin\ManageMaster\StockController::class , 'get']);
                     Route::post('/update', [\App\Http\Controllers\Admin\ManageMaster\StockController::class , 'update']);

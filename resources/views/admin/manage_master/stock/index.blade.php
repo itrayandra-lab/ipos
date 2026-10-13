@@ -227,16 +227,6 @@
                 <div class="breadcrumb-item"><a href="/admin">Dashboard</a></div>
                 <div class="breadcrumb-item active">Stok</div>
             </div>
-            <div class="section-header-button d-flex" style="gap:8px;">
-                <a href="/admin/manage-master/stock/expired" class="btn btn-sm btn-outline-warning font-weight-bold" style="border-radius:8px;padding:6px 14px;">
-                    <i class="fas fa-clock mr-1"></i> Kadaluarsa
-                </a>
-                @if(!auth()->user()->isFinance())
-                <button class="btn btn-primary" data-toggle="modal" data-target="#modal-add" style="border-radius:8px;padding:6px 14px;">
-                    <i class="fas fa-plus"></i> Tambah Batch
-                </button>
-                @endif
-            </div>
         </div>
 
         <div class="section-body">
@@ -266,8 +256,24 @@
 
             {{-- Inventory Table --}}
             <div class="inventory-card">
-                <div class="card-header">
+                <div class="card-header" style="flex-wrap:wrap;gap:10px;">
                     <h4><i class="fas fa-warehouse mr-2" style="color:var(--teal-600);"></i>Inventory Monitoring</h4>
+                    <div class="d-flex" style="gap:8px;flex-wrap:wrap;">
+                        <button type="button" id="btn-export-excel" class="btn btn-sm btn-outline-success font-weight-bold" style="border-radius:8px;padding:6px 14px;">
+                            <i class="fas fa-file-excel mr-1"></i> Excel
+                        </button>
+                        <button type="button" id="btn-export-pdf" class="btn btn-sm btn-outline-danger font-weight-bold" style="border-radius:8px;padding:6px 14px;">
+                            <i class="fas fa-file-pdf mr-1"></i> PDF
+                        </button>
+                        <a href="/admin/manage-master/stock/expired" class="btn btn-sm btn-outline-warning font-weight-bold" style="border-radius:8px;padding:6px 14px;">
+                            <i class="fas fa-clock mr-1"></i> Kadaluarsa
+                        </a>
+                        @if(!auth()->user()->isFinance())
+                        <button class="btn btn-sm btn-primary" data-toggle="modal" data-target="#modal-add" style="border-radius:8px;padding:6px 14px;">
+                            <i class="fas fa-plus"></i> Tambah Batch
+                        </button>
+                        @endif
+                    </div>
                 </div>
 
                 {{-- Filter Bar --}}
@@ -418,6 +424,32 @@ $(document).ready(function() {
 
     // Client-side search
     $('#search-box').on('keyup', function() { table.search($(this).val()).draw(); });
+
+    function buildExportUrl(base) {
+        const params = new URLSearchParams();
+        if ($('#warehouse-filter').length && $('#warehouse-filter').val()) {
+            params.append('warehouse_id', $('#warehouse-filter').val());
+        }
+        if ($('#search-box').val()) {
+            params.append('search', $('#search-box').val());
+        }
+        if ($('#status-filter').val()) {
+            params.append('status', $('#status-filter').val());
+        }
+        if ($('#expiry-filter').length && $('#expiry-filter').val()) {
+            params.append('expiry', $('#expiry-filter').val());
+        }
+        const qs = params.toString();
+        return base + (qs ? '?' + qs : '');
+    }
+
+    $('#btn-export-excel').on('click', function() {
+        window.location.href = buildExportUrl('{{ url("admin/manage-master/stock/export/excel") }}');
+    });
+
+    $('#btn-export-pdf').on('click', function() {
+        window.location.href = buildExportUrl('{{ url("admin/manage-master/stock/export/pdf") }}');
+    });
 
     // Row click
     $(document).on('click', '#table-stock tbody tr', function(e) {

@@ -12,6 +12,124 @@ use Yajra\DataTables\Facades\DataTables;
 
 class StockController extends Controller
 {
+    public function exportExcel(Request $request)
+    {
+        $rows = $this->getStockExportRows($request);
+        return \Maatwebsite\Excel\Facades\Excel::download(
+            new \App\Exports\StockExport($rows),
+            'Laporan-Stok-' . date('d-m-Y') . '.xlsx'
+        );
+    }
+
+    public function exportPdf(Request $request)
+    {
+        $rows = $this->getStockExportRows($request);
+        $meta = [
+            'warehouse' => $request->warehouse_name ?? ($request->warehouse_id ? (\App\Models\Warehouse::find($request->warehouse_id)->name ?? '-') : 'Semua Gudang'),
+            'printed_at' => now()->format('d-m-Y H:i'),
+        ];
+        $pdf = app('dompdf.wrapper')->loadView('admin.manage_master.stock.export_pdf', compact('rows', 'meta'));
+        return $pdf->download('Laporan-Stok-' . date('d-m-Y') . '.pdf');
+    }
+
+    private function getStockExportRows(Request $request)
+    {
+        $warehouseId = $request->warehouse_id;
+        $search = trim((string) $request->input('search', ''));
+        $status = (string) $request->input('status', '');
+        $expiry = (string) $request->input('expiry', '');
+
+        $user = auth()->user();
+        $userWarehouseIds = $user ? $user->warehouses->pluck('id')->toArray() : [];
+
+        $batches = \App\Models\ProductBatch::query()
+            ->when($userWarehouseIds, function ($q) use ($userWarehouseIds) {
+                $q->whereIn('product_batches.warehouse_id', $userWarehouseIds);
+            })
+            ->join('products', 'product_batches.product_id', '=', 'products.id')
+            ->leftJoin('merek', 'products.merek_id', '=', 'merek.id')
+            ->join('warehouses', 'product_batches.warehouse_id', '=', 'warehouses.id')
+            ->leftJoin('product_variants', 'product_batches.product_variant_id', '=', 'product_variants.id')
+            ->leftJoin('product_nettos', 'product_variants.product_netto_id', '=', 'product_nettos.id')
+            ->select('product_batches.product_id', 'product_batches.product_variant_id', 'product_batches.warehouse_id')
+            ->selectRaw('MAX(products.name) as p_name, MAX(merek.name) as m_name, MAX(warehouses.name) as w_name')
+            ->selectRaw('MAX(product_nettos.netto_value) as netto_value, MAX(product_nettos.satuan) as satuan')
+            ->selectRaw('SUM(product_batches.qty) as initial_qty')
+            ->selectRaw('COUNT(product_batches.id) as aggregated_batch_count')
+            ->selectRaw('MIN(product_batches.expiry_date) as nearest_expiry')
+            ->selectRaw('COALESCE(AVG(product_batches.buy_price), 0) as avg_buy_price')
+            ->selectRaw('SUM((SELECT COALESCE(SUM(qty), 0) FROM transaction_items WHERE product_batch_id = product_batches.id)) as sold_qty')
+            ->selectRaw('SUM((SELECT COALESCE(SUM(qty), 0) FROM supplier_return_items WHERE product_batch_id = product_batches.id)) as returned_qty')
+            ->selectRaw("SUM((SELECT COALESCE(SUM(i.qty), 0) FROM stock_movement_items i JOIN stock_movements m ON m.id = i.stock_movement_id WHERE i.product_batch_id = product_batches.id AND m.status IN ('transit','completed'))) as moved_qty")
+            ->selectRaw('SUM((SELECT COALESCE(SUM(i.qty), 0) FROM supplier_return_items i JOIN supplier_returns r ON r.id = i.supplier_return_id WHERE i.product_id = product_batches.product_id AND r.warehouse_id = product_batches.warehouse_id AND i.product_batch_id IS NOT NULL AND i.product_batch_id NOT IN (SELECT pb2.id FROM product_batches pb2 WHERE pb2.product_id = product_batches.product_id AND pb2.warehouse_id = product_batches.warehouse_id AND (pb2.product_variant_id <=> product_batches.product_variant_id)) AND product_batches.id = (SELECT MIN(pb3.id) FROM product_batches pb3 WHERE pb3.product_id = product_batches.product_id AND pb3.warehouse_id = product_batches.warehouse_id AND (pb3.product_variant_id <=> product_batches.product_variant_id)))) as rr_qty')
+            ->selectRaw('MAX(products.min_stock_alert) as min_stock_alert')
+            ->groupBy(
+                'product_batches.product_id',
+                'product_batches.product_variant_id',
+                'product_batches.warehouse_id'
+            )
+            ->when($warehouseId, function ($q) use ($warehouseId) {
+                $q->where('product_batches.warehouse_id', $warehouseId);
+            })
+            ->orderByRaw('MAX(products.name) ASC')
+            ->get();
+
+        $rows = $batches->map(function ($row) {
+            $stock = (int) ($row->initial_qty - $row->sold_qty - $row->returned_qty - $row->moved_qty + $row->rr_qty);
+            if ($stock <= 0) {
+                $status = 'habis';
+            } else {
+                $min = max(1, (int) ($row->min_stock_alert ?? 10));
+                if ($stock < $min) {
+                    $status = 'kritis';
+                } elseif ($stock < $min * 3) {
+                    $status = 'menipis';
+                } else {
+                    $status = 'aman';
+                }
+            }
+
+            return [
+                'product_name' => trim(($row->m_name ? $row->m_name . ' ' : '') . $row->p_name),
+                'netto' => $row->netto_value ? $row->netto_value . $row->satuan : '-',
+                'warehouse_name' => $row->w_name,
+                'batch_count' => (int) $row->aggregated_batch_count,
+                'total_current_stock' => $stock,
+                'stock_status' => $status,
+                'avg_buy_price' => (float) $row->avg_buy_price,
+                'stock_value' => $stock * (float) $row->avg_buy_price,
+                'nearest_expiry' => $row->nearest_expiry,
+            ];
+        });
+
+        if ($search !== '') {
+            $rows = $rows->filter(fn ($r) => stripos($r['product_name'], $search) !== false)->values();
+        }
+
+        if (in_array($status, ['aman', 'menipis', 'kritis', 'habis'], true)) {
+            $rows = $rows->where('stock_status', $status)->values();
+        }
+
+        if (in_array($expiry, ['expired', 'near', 'safe'], true)) {
+            $now = now();
+            $rows = $rows->filter(function ($r) use ($expiry, $now) {
+                if (empty($r['nearest_expiry'])) {
+                    return $expiry === 'safe';
+                }
+                $exp = \Carbon\Carbon::parse($r['nearest_expiry']);
+                if ($expiry === 'expired') {
+                    return $exp->isPast();
+                }
+                if ($expiry === 'near') {
+                    return $exp->isFuture() && $exp->lte($now->copy()->addDays(30));
+                }
+                return $exp->gt($now->copy()->addDays(30));
+            })->values();
+        }
+
+        return $rows;
+    }
+
     public function index()
     {
         $user = auth()->user();
