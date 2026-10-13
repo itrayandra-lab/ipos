@@ -29,6 +29,11 @@ class PosController extends Controller
         $mainWarehouseId = $mainWarehouse ? $mainWarehouse->id : 1;
 
         $batches = ProductBatch::with(['product.merek', 'variant'])
+            ->withSum('transactionItems', 'qty')
+            ->withSum('supplierReturnItems', 'qty')
+            ->withSum(['stockMovementItems as stock_movement_items_sum_qty' => function ($q) {
+                $q->whereHas('stockMovement', fn($q2) => $q2->whereIn('status', ['transit', 'completed']));
+            }], 'qty')
             ->where('warehouse_id', $mainWarehouseId)
             ->where('qty', '>', 0)
             ->whereHas('product', fn($q) => $q->where('status', 'Y'))
@@ -57,13 +62,14 @@ class PosController extends Controller
                 }
             }
             $labelText = implode(' ', array_unique($finalParts));
+            $sisa = $batch->current_stock;
             $batchList[] = [
                 'id'        => $batch->id,
-                'text'      => $labelText . ' (' . $batch->batch_no . ' - ' . $batch->qty . ')',
+                'text'      => $labelText . ' (' . $batch->batch_no . ' - ' . $sisa . ')',
                 'price'     => $batch->variant 
                                 ? $batch->variant->getSellingPrice()
                                 : $product->getSellingPrice(),
-                'stock'     => $batch->qty,
+                'stock'     => $sisa,
                 'buy_price' => $batch->buy_price ?? 0,
                 'product_id' => $product->id,
                 'batch_no'  => $batch->batch_no,
@@ -103,13 +109,20 @@ class PosController extends Controller
         $defaultWarehouseId = $mainWarehouse ? $mainWarehouse->id : 1;
         $warehouseId = $request->warehouse_id ? (int)$request->warehouse_id : $defaultWarehouseId;
 
-        // Query batches grouped by variant, only from the selected/main warehouse with stock > 0
+        // Query batches grouped by variant, only from the selected/main warehouse.
+        // Model Jurnal: M (qty) tidak dikurangi saat jual/kirim, jadi angka
+        // yang ditampilkan & dijual adalah S (sisa = M - K).
         $batchQuery = ProductBatch::with([
                 'product.merek',
                 'product.photos',
                 'product.category',
                 'variant.netto',
             ])
+            ->withSum('transactionItems', 'qty')
+            ->withSum('supplierReturnItems', 'qty')
+            ->withSum(['stockMovementItems as stock_movement_items_sum_qty' => function ($q) {
+                $q->whereHas('stockMovement', fn($q2) => $q2->whereIn('status', ['transit', 'completed']));
+            }], 'qty')
             ->where('qty', '>', 0)
             ->where('warehouse_id', $warehouseId)
             ->whereHas('product', fn($q) => $q->where('status', 'Y'));
@@ -194,13 +207,15 @@ class PosController extends Controller
                 ];
             }
 
+            // S per ID batch (rekapan per varian = jumlah S semua ID)
+            $sisa = $batch->current_stock;
             $variantGroups[$groupKey]['batches'][] = [
                 'id'            => $batch->id,
                 'batch_no'      => $batch->batch_no,
-                'qty'           => $batch->qty,
+                'qty'           => $sisa,
                 'selling_price' => $variantGroups[$groupKey]['offline_price'],
             ];
-            $variantGroups[$groupKey]['total_stock'] += $batch->qty;
+            $variantGroups[$groupKey]['total_stock'] += $sisa;
         }
 
         // --- BUNDLING LOGIC ---
@@ -221,10 +236,10 @@ class PosController extends Controller
         foreach ($bundles as $bundle) {
             $groupKey = 'b_' . $bundle->id;
             
-            // Calculate virtual stock
+            // Calculate virtual stock (S-based, Model Jurnal)
             $minStock = -1;
             foreach ($bundle->bundleItems as $bi) {
-                $componentStock = $bi->product->batches->where('warehouse_id', $warehouseId)->sum('qty');
+                $componentStock = $bi->product->batches->where('warehouse_id', $warehouseId)->sum(fn($b) => max(0, $b->current_stock));
                 $possibleBundles = floor($componentStock / $bi->quantity);
                 if ($minStock == -1 || $possibleBundles < $minStock) {
                     $minStock = $possibleBundles;
@@ -268,7 +283,7 @@ class PosController extends Controller
         $validator = Validator::make($request->all(), [
             'items' => 'required|array|min:1',
             'items.*.product_id' => 'required|exists:products,id',
-            'items.*.batch_id' => 'nullable|exists:product_batches,id',
+            'items.*.batch_id' => 'nullable|exists:product_batches,id,deleted_at,NULL',
             'items.*.qty' => 'required|integer|min:1',
             'items.*.discount' => 'nullable|numeric|min:0',
             'other_fees' => 'nullable|json',
@@ -337,10 +352,11 @@ class PosController extends Controller
                 if ($product->is_bundle) {
                     $basePrice = (int)$product->price;
                     $batchId = null;
+                    $slices = null;
                 } else {
                     $batch = ProductBatch::with(['product', 'variant'])->findOrFail($item['batch_id']);
-                    if ($batch->qty < $qty) {
-                        throw new \Exception("Stok batch {$batch->batch_no} untuk produk {$product->name} tidak mencukupi.");
+                    if ((int)$batch->warehouse_id !== (int)$warehouseId) {
+                        throw new \Exception("Batch {$batch->batch_no} tidak tersedia di gudang terpilih.");
                     }
 
                     // Pricing logic
@@ -355,6 +371,16 @@ class PosController extends Controller
                     } else {
                         $basePrice = \App\Services\PricingService::calculate($batch, $channelSlug);
                     }
+
+                    // Alokasi otomatis lintas ID batch dalam gudang yang sama (FEFO,
+                    // batch pilihan diutamakan). Mis. jual 50: 40 dari ID 1 + 10 dari ID 2.
+                    $slices = $stockService->allocateAcrossBatches(
+                        $product->id,
+                        $batch->product_variant_id,
+                        $warehouseId,
+                        $qty,
+                        $batch->id
+                    );
                     $batchId = $batch->id;
                 }
                 
@@ -405,6 +431,7 @@ class PosController extends Controller
                     'subtotal' => $subtotal,
                     'is_bundle' => $product->is_bundle, // Temporary marker
                     'is_sample' => $isSample,
+                    'slices' => $slices ?? null, // Alokasi per ID batch (auto-split)
                 ];
 
                 // Manual decrement is handled later for single items, 
@@ -523,25 +550,40 @@ class PosController extends Controller
                 foreach ($itemsToCreate as $itemData) {
                     $isBundle = $itemData['is_bundle'] ?? false;
                     unset($itemData['is_bundle']);
+                    $slices = $itemData['slices'] ?? null;
+                    unset($itemData['slices']);
 
                     $itemData['transaction_id'] = $transaction->id;
-                    $mainItem = TransactionItem::create($itemData);
 
-                    if ($request->payment_status === 'paid') {
-                        if ($isBundle) {
-                            $stockService->explodeBundleComponents($itemData['product_id'], $itemData['qty'], $transaction->id, $mainItem->id);
-                        } else {
-                            $batch = ProductBatch::find($itemData['product_batch_id']);
-                            if ($batch) {
-                                $batch->decrement('qty', $itemData['qty']);
+                    if ($slices) {
+                        // Pecah 1 baris jual menjadi TI per ID batch (40 ID 1 + 10 ID 2).
+                        // Diskon baris dibebankan ke slice pertama agar total tetap.
+                        $first = true;
+                        foreach ($slices as $slice) {
+                            $sliceDiscount = $first ? $itemData['discount'] : 0;
+                            $first = false;
+                            TransactionItem::create(array_merge($itemData, [
+                                'product_batch_id' => $slice['batch']->id,
+                                'buy_price' => $slice['batch']->buy_price ?? 0,
+                                'qty' => $slice['take'],
+                                'discount' => $sliceDiscount,
+                                'subtotal' => ($itemData['price'] * $slice['take']) - $sliceDiscount,
+                            ]));
+                        }
+                        // Model Jurnal: M tidak dikurangi; keluar tercatat via TI (masuk K).
+                    } else {
+                        $mainItem = TransactionItem::create($itemData);
+
+                        if ($request->payment_status === 'paid') {
+                            if ($isBundle) {
+                                $stockService->explodeBundleComponents($itemData['product_id'], $itemData['qty'], $transaction->id, $mainItem->id, $warehouseId);
                             }
-                            $product = Product::find($itemData['product_id']);
-                            if ($product) {
-                                $product->decrement('stock', $itemData['qty']);
-                            }
+                            // Model Jurnal: M tidak dikurangi; keluar tercatat via TI (masuk K).
                         }
                     }
                 }
+                // Segarkan stok produk dari rumus (M - TI - return - MV)
+                Product::bulkSyncStock(collect($itemsToCreate)->pluck('product_id')->unique()->values()->all());
 
                 // Create payment record if status is paid
                 if ($request->payment_status === 'paid') {

@@ -22,7 +22,7 @@
                                     <th>Variant</th>
                                     <th>Batch No</th>
                                     <th class="text-center">Stok</th>
-                                    <th>Exp. Date</th>
+                                    <th>Exp. (Bln/Thn)</th>
                                     <th>Harga Beli</th>
                                 </tr>
                             </thead>

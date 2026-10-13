@@ -643,7 +643,7 @@ class ProductController extends Controller
 
             return [
             'batch_no' => $batch->batch_no,
-            'expiry_date' => $batch->expiry_date->format('d M Y'),
+            'expiry_date' => $batch->expiry_date->format('M Y'),
             'buy_price' => $batch->buy_price,
             'prices' => $prices
             ];

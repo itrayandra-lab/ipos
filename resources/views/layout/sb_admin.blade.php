@@ -106,6 +106,16 @@
             </li>
             @endif
 
+            {{-- Adjustment Data Group --}}
+            @if($user->hasPermission('access_adjustment_menu') || $user->hasPermission('access_adjustment_products') || $user->hasPermission('access_products_menu'))
+            <li class="nav-item dropdown {{ ($sb == 'AdjustmentProduct') ? 'active' : '' }}">
+                <a href="#" class="nav-link has-dropdown"><i class="fas fa-sliders-h"></i> <span>Adjustment Data</span></a>
+                <ul class="dropdown-menu">
+                    <li class="{{ $sb == 'AdjustmentProduct' ? 'active' : '' }}"><a class="nav-link" href="{{ route('admin.adjustment.products.index') }}">List Produk</a></li>
+                </ul>
+            </li>
+            @endif
+
             {{-- Manajemen Stok Group --}}
             @if($user->hasPermission('access_stock_menu') || $user->hasPermission('access_stock_pusat') || $user->hasPermission('access_stock_movement') || $user->hasPermission('access_stock_settlement') || $user->hasPermission('access_warehouses'))
             <li class="nav-item dropdown {{ ($sb == 'Stock' || $sb == 'StockOpname' || $sb == 'StockMovement' || $sb == 'Settlement' || $sb == 'Warehouse') ? 'active' : '' }}">

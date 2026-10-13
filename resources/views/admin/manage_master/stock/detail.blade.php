@@ -79,7 +79,7 @@
                                         <tr>
                                             <th>No Batch</th>
                                             <th>Supplier</th>
-                                            <th>Exp Date</th>
+                                            <th>Kadaluarsa (Bln/Thn)</th>
                                             <th class="text-right">Qty Awal</th>
                                             <th class="text-right text-primary">Sisa Stok</th>
                                             @if(!auth()->user()->isFinance())
@@ -154,8 +154,8 @@
                         <input type="text" class="form-control" name="batch_no" id="edit-batch-no" required>
                     </div>
                     <div class="form-group">
-                        <label>Tgl Kadaluarsa</label>
-                        <input type="date" class="form-control" name="expiry_date" id="edit-expiry">
+                        <label>Kadaluarsa (Bulan/Tahun)</label>
+                        <input type="month" class="form-control" name="expiry_date" id="edit-expiry">
                     </div>
                     <div class="form-group">
                         <label>Qty Awal</label>
@@ -301,7 +301,7 @@
                             <tr>
                                 <td><b>${b.batch_no}</b></td>
                                 <td>${supplierName}</td>
-                                <td>${b.expiry_date ? new Date(b.expiry_date).toLocaleDateString('id-ID') : '-'}</td>
+                                <td>${b.expiry_date ? new Date(b.expiry_date).toLocaleDateString('id-ID', { month: 'short', year: 'numeric' }) : '-'}</td>
                                 <td class="text-right">${b.qty}</td>
                                 <td class="text-right text-primary font-weight-bold">${b.current_qty}</td>
                                 ${actionBtn}
@@ -382,7 +382,7 @@
                 if(res.success) {
                     $('#edit-id').val(res.data.id);
                     $('#edit-batch-no').val(res.data.batch_no);
-                    $('#edit-expiry').val(res.data.expiry_date ? res.data.expiry_date.split('T')[0] : '');
+                    $('#edit-expiry').val(res.data.expiry_date ? res.data.expiry_date.slice(0, 7) : '');
                     $('#edit-qty').val(res.data.qty);
                     $('#edit-supplier').val(res.data.supplier_id || '').trigger('change');
                     $('#modal-edit').modal('show');

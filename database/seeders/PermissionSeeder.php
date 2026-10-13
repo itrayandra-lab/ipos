@@ -30,6 +30,10 @@ class PermissionSeeder extends Seeder
             ['name' => 'Produk', 'slug' => 'access_products', 'group' => 'Produk'],
             ['name' => 'Harga Produk', 'slug' => 'access_pricing', 'group' => 'Produk'],
 
+            // Grup Adjustment Data (khusus bersih-bersih data)
+            ['name' => 'Grup Adjustment Data (Utama)', 'slug' => 'access_adjustment_menu', 'group' => 'Adjustment'],
+            ['name' => 'Adjustment List Produk', 'slug' => 'access_adjustment_products', 'group' => 'Adjustment'],
+
             // Grup Manajemen Stok
             ['name' => 'Grup Manajemen Stok (Utama)', 'slug' => 'access_stock_menu', 'group' => 'Manajemen Stok'],
             ['name' => 'Stok Barang', 'slug' => 'access_stock_pusat', 'group' => 'Manajemen Stok'],

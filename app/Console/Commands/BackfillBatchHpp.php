@@ -17,6 +17,7 @@ class BackfillBatchHpp extends Command
 
         $batches = DB::table('product_batches as pb')
             ->leftJoin('product_variants as pv', 'pb.product_variant_id', '=', 'pv.id')
+            ->whereNull('pb.deleted_at')
             ->where(function ($q) {
                 $q->whereNull('pb.buy_price')->orWhere('pb.buy_price', 0);
             })
@@ -32,6 +33,7 @@ class BackfillBatchHpp extends Command
         }
 
         $totalZero = DB::table('product_batches')
+            ->whereNull('deleted_at')
             ->where(function ($q) {
                 $q->whereNull('buy_price')->orWhere('buy_price', 0);
             })

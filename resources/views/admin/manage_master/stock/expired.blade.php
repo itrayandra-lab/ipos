@@ -36,7 +36,7 @@
                                             <th>Batch</th>
                                             <th>Gudang</th>
                                             <th class="text-right">Stok</th>
-                                            <th>Tgl Kadaluarsa</th>
+                                            <th>Kadaluarsa (Bulan/Tahun)</th>
                                         </tr>
                                     </thead>
                                     <tbody>
@@ -55,7 +55,7 @@
                                             <td>{{ $batch->warehouse->name ?? '-' }}</td>
                                             <td class="text-right font-weight-bold text-danger">{{ number_format($batch->qty, 0) }}</td>
                                             <td>
-                                                <span class="badge badge-danger">{{ $batch->expiry_date ? $batch->expiry_date->format('d M Y') : '-' }}</span>
+                                                <span class="badge badge-danger">{{ $batch->expiry_date ? $batch->expiry_date->format('M Y') : '-' }}</span>
                                             </td>
                                         </tr>
                                         @empty

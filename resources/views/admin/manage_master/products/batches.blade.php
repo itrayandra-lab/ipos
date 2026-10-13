@@ -46,7 +46,7 @@
                                         <tr>
                                             <th>#</th>
                                             <th>No. Batch</th>
-                                            <th>Tgl Kadaluarsa</th>
+                                            <th>Kadaluarsa (Bulan/Tahun)</th>
                                             <th>Harga Beli (HPP)</th>
                                             <th>Qty Masuk</th>
                                             <th>Stok Sekarang</th>
@@ -58,7 +58,7 @@
                                         <tr>
                                             <td>{{ $loop->iteration }}</td>
                                             <td>{{ $batch->batch_no }}</td>
-                                            <td>{{ $batch->expiry_date->format('d M Y') }}</td>
+                                            <td>{{ optional($batch->expiry_date)->format('M Y') ?? '-' }}</td>
                                             <td>Rp{{ number_format($batch->buy_price, 0, ',', '.') }}</td>
                                             <td>{{ $batch->qty }}</td>
                                             <td>
@@ -70,7 +70,7 @@
                                                 <button class="btn btn-sm btn-info edit-batch" 
                                                     data-id="{{ $batch->id }}"
                                                     data-no="{{ $batch->batch_no }}"
-                                                    data-expiry="{{ $batch->expiry_date->format('Y-m-d') }}"
+                                                    data-expiry="{{ optional($batch->expiry_date)->format('Y-m') }}"
                                                     data-qty="{{ $batch->qty }}"
                                                     data-buy="{{ $batch->buy_price }}">Edit</button>
                                                 <button class="btn btn-sm btn-danger delete-batch" data-id="{{ $batch->id }}">Hapus</button>
@@ -104,8 +104,8 @@
                     <input type="text" name="batch_no" class="form-control" required placeholder="Contoh: BATCH-001">
                 </div>
                 <div class="form-group">
-                    <label>Tanggal Kadaluarsa</label>
-                    <input type="date" name="expiry_date" class="form-control" required>
+                    <label>Kadaluarsa (Bulan/Tahun)</label>
+                    <input type="month" name="expiry_date" class="form-control" required>
                 </div>
                 <div class="form-group">
                     <label>Harga Beli (HPP Satuan)</label>
@@ -145,8 +145,8 @@
                     <input type="text" name="batch_no" id="edit-batch-no" class="form-control" required>
                 </div>
                 <div class="form-group">
-                    <label>Tanggal Kadaluarsa</label>
-                    <input type="date" name="expiry_date" id="edit-batch-expiry" class="form-control" required>
+                    <label>Kadaluarsa (Bulan/Tahun)</label>
+                    <input type="month" name="expiry_date" id="edit-batch-expiry" class="form-control" required>
                 </div>
                 <div class="form-group">
                     <label>Harga Beli (HPP Satuan)</label>

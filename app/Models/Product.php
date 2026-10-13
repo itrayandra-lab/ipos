@@ -118,9 +118,11 @@ class Product extends Model
         
         \DB::statement("
             UPDATE products 
-            SET stock = (SELECT COALESCE(SUM(qty), 0) FROM product_batches WHERE product_id = products.id) 
+            SET stock = (SELECT COALESCE(SUM(qty), 0) FROM product_batches WHERE product_id = products.id AND deleted_at IS NULL) 
                        - (SELECT COALESCE(SUM(qty), 0) FROM transaction_items WHERE product_id = products.id) 
                        - (SELECT COALESCE(SUM(qty), 0) FROM supplier_return_items WHERE product_id = products.id)
+                       - (SELECT COALESCE(SUM(i.qty), 0) FROM stock_movement_items i JOIN stock_movements m ON m.id = i.stock_movement_id WHERE i.product_id = products.id AND m.status IN ('transit','completed'))
+                        + (SELECT COALESCE(SUM(i.qty), 0) FROM supplier_return_items i JOIN supplier_returns r ON r.id = i.supplier_return_id JOIN product_batches b ON b.id = i.product_batch_id WHERE i.product_id = products.id AND r.warehouse_id != b.warehouse_id)
             WHERE id IN ($ids)
         ");
     }

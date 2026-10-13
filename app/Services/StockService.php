@@ -10,21 +10,68 @@ use Illuminate\Support\Facades\DB;
 class StockService
 {
     /**
+     * Alokasi penjualan lintas ID batch dalam 1 gudang (Model Jurnal M-K-S).
+     * Urutan: batch pilihan dulu (jika ada & S>0), lalu FEFO
+     * (expiry ASC, null terakhir, dibuat paling awal).
+     * M = qty batch (tetap), S = current_stock. Tidak mengurangi M.
+     *
+     * @return array [['batch' => ProductBatch, 'take' => int], ...]
+     * @throws \Exception jika total S < qty dibutuhkan
+     */
+    public function allocateAcrossBatches($productId, $variantId, $warehouseId, $qtyNeeded, $preferredBatchId = null)
+    {
+        $batches = ProductBatch::where('product_id', $productId)
+            ->where('warehouse_id', $warehouseId)
+            ->when($variantId, fn($q) => $q->where('product_variant_id', $variantId),
+                fn($q) => $q->whereNull('product_variant_id'))
+            ->orderByRaw('COALESCE(expiry_date, ?) ASC', ['9999-12-31'])
+            ->orderBy('created_at')
+            ->get()
+            ->filter(fn($b) => $b->current_stock > 0)
+            ->values();
+
+        if ($preferredBatchId && $batches->firstWhere('id', $preferredBatchId)) {
+            $batches = $batches->sortBy(fn($b) => $b->id == $preferredBatchId ? 0 : 1)->values();
+        }
+
+        $totalAvailable = $batches->sum(fn($b) => $b->current_stock);
+        if ($totalAvailable < $qtyNeeded) {
+            $product = Product::find($productId);
+            $name = $product ? $product->name : ('produk #' . $productId);
+            throw new \Exception("Stok {$name} di gudang tidak mencukupi (tersisa S: {$totalAvailable}). Butuh: {$qtyNeeded}.");
+        }
+
+        $remaining = $qtyNeeded;
+        $slices = [];
+        foreach ($batches as $batch) {
+            if ($remaining <= 0) break;
+            $take = min($batch->current_stock, $remaining);
+            $slices[] = ['batch' => $batch, 'take' => $take];
+            $remaining -= $take;
+        }
+
+        return $slices;
+    }
+
+    /**
      * Deduct stock using FEFO (First Expired First Out) logic.
      * It creates TransactionItem records for each batch consumed.
+     * Model Jurnal: M tidak dikurangi; keluar tercatat via TI (masuk K).
      *
      * @param int $productId
      * @param int $qtyNeeded
      * @param int $transactionId
      * @param int|null $parentItemId Link to bundle product if this is a component
+     * @param int|null $warehouseId Batasi ke gudang transaksi (null = semua gudang, legacy)
      * @return void
      */
-    public function deductStockFEFO($productId, $qtyNeeded, $transactionId, $parentItemId = null)
+    public function deductStockFEFO($productId, $qtyNeeded, $transactionId, $parentItemId = null, $warehouseId = null)
     {
         // 1. Get available batches for this product that have stock
-        // Filter those where current_stock > 0
-        // current_stock = qty - sum(transaction_items.qty)
+        // Filter those where current_stock > 0 (S = M - K, Model Jurnal)
+        // current_stock = qty - sum(transaction_items.qty) - returns - movements
         $batches = ProductBatch::where('product_id', $productId)
+            ->when($warehouseId, fn($q) => $q->where('warehouse_id', $warehouseId))
             ->get()
             ->filter(function ($batch) {
                 return $batch->current_stock > 0;
@@ -62,14 +109,14 @@ class StockService
     /**
      * Process stock for a sold bundle, exploding it into components and deducting their stock.
      */
-    public function explodeBundleComponents($bundleId, $bundleQty, $transactionId, $parentItemId)
+    public function explodeBundleComponents($bundleId, $bundleQty, $transactionId, $parentItemId, $warehouseId = null)
     {
         $product = Product::with('bundleItems')->findOrFail($bundleId);
         if (!$product->is_bundle) return;
 
         foreach ($product->bundleItems as $component) {
             $totalComponentQty = $component->quantity * $bundleQty;
-            $this->deductStockFEFO($component->product_id, $totalComponentQty, $transactionId, $parentItemId);
+            $this->deductStockFEFO($component->product_id, $totalComponentQty, $transactionId, $parentItemId, $warehouseId);
         }
     }
 

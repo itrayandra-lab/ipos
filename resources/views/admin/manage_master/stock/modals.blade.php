@@ -50,8 +50,8 @@
                         </div>
                         <div class="col-md-6">
                             <div class="form-group">
-                                <label>Tgl Kadaluarsa</label>
-                                <input type="date" class="form-control" name="expiry_date">
+                                <label>Kadaluarsa (Bulan/Tahun)</label>
+                                <input type="month" class="form-control" name="expiry_date">
                             </div>
                         </div>
                     </div>
@@ -86,8 +86,8 @@
                         <input type="text" class="form-control" name="batch_no" id="edit-batch-no" required>
                     </div>
                     <div class="form-group">
-                        <label>Tgl Kadaluarsa</label>
-                        <input type="date" class="form-control" name="expiry_date" id="edit-expiry">
+                        <label>Kadaluarsa (Bulan/Tahun)</label>
+                        <input type="month" class="form-control" name="expiry_date" id="edit-expiry">
                     </div>
                     <div class="form-group">
                         <label>Qty Awal</label>

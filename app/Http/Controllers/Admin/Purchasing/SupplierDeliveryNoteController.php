@@ -176,7 +176,7 @@ class SupplierDeliveryNoteController extends Controller
                 'current_stock' => $batch->current_stock,
                 'initial_qty' => $batch->qty,
                 'buy_price' => $batch->buy_price,
-                'expiry_date' => $batch->expiry_date ? $batch->expiry_date->format('d/m/Y') : '-',
+                'expiry_date' => $batch->expiry_date ? $batch->expiry_date->format('m/Y') : '-',
             ];
         }
 
@@ -190,7 +190,7 @@ class SupplierDeliveryNoteController extends Controller
             'delivery_note_number' => 'nullable|string|max:255',
             'transaction_date' => 'required|date',
             'items' => 'required|array|min:1',
-            'items.*.product_batch_id' => 'required|exists:product_batches,id',
+            'items.*.product_batch_id' => 'required|exists:product_batches,id,deleted_at,NULL',
             'items.*.qty' => 'required|integer|min:1',
         ]);
 
@@ -265,7 +265,7 @@ class SupplierDeliveryNoteController extends Controller
             'delivery_note_number' => 'nullable|string|max:255',
             'transaction_date' => 'required|date',
             'items' => 'required|array|min:1',
-            'items.*.product_batch_id' => 'required|exists:product_batches,id',
+            'items.*.product_batch_id' => 'required|exists:product_batches,id,deleted_at,NULL',
             'items.*.qty' => 'required|integer|min:1',
         ]);
 

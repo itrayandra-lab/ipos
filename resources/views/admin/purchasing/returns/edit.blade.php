@@ -237,7 +237,7 @@
 
             filteredBatches.forEach(batch => {
                 if (!selectedItemIds.some(id => id == batch.id)) {
-                    let expiry = batch.expiry_date ? new Date(batch.expiry_date).toLocaleDateString('id-ID') : '-';
+                    let expiry = batch.expiry_date ? new Date(batch.expiry_date).toLocaleDateString('id-ID', { month: 'short', year: 'numeric' }) : '-';
                     let merek = batch.product.merek ? `${batch.product.merek.name} ` : '';
                     let netto = batch.variant && batch.variant.netto ? ` ${batch.variant.netto.netto_value} ${batch.variant.netto.satuan}` : '';
                     

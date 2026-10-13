@@ -182,7 +182,7 @@
                                             <tr>
                                                 <th>Batch No</th>
                                                 <th>Produk</th>
-                                                <th>Tgl Expired</th>
+                                                <th>Kadaluarsa (Bln/Thn)</th>
                                                 <th class="text-right">Hrg Beli</th>
                                                 <th class="text-right">Sisa Stok</th>
                                             </tr>
@@ -195,7 +195,7 @@
                                                     <td>
                                                         @if($batch->expiry_date)
                                                             <span class="{{ \Carbon\Carbon::parse($batch->expiry_date)->isPast() ? 'text-danger font-weight-bold' : '' }}">
-                                                            {{ \Carbon\Carbon::parse($batch->expiry_date)->format('d/m/Y') }}
+                                                            {{ \Carbon\Carbon::parse($batch->expiry_date)->format('m/Y') }}
                                                             </span>
                                                         @else
                                                             -

@@ -51,6 +51,7 @@ class OnlineSaleController extends Controller
         }
 
         $batches = ProductBatch::with(['product.merek', 'variant.netto', 'warehouse'])
+            ->withSisa()
             ->whereIn('warehouse_id', $allWarehouseIds)
             ->where('qty', '>', 0)
             ->whereHas('product', fn($q) => $q->where('status', 'Y'))
@@ -69,7 +70,7 @@ class OnlineSaleController extends Controller
             return [
                 'id' => $b->id,
                 'text' => $text,
-                'stock' => $b->qty,
+                'stock' => $b->current_stock,
                 'warehouse_id' => $b->warehouse_id,
                 'prices' => $channels->pluck('slug')->mapWithKeys(fn($s) => [$s => \App\Services\PricingService::calculate($b, $s)])->toArray(),
             ];
@@ -93,7 +94,7 @@ class OnlineSaleController extends Controller
             'notes' => 'nullable|string',
             'discount' => 'nullable|numeric|min:0',
             'items' => 'required|array|min:1',
-            'items.*.product_batch_id' => 'required|exists:product_batches,id',
+            'items.*.product_batch_id' => 'required|exists:product_batches,id,deleted_at,NULL',
             'items.*.qty' => 'required|integer|min:1',
             'items.*.discount' => 'nullable|numeric|min:0',
             'other_fees' => 'nullable|json',
@@ -150,27 +151,39 @@ class OnlineSaleController extends Controller
                         throw new \Exception('Batch ' . $batch->batch_no . ' tidak tersedia di gudang terpilih');
                     }
 
-                    if ($batch->qty < $item['qty']) {
-                        throw new \Exception('Stok batch ' . $batch->batch_no . ' untuk produk ' . $product->name . ' tidak mencukupi');
-                    }
+                    // Alokasi otomatis lintas ID batch dalam gudang yang sama (FEFO,
+                    // batch pilihan diutamakan). Mis. jual 50: 40 dari ID 1 + 10 dari ID 2.
+                    $stockService = new \App\Services\StockService();
+                    $slices = $stockService->allocateAcrossBatches(
+                        $product->id,
+                        $batch->product_variant_id,
+                        $request->warehouse_id,
+                        $item['qty'],
+                        $batch->id
+                    );
 
                     // Use input price from form, fallback to pricing service if missing
                     $price = $item['price'] ?? \App\Services\PricingService::calculate($batch, $request->source);
                     $discountItem = $item['discount'] ?? 0;
-                    
-                    $subtotal = max(0, ($price * $item['qty']) - $discountItem);
-                    $totalAmount += $subtotal;
 
-                    $itemsToCreate[] = [
-                        'product_id' => $product->id,
-                        'product_variant_id' => $batch->product_variant_id,
-                        'product_batch_id' => $batch->id,
-                        'buy_price' => $batch->buy_price ?? 0,
-                        'qty' => $item['qty'],
-                        'price' => $price,
-                        'discount' => $discountItem,
-                        'subtotal' => $subtotal,
-                    ];
+                    $first = true;
+                    foreach ($slices as $slice) {
+                        $sliceDiscount = $first ? $discountItem : 0;
+                        $first = false;
+                        $subtotal = max(0, ($price * $slice['take']) - $sliceDiscount);
+                        $totalAmount += $subtotal;
+
+                        $itemsToCreate[] = [
+                            'product_id' => $product->id,
+                            'product_variant_id' => $batch->product_variant_id,
+                            'product_batch_id' => $slice['batch']->id,
+                            'buy_price' => $slice['batch']->buy_price ?? 0,
+                            'qty' => $slice['take'],
+                            'price' => $price,
+                            'discount' => $sliceDiscount,
+                            'subtotal' => $subtotal,
+                        ];
+                    }
                 }
 
                 $otherFees = [];
@@ -213,10 +226,10 @@ class OnlineSaleController extends Controller
                     $itemData['transaction_id'] = $transaction->id;
                     TransactionItem::create($itemData);
 
-                    // Deduct stock
-                    ProductBatch::where('id', $itemData['product_batch_id'])->decrement('qty', $itemData['qty']);
-                    Product::where('id', $itemData['product_id'])->decrement('stock', $itemData['qty']);
+                    // Model Jurnal: M tidak dikurangi; keluar tercatat via TI (masuk K).
                 }
+
+                Product::bulkSyncStock(collect($itemsToCreate)->pluck('product_id')->unique()->values()->all());
 
                 return $transaction;
             });
@@ -354,8 +367,8 @@ class OnlineSaleController extends Controller
                 $nettoValue = $netto ? trim($netto->netto_value ?? '') : '';
                 $satuan = $netto ? trim($netto->satuan ?? '') : '';
                 $batchNo = trim($batch->batch_no ?? '');
-                $stock = $batch->qty;
-                $expiredDate = $batch->expiry_date ? $batch->expiry_date->format('d/m/Y') : 'No Exp';
+                $stock = $batch->current_stock;
+                $expiredDate = $batch->expiry_date ? $batch->expiry_date->format('m/Y') : 'No Exp';
                 
                 // Format: Merek + Produk + Netto + Satuan - Batch (Stok + Expired date)
                 $parts = array_filter([$merekName, $productName, $nettoValue . ($satuan ? ' ' . $satuan : '')]);
@@ -374,7 +387,7 @@ class OnlineSaleController extends Controller
                     'id' => $batch->id,
                     'product_id' => $product->id,
                     'text' => $fullText,
-                    'stock' => $batch->qty,
+                    'stock' => $stock,
                     'prices' => $prices
                 ];
             }
@@ -391,7 +404,7 @@ class OnlineSaleController extends Controller
             'notes' => 'nullable|string',
             'discount' => 'nullable|numeric|min:0',
             'items' => 'required|array|min:1',
-            'items.*.product_batch_id' => 'required|exists:product_batches,id',
+            'items.*.product_batch_id' => 'required|exists:product_batches,id,deleted_at,NULL',
             'items.*.qty' => 'required|integer|min:1',
             'items.*.discount' => 'nullable|numeric|min:0',
             'other_fees' => 'nullable|json',
@@ -424,13 +437,9 @@ class OnlineSaleController extends Controller
             }
 
             DB::transaction(function () use ($request, $transaction, $receiptPath) {
-                // 1. Revert Stock
-                foreach ($transaction->items as $oldItem) {
-                    ProductBatch::where('id', $oldItem->product_batch_id)->increment('qty', $oldItem->qty);
-                    Product::where('id', $oldItem->product_id)->increment('stock', $oldItem->qty);
-                }
+                $syncProductIds = $transaction->items->pluck('product_id')->all();
 
-                // 2. Clear old items
+                // 2. Clear old items (Model Jurnal: tanpa restore M; K mengikuti baris TI)
                 $transaction->items()->delete();
 
                 // 3. Process new items
@@ -457,8 +466,8 @@ class OnlineSaleController extends Controller
                     ]);
 
                     // Deduct stock
-                    $batch->decrement('qty', $item['qty']);
-                    $product->decrement('stock', $item['qty']);
+                    // Model Jurnal: M tidak dikurangi; keluar tercatat via TI (masuk K).
+                    $syncProductIds[] = $product->id;
                 }
 
                 $otherFees = [];
@@ -484,6 +493,8 @@ class OnlineSaleController extends Controller
                     'payment_receipt' => $receiptPath,
                     'transaction_date' => $request->transaction_date,
                 ]);
+
+                Product::bulkSyncStock(array_values(array_unique($syncProductIds)));
             });
 
             return redirect()->route('admin.online_sale.index')->with('message', 'Transaksi online berhasil diperbarui');
@@ -500,14 +511,11 @@ class OnlineSaleController extends Controller
 
         try {
             DB::transaction(function () use ($transaction) {
-                // Revert stock
-                foreach ($transaction->items as $item) {
-                    ProductBatch::where('id', $item->product_batch_id)->increment('qty', $item->qty);
-                    Product::where('id', $item->product_id)->increment('stock', $item->qty);
-                }
-
+                // Model Jurnal: tanpa restore M (tidak pernah dikurangi); hapus baris TI lalu sync rumus.
+                $syncProductIds = $transaction->items->pluck('product_id')->all();
                 $transaction->items()->delete();
                 $transaction->delete();
+                Product::bulkSyncStock($syncProductIds);
             });
             
             if (request()->ajax()) {

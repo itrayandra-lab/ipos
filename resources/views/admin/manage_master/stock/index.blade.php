@@ -309,7 +309,7 @@
                                 <th style="width:120px;">Gudang</th>
                                 <th style="width:140px;">Stok</th>
                                 <th style="width:100px;" class="text-right">Nilai</th>
-                                <th style="width:90px;">Expired</th>
+                                <th style="width:90px;">Kadaluarsa</th>
                                 <th style="width:40px;"></th>
                             </tr>
                         </thead>
@@ -385,7 +385,7 @@ $(document).ready(function() {
                 const exp = new Date(row.expiry_info);
                 const now = new Date();
                 const diffDays = Math.ceil((exp - now) / (1000 * 60 * 60 * 24));
-                let cls = 'expiry-safe', label = exp.toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' });
+                let cls = 'expiry-safe', label = exp.toLocaleDateString('id-ID', { month: 'short', year: 'numeric' });
                 if (diffDays < 0) { cls = 'expiry-danger'; label = 'Expired'; }
                 else if (diffDays <= 30) { cls = 'expiry-warning'; label += ' (' + diffDays + ' hari)'; }
                 row.expiry_display = `<span class="expiry-badge ${cls}">${label}</span>`;

@@ -72,7 +72,7 @@ class BranchReturnController extends Controller
             'warehouse_code'            => 'required|string|max:50',
             'reason'                    => 'nullable|string',
             'items'                     => 'required|array|min:1',
-            'items.*.product_batch_id'  => 'required|exists:product_batches,id',
+            'items.*.product_batch_id'  => 'required|exists:product_batches,id,deleted_at,NULL',
             'items.*.qty'               => 'required|integer|min:1',
             'items.*.reason'            => 'nullable|string',
         ]);
@@ -175,11 +175,12 @@ class BranchReturnController extends Controller
                 $photoPath = $request->file('receipt_photo')->store('branch/return_receipts', 'public');
             }
 
-            // Kurangi stok dari warehouse cabang
+            // Ledger: kurangi M cabang (return cabang tidak masuk K; batch tujuan dibuat saat pusat terima).
+            // Validasi pakai S agar memperhitungkan jurnal keluar juga.
             foreach ($branchReturn->items as $item) {
                 $batch = ProductBatch::findOrFail($item->product_batch_id);
-                if ($batch->qty < $item->qty) {
-                    throw new \Exception("Stok batch {$batch->batch_no} tidak cukup. Tersedia: {$batch->qty}");
+                if ($batch->current_stock < $item->qty) {
+                    throw new \Exception("Stok batch {$batch->batch_no} tidak cukup. Tersedia (S): {$batch->current_stock}");
                 }
                 $batch->decrement('qty', $item->qty);
             }

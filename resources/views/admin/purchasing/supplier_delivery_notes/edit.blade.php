@@ -145,7 +145,7 @@
                                                 <td>
                                                     <input type="number" name="items[{{ $loop->index }}][qty]" value="{{ $item->qty }}" min="1" class="form-control qty-input text-center font-weight-bold" required>
                                                 </td>
-                                                <td><small>{{ $batch && $batch->expiry_date ? $batch->expiry_date->format('d/m/Y') : '-' }}</small></td>
+                                                <td><small>{{ $batch && $batch->expiry_date ? $batch->expiry_date->format('m/Y') : '-' }}</small></td>
                                                 <td class="text-center">
                                                     <button type="button" class="btn btn-sm btn-outline-danger btn-remove-row" data-batch-id="{{ $item->product_batch_id }}" title="Hapus">
                                                         <i class="fas fa-times"></i>

@@ -314,6 +314,12 @@ class GoodsReceiptController extends Controller
 
     public function store(Request $request)
     {
+        $items = collect($request->items ?? [])->map(function ($item) {
+            $item['expiry_date'] = normalize_expiry_date($item['expiry_date'] ?? null);
+            return $item;
+        })->all();
+        $request->merge(['items' => $items]);
+
         $validator = Validator::make($request->all(), [
             'supplier_id' => 'required|exists:suppliers,id',
             'warehouse_id' => 'required|exists:warehouses,id',
@@ -480,6 +486,12 @@ class GoodsReceiptController extends Controller
 
     public function update(Request $request, $id)
     {
+        $items = collect($request->items ?? [])->map(function ($item) {
+            $item['expiry_date'] = normalize_expiry_date($item['expiry_date'] ?? null);
+            return $item;
+        })->all();
+        $request->merge(['items' => $items]);
+
         $validator = Validator::make($request->all(), [
             'supplier_id' => 'required|exists:suppliers,id',
             'warehouse_id' => 'required|exists:warehouses,id',

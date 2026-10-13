@@ -585,6 +585,9 @@ class TransactionController extends Controller
                         $stockService->explodeBundleComponents($itemData['product_id'], $itemData['qty'], $transaction->id, $mainItem->id);
                     }
                 }
+
+                // Model Jurnal: TI berubah → segarkan stok produk dari rumus.
+                Product::bulkSyncStock(collect($itemsToCreate)->pluck('product_id')->unique()->values()->all());
             });
             
             return redirect()->route('admin.transactions.show', $transaction->id)
@@ -599,20 +602,8 @@ class TransactionController extends Controller
         $transaction = Transaction::with('items.product')->findOrFail($id);
         try {
             DB::transaction(function () use ($transaction) {
-                // Kembalikan stok jika statusnya sudah lunas atau kredit (DP)
-                if (in_array($transaction->payment_status, ['paid', 'credit'])) {
-                    foreach ($transaction->items as $item) {
-                        if ($item->product_batch_id) {
-                            $batch = ProductBatch::find($item->product_batch_id);
-                            if ($batch) {
-                                $batch->increment('qty', $item->qty);
-                                if ($batch->product) {
-                                    $batch->product->increment('stock', $item->qty);
-                                }
-                            }
-                        }
-                    }
-                }
+                // Model Jurnal: tanpa restore M (tidak pernah dikurangi); hapus baris lalu sync rumus.
+                $syncProductIds = $transaction->items->pluck('product_id')->all();
 
                 // Hapus items (sudah cascade di DB biasanya, tapi amannya hapus manual)
                 $transaction->items()->delete();
@@ -623,6 +614,8 @@ class TransactionController extends Controller
                 }
 
                 $transaction->delete();
+
+                Product::bulkSyncStock($syncProductIds);
             });
 
             return response()->json(['success' => true]);
@@ -679,17 +672,13 @@ class TransactionController extends Controller
         try {
             DB::transaction(function () use ($transaction, $request) {
                 // Deduct stock if not already deducted (for credit/unpaid status)
-                // Note: Logic here depends on when stock is deducted in other parts of the app
+                // Model Jurnal: validasi pakai S; M tidak dikurangi, keluar tercatat via TI.
                 if (!in_array($transaction->payment_status, ['paid', 'credit'])) {
                     foreach ($transaction->items as $item) {
                         if ($item->product_batch_id) {
                             $batch = $item->batch;
-                            if ($batch) {
-                                if ($batch->qty < $item->qty) {
-                                    throw new \Exception("Stok batch {$batch->batch_no} untuk produk {$item->product->name} tidak mencukupi.");
-                                }
-                                $batch->decrement('qty', $item->qty);
-                                $item->product->decrement('stock', $item->qty);
+                            if ($batch && $batch->current_stock < $item->qty) {
+                                throw new \Exception("Stok batch {$batch->batch_no} untuk produk {$item->product->name} tidak mencukupi (tersisa {$batch->current_stock}).");
                             }
                         }
                     }

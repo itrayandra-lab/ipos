@@ -90,7 +90,7 @@ class ReturnController extends Controller
             'warehouse_id' => 'required|exists:warehouses,id',
             'return_date' => 'required|date',
             'items' => 'required|array|min:1',
-            'items.*.product_batch_id' => 'required|exists:product_batches,id',
+            'items.*.product_batch_id' => 'required|exists:product_batches,id,deleted_at,NULL',
             'items.*.qty' => 'required|numeric|min:1',
         ]);
 
@@ -193,7 +193,7 @@ class ReturnController extends Controller
             'warehouse_id' => 'required|exists:warehouses,id',
             'return_date' => 'required|date',
             'items' => 'required|array|min:1',
-            'items.*.product_batch_id' => 'required|exists:product_batches,id',
+            'items.*.product_batch_id' => 'required|exists:product_batches,id,deleted_at,NULL',
             'items.*.qty' => 'required|numeric|min:1',
         ]);
 

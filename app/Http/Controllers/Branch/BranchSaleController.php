@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Branch;
 use App\Http\Controllers\Controller;
 use App\Models\BranchSale;
 use App\Models\BranchSaleItem;
+use App\Models\Product;
 use App\Models\ProductBatch;
 use App\Models\ProductVariant;
 use App\Models\Transaction;
@@ -110,7 +111,7 @@ class BranchSaleController extends Controller
                 'id'          => $b->id,
                 'batch_no'    => $b->batch_no,
                 'qty'         => $b->qty,
-                'expiry_date' => $b->expiry_date?->format('d/m/Y'),
+                'expiry_date' => $b->expiry_date?->format('m/Y'),
             ]))
             ->toArray();
 
@@ -199,23 +200,24 @@ class BranchSaleController extends Controller
             foreach ($request->items as $item) {
                 $qtyNeeded = $item['qty_sold'];
 
-                // Ambil batch FEFO (expiry_date ASC, null expiry last)
+                // Ambil batch FEFO (expiry_date ASC, null expiry last) — batas pakai S (Model Jurnal)
                 $batches = ProductBatch::where('warehouse_id', $warehouse->id)
                     ->where('product_id', $item['product_id'])
                     ->where('product_variant_id', $item['product_variant_id'])
-                    ->where('qty', '>', 0)
                     ->orderByRaw('COALESCE(expiry_date, ?) ASC', ['9999-12-31'])
                     ->orderBy('created_at')
-                    ->get();
+                    ->get()
+                    ->filter(fn($b) => $b->current_stock > 0)
+                    ->values();
 
-                $totalAvailable = $batches->sum('qty');
+                $totalAvailable = $batches->sum(fn($b) => $b->current_stock);
                 if ($totalAvailable < $qtyNeeded) {
-                    throw new \Exception("Stok tidak cukup untuk {$item['product_id']}. Tersedia: {$totalAvailable}");
+                    throw new \Exception("Stok tidak cukup untuk {$item['product_id']}. Tersedia (S): {$totalAvailable}");
                 }
 
                 foreach ($batches as $batch) {
                     if ($qtyNeeded <= 0) break;
-                    $take = min($batch->qty, $qtyNeeded);
+                    $take = min($batch->current_stock, $qtyNeeded);
 
                     BranchSaleItem::create([
                         'branch_sale_id'     => $sale->id,
@@ -237,9 +239,11 @@ class BranchSaleController extends Controller
                         'subtotal'           => $take * $item['sell_price'],
                     ]);
 
-                    $batch->decrement('qty', $take);
+                    // Model Jurnal: M tidak dikurangi; keluar tercatat via TI (masuk K).
                     $qtyNeeded -= $take;
                 }
+
+                Product::bulkSyncStock([$item['product_id']]);
             }
 
             DB::commit();
@@ -324,7 +328,7 @@ class BranchSaleController extends Controller
                 'id'          => $b->id,
                 'batch_no'    => $b->batch_no,
                 'qty'         => $b->qty,
-                'expiry_date' => $b->expiry_date?->format('d/m/Y'),
+                'expiry_date' => $b->expiry_date?->format('m/Y'),
             ]))
             ->toArray();
 
@@ -370,15 +374,8 @@ class BranchSaleController extends Controller
 
             $sale = BranchSale::with('items')->findOrFail($id);
 
-            // 1. Restore old stock
-            foreach ($sale->items as $item) {
-                if ($item->product_batch_id) {
-                    $batch = ProductBatch::find($item->product_batch_id);
-                    if ($batch) {
-                        $batch->increment('qty', $item->qty_sold);
-                    }
-                }
-            }
+            // Model Jurnal: tanpa restore M (tidak pernah dikurangi); hapus baris lalu sync rumus.
+            $syncProductIds = $sale->items->pluck('product_id')->all();
 
             // 2. Delete old items & transaction
             $sale->items()->delete();
@@ -439,26 +436,27 @@ class BranchSaleController extends Controller
                 'created_at'       => $request->sale_date . ' ' . now()->format('H:i:s'),
             ]);
 
-            // 6. Re-create items & deduct stock
+            // 6. Re-create items (Model Jurnal: tanpa kurangi M; TI masuk K)
             foreach ($request->items as $item) {
                 $qtyNeeded = $item['qty_sold'];
 
                 $batches = ProductBatch::where('warehouse_id', $warehouse->id)
                     ->where('product_id', $item['product_id'])
                     ->where('product_variant_id', $item['product_variant_id'])
-                    ->where('qty', '>', 0)
                     ->orderByRaw('COALESCE(expiry_date, ?) ASC', ['9999-12-31'])
                     ->orderBy('created_at')
-                    ->get();
+                    ->get()
+                    ->filter(fn($b) => $b->current_stock > 0)
+                    ->values();
 
-                $totalAvailable = $batches->sum('qty');
+                $totalAvailable = $batches->sum(fn($b) => $b->current_stock);
                 if ($totalAvailable < $qtyNeeded) {
-                    throw new \Exception("Stok tidak cukup untuk {$item['product_id']}. Tersedia: {$totalAvailable}");
+                    throw new \Exception("Stok tidak cukup untuk {$item['product_id']}. Tersedia (S): {$totalAvailable}");
                 }
 
                 foreach ($batches as $batch) {
                     if ($qtyNeeded <= 0) break;
-                    $take = min($batch->qty, $qtyNeeded);
+                    $take = min($batch->current_stock, $qtyNeeded);
 
                     BranchSaleItem::create([
                         'branch_sale_id'     => $sale->id,
@@ -480,10 +478,13 @@ class BranchSaleController extends Controller
                         'subtotal'           => $take * $item['sell_price'],
                     ]);
 
-                    $batch->decrement('qty', $take);
                     $qtyNeeded -= $take;
                 }
+
+                $syncProductIds[] = $item['product_id'];
             }
+
+            Product::bulkSyncStock(array_values(array_unique($syncProductIds)));
 
             DB::commit();
             return response()->json([
@@ -508,14 +509,8 @@ class BranchSaleController extends Controller
 
         try {
             DB::transaction(function () use ($sale) {
-                foreach ($sale->items as $item) {
-                    if ($item->product_batch_id) {
-                        $batch = ProductBatch::find($item->product_batch_id);
-                        if ($batch) {
-                            $batch->increment('qty', $item->qty_sold);
-                        }
-                    }
-                }
+                // Model Jurnal: tanpa restore M; hapus baris lalu sync rumus.
+                $syncProductIds = $sale->items->pluck('product_id')->all();
 
                 $sale->items()->delete();
 
@@ -527,6 +522,8 @@ class BranchSaleController extends Controller
                     });
 
                 $sale->delete();
+
+                Product::bulkSyncStock($syncProductIds);
             });
 
             return response()->json(['status' => 'success', 'message' => 'Penjualan berhasil dihapus']);

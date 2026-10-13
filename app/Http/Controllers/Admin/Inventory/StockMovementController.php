@@ -93,7 +93,7 @@ class StockMovementController extends Controller
             'from_warehouse_id'        => 'required|exists:warehouses,id',
             'to_warehouse_id'          => 'required|exists:warehouses,id|different:from_warehouse_id',
             'items'                    => 'required|array|min:1',
-            'items.*.product_batch_id' => 'required|exists:product_batches,id',
+            'items.*.product_batch_id' => 'required|exists:product_batches,id,deleted_at,NULL',
             'items.*.qty'              => 'required|numeric|min:1',
         ]);
 
@@ -115,6 +115,14 @@ class StockMovementController extends Controller
 
             foreach ($request->items as $item) {
                 $batch = ProductBatch::findOrFail($item['product_batch_id']);
+                // Batch harus milik gudang asal agar catatan pengeluaran per batch jelas
+                if ($batch->warehouse_id && (int) $batch->warehouse_id !== (int) $request->from_warehouse_id) {
+                    throw new \Exception("Batch {$batch->batch_no} milik gudang lain, bukan gudang asal.");
+                }
+                // Gagal cepat jika stok kurang (ship() memeriksa ulang saat kirim)
+                if ((int) $batch->qty < (int) $item['qty']) {
+                    throw new \Exception("Stok batch {$batch->batch_no} tidak cukup. Tersedia: {$batch->qty}");
+                }
                 StockMovementItem::create([
                     'stock_movement_id'  => $movement->id,
                     'product_id'         => $batch->product_id,
@@ -176,7 +184,7 @@ class StockMovementController extends Controller
             'from_warehouse_id'        => 'required|exists:warehouses,id',
             'to_warehouse_id'          => 'required|exists:warehouses,id|different:from_warehouse_id',
             'items'                    => 'required|array|min:1',
-            'items.*.product_batch_id' => 'required|exists:product_batches,id',
+            'items.*.product_batch_id' => 'required|exists:product_batches,id,deleted_at,NULL',
             'items.*.qty'              => 'required|numeric|min:1',
         ]);
 
@@ -203,6 +211,14 @@ class StockMovementController extends Controller
 
             foreach ($request->items as $item) {
                 $batch = ProductBatch::findOrFail($item['product_batch_id']);
+                // Batch harus milik gudang asal agar catatan pengeluaran per batch jelas
+                if ($batch->warehouse_id && (int) $batch->warehouse_id !== (int) $request->from_warehouse_id) {
+                    throw new \Exception("Batch {$batch->batch_no} milik gudang lain, bukan gudang asal.");
+                }
+                // Gagal cepat jika stok kurang (ship() memeriksa ulang saat kirim)
+                if ((int) $batch->qty < (int) $item['qty']) {
+                    throw new \Exception("Stok batch {$batch->batch_no} tidak cukup. Tersedia: {$batch->qty}");
+                }
                 StockMovementItem::create([
                     'stock_movement_id'  => $movement->id,
                     'product_id'         => $batch->product_id,
@@ -257,12 +273,14 @@ class StockMovementController extends Controller
             }
 
             foreach ($movement->items as $item) {
+                // Model Jurnal: M batch tidak dikurangi; keluar tercatat via item movement (masuk K).
                 $batch = ProductBatch::find($item->product_batch_id);
-                if (!$batch || $batch->qty < $item->qty) {
-                    $available = $batch ? $batch->qty : 0;
-                    throw new \Exception("Stok tidak cukup untuk batch {$batch->batch_no}. Tersedia: {$available}");
+                if (!$batch) {
+                    throw new \Exception("Batch tidak ditemukan untuk salah satu item.");
                 }
-                $batch->decrement('qty', $item->qty);
+                if ($batch->current_stock < $item->qty) {
+                    throw new \Exception("Stok tidak cukup untuk batch {$batch->batch_no}. Tersedia (S): {$batch->current_stock}");
+                }
             }
 
             $movement->update([
@@ -290,7 +308,9 @@ class StockMovementController extends Controller
 
             foreach ($movement->items as $item) {
                 $sourceBatch = $item->batch;
-                // Add stock to destination warehouse, same batch_no for full traceability
+                // Model Jurnal: setiap penerimaan movement SELALU jadi ID batch baru
+                // (tidak digabung/top-up ke baris lama) agar tiap ID punya
+                // M-K-S dan riwayat tracking masing-masing via stock_movement_id.
                 ProductBatch::create([
                     'product_id'         => $item->product_id,
                     'product_variant_id' => $item->product_variant_id ?: null,
@@ -299,6 +319,7 @@ class StockMovementController extends Controller
                     'qty'                => $item->qty,
                     'buy_price'          => $sourceBatch->buy_price,
                     'expiry_date'        => $sourceBatch->expiry_date ?? null,
+                    'stock_movement_id'  => $movement->id,
                 ]);
             }
 

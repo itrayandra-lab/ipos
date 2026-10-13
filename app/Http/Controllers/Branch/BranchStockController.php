@@ -36,7 +36,7 @@ class BranchStockController extends Controller
             ->addColumn('product_name', fn($b) => ($b->product->merek->name ?? '') . ' ' . ($b->product->name ?? '-'))
             ->addColumn('variant_name', fn($b) => $b->variant->variant_name ?? '-')
             ->editColumn('qty', fn($b) => number_format($b->qty, 0, ',', '.'))
-            ->editColumn('expiry_date', fn($b) => $b->expiry_date ? $b->expiry_date->format('d/m/Y') : '-')
+            ->editColumn('expiry_date', fn($b) => $b->expiry_date ? $b->expiry_date->format('m/Y') : '-')
             ->editColumn('buy_price', fn($b) => 'Rp ' . number_format($b->buy_price, 0, ',', '.'))
             ->rawColumns([])
             ->make(true);

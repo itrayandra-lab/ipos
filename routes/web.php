@@ -421,6 +421,34 @@ Route::prefix('admin')->middleware(['auth', 'role:super_admin,store_manager,fina
         }
         );
 
+        // Adjustment Data (khusus bersih-bersih / koreksi data)
+        Route::prefix('adjustment')->group(function () {
+            Route::get('/products', [\App\Http\Controllers\Admin\Adjustment\ProductAdjustmentController::class, 'index'])->name('admin.adjustment.products.index');
+            Route::get('/products/all', [\App\Http\Controllers\Admin\Adjustment\ProductAdjustmentController::class, 'getall'])->name('admin.adjustment.products.all');
+            Route::get('/products/search', [\App\Http\Controllers\Admin\Adjustment\ProductAdjustmentController::class, 'search'])->name('admin.adjustment.products.search');
+            Route::get('/products/{id}/relations', [\App\Http\Controllers\Admin\Adjustment\ProductAdjustmentController::class, 'preview'])->name('admin.adjustment.products.preview');
+            Route::post('/products/merge', [\App\Http\Controllers\Admin\Adjustment\ProductAdjustmentController::class, 'merge'])->name('admin.adjustment.products.merge');
+            // Detail adjustment per netto + aksi perbaikan
+            Route::get('/products/netto/{netto}', [\App\Http\Controllers\Admin\Adjustment\ProductAdjustmentController::class, 'show'])->name('admin.adjustment.products.show');
+            Route::post('/products/batches', [\App\Http\Controllers\Admin\Adjustment\ProductAdjustmentController::class, 'createBatch'])->name('admin.adjustment.batches.store');
+            Route::post('/products/batches/update', [\App\Http\Controllers\Admin\Adjustment\ProductAdjustmentController::class, 'updateBatch'])->name('admin.adjustment.batches.update');
+            Route::post('/products/batches/assign-variant', [\App\Http\Controllers\Admin\Adjustment\ProductAdjustmentController::class, 'assignBatchVariant'])->name('admin.adjustment.batches.assign_variant');
+            Route::get('/products/batches/{id}/usage', [\App\Http\Controllers\Admin\Adjustment\ProductAdjustmentController::class, 'batchUsage'])->name('admin.adjustment.batches.usage');
+            Route::post('/products/batches/merge', [\App\Http\Controllers\Admin\Adjustment\ProductAdjustmentController::class, 'mergeBatch'])->name('admin.adjustment.batches.merge');
+            Route::post('/products/batches/delete', [\App\Http\Controllers\Admin\Adjustment\ProductAdjustmentController::class, 'deleteBatch'])->name('admin.adjustment.batches.delete');
+            Route::post('/products/batches/restore', [\App\Http\Controllers\Admin\Adjustment\ProductAdjustmentController::class, 'restoreBatch'])->name('admin.adjustment.batches.restore');
+            Route::post('/products/transaction-items/delete', [\App\Http\Controllers\Admin\Adjustment\ProductAdjustmentController::class, 'deleteTransactionItem'])->name('admin.adjustment.transaction_items.delete');
+            Route::post('/products/transaction-items/update', [\App\Http\Controllers\Admin\Adjustment\ProductAdjustmentController::class, 'updateTransactionItem'])->name('admin.adjustment.transaction_items.update');
+            Route::get('/products/movements/{id}/sync-data', [\App\Http\Controllers\Admin\Adjustment\ProductAdjustmentController::class, 'movementSyncData'])->name('admin.adjustment.movements.sync_data');
+            Route::post('/products/movements/sync', [\App\Http\Controllers\Admin\Adjustment\ProductAdjustmentController::class, 'movementSync'])->name('admin.adjustment.movements.sync');
+            Route::get('/products/netto/{netto}/realokasi-preview', [\App\Http\Controllers\Admin\Adjustment\ProductAdjustmentController::class, 'realokasiPreview'])->name('admin.adjustment.netto.realokasi_preview');
+            Route::post('/products/netto/realokasi', [\App\Http\Controllers\Admin\Adjustment\ProductAdjustmentController::class, 'realokasiExecute'])->name('admin.adjustment.netto.realokasi');
+            Route::get('/products/netto/{netto}/fill-variant-preview', [\App\Http\Controllers\Admin\Adjustment\ProductAdjustmentController::class, 'fillEmptyVariantsPreview'])->name('admin.adjustment.netto.fill_variant_preview');
+            Route::post('/products/netto/fill-variant', [\App\Http\Controllers\Admin\Adjustment\ProductAdjustmentController::class, 'fillEmptyVariants'])->name('admin.adjustment.netto.fill_variant');
+            Route::post('/products/netto/create', [\App\Http\Controllers\Admin\Adjustment\ProductAdjustmentController::class, 'createNettoVariant'])->name('admin.adjustment.netto.create');
+        }
+        );
+
         // Purchasing Module
         Route::prefix('purchasing')->group(function () {
             // Suppliers

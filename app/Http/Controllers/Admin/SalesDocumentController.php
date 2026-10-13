@@ -132,6 +132,7 @@ class SalesDocumentController extends Controller
         $bankAccounts = \App\Models\BankAccount::where('is_active', true)->orderBy('bank_name')->get();
         
         $batches = ProductBatch::with(['product.merek', 'variant.netto'])
+            ->withSisa()
             ->where('qty', '>', 0)
             ->whereHas('product', fn($q) => $q->where('status', 'Y'))
             ->get()
@@ -152,13 +153,13 @@ class SalesDocumentController extends Controller
             // Format: Merek + Produk + Netto + Satuan + (batch)
             $parts = array_filter([$merekName, $productName, $nettoValue, $satuan]);
             $labelText = implode(' ', $parts);
-            $fullText = $labelText . ' (Stok: ' . $batch->qty . ')';
+            $fullText = $labelText . ' (Stok: ' . $batch->current_stock . ')';
             
             $batchList[] = [
                 'id'        => $batch->id,
                 'text'      => $fullText,
                 'price'     => $batch->variant ? $batch->variant->getSellingPrice() : ($product->price_real > 0 ? $product->price_real : $product->price),
-                'stock'     => $batch->qty,
+                'stock'     => $batch->current_stock,
                 'buy_price' => $batch->buy_price ?? 0,
             ];
         }
@@ -209,47 +210,77 @@ class SalesDocumentController extends Controller
             $transaction = DB::transaction(function () use ($request) {
                 $totalAmount   = 0;
                 $itemsToCreate = [];
+                $allocWarehouseId = \App\Models\Warehouse::where('type', 'main')->value('id');
+                $allocService = new \App\Services\StockService();
                 foreach ($request->items as $item) {
                     $isBundle = str_starts_with($item['product_batch_id'], 'bundle-');
                     $qty      = (int) $item['qty'];
                     $price    = (float) $item['price'];
                     $discount = (float) ($item['discount'] ?? 0);
-                    $subtotal = ($price - $discount) * $qty;
-                    $totalAmount += $subtotal;
 
                     if ($isBundle) {
                         $bundleId = str_replace('bundle-', '', $item['product_batch_id']);
                         $product = Product::findOrFail($bundleId);
-                        $batchId = null;
-                        $buyPrice = 0;
+                        $subtotal = ($price - $discount) * $qty;
+                        $totalAmount += $subtotal;
+                        $itemsToCreate[] = [
+                            'product_id'       => $product->id,
+                            'product_variant_id' => null,
+                            'product_batch_id' => null,
+                            'buy_price'        => 0,
+                            'qty'              => $qty,
+                            'price'            => $price,
+                            'discount'         => $discount,
+                            'subtotal'         => $subtotal,
+                            'is_bundle_main'   => $isBundle // Temporary flag for logic
+                        ];
                     } else {
                         $batch    = ProductBatch::with('product')->findOrFail($item['product_batch_id']);
                         $product  = $batch->product;
-                        $batchId  = $batch->id;
-                        $buyPrice = $batch->buy_price ?? 0;
-                    }
 
-                    $itemsToCreate[] = [
-                        'product_id'       => $product->id,
-                        'product_variant_id' => isset($batch) ? $batch->product_variant_id : null,
-                        'product_batch_id' => $batchId,
-                        'buy_price'        => $buyPrice,
-                        'qty'              => $qty,
-                        'price'            => $price,
-                        'discount'         => $discount,
-                        'subtotal'         => $subtotal,
-                        'is_bundle_main'   => $isBundle // Temporary flag for logic
-                    ];
-
-                    if (in_array($request->payment_status, ['paid', 'credit'])) {
-                        if ($isBundle) {
-                            // Bundle stock logic handled later via StockService
-                        } else {
-                            if ($batch->qty < $qty) {
-                                throw new \Exception("Stok batch {$batch->batch_no} untuk produk {$product->name} tidak mencukupi (tersisa {$batch->qty}).");
+                        if (in_array($request->payment_status, ['paid', 'credit'])) {
+                            // Alokasi otomatis lintas ID batch dalam gudang yang sama (FEFO,
+                            // batch pilihan diutamakan). Mis. jual 50: 40 dari ID 1 + 10 dari ID 2.
+                            // Model Jurnal: M tidak dikurangi; keluar tercatat via TI (masuk K).
+                            // Diskon baris dibebankan ke slice pertama agar total tetap.
+                            $slices = $allocService->allocateAcrossBatches(
+                                $product->id,
+                                $batch->product_variant_id,
+                                $allocWarehouseId,
+                                $qty,
+                                $batch->id
+                            );
+                            $totalAmount += $price * $qty - $discount;
+                            $first = true;
+                            foreach ($slices as $slice) {
+                                $sliceDiscount = $first ? $discount : 0;
+                                $first = false;
+                                $itemsToCreate[] = [
+                                    'product_id'       => $product->id,
+                                    'product_variant_id' => $batch->product_variant_id,
+                                    'product_batch_id' => $slice['batch']->id,
+                                    'buy_price'        => $slice['batch']->buy_price ?? 0,
+                                    'qty'              => $slice['take'],
+                                    'price'            => $price,
+                                    'discount'         => $sliceDiscount,
+                                    'subtotal'         => ($price * $slice['take']) - $sliceDiscount,
+                                    'is_bundle_main'   => false
+                                ];
                             }
-                            $batch->decrement('qty', $qty);
-                            $product->decrement('stock', $qty);
+                        } else {
+                            $subtotal = ($price - $discount) * $qty;
+                            $totalAmount += $subtotal;
+                            $itemsToCreate[] = [
+                                'product_id'       => $product->id,
+                                'product_variant_id' => $batch->product_variant_id,
+                                'product_batch_id' => $batch->id,
+                                'buy_price'        => $batch->buy_price ?? 0,
+                                'qty'              => $qty,
+                                'price'            => $price,
+                                'discount'         => $discount,
+                                'subtotal'         => $subtotal,
+                                'is_bundle_main'   => $isBundle // Temporary flag for logic
+                            ];
                         }
                     }
                 }
@@ -297,17 +328,20 @@ class SalesDocumentController extends Controller
                 $invNum = $request->invoice_number ?: InvoiceService::generate($txDate);
                 $transaction->update(['invoice_number' => $invNum]);
                 $stockService = new \App\Services\StockService();
+                $syncInvoiceProductIds = [];
                 foreach ($itemsToCreate as $itemData) {
                     $isBundleMain = $itemData['is_bundle_main'] ?? false;
                     unset($itemData['is_bundle_main']);
 
                     $itemData['transaction_id'] = $transaction->id;
                     $mainItem = TransactionItem::create($itemData);
+                    $syncInvoiceProductIds[] = $itemData['product_id'];
 
                     if (in_array($request->payment_status, ['paid', 'credit']) && $isBundleMain) {
-                        $stockService->explodeBundleComponents($itemData['product_id'], $itemData['qty'], $transaction->id, $mainItem->id);
+                        $stockService->explodeBundleComponents($itemData['product_id'], $itemData['qty'], $transaction->id, $mainItem->id, $transaction->warehouse_id);
                     }
                 }
+                Product::bulkSyncStock(array_values(array_unique($syncInvoiceProductIds)));
                 return $transaction;
             });
             return redirect()->route('admin.sales.invoices.show', $transaction->id)
@@ -334,6 +368,7 @@ class SalesDocumentController extends Controller
         $bankAccounts = \App\Models\BankAccount::where('is_active', true)->orderBy('bank_name')->get();
         
         $batches = ProductBatch::with(['product.merek', 'variant.netto'])
+            ->withSisa()
             ->where('qty', '>', 0)
             ->whereHas('product', fn($q) => $q->where('status', 'Y'))
             ->get()
@@ -354,13 +389,13 @@ class SalesDocumentController extends Controller
             // Format: Merek + Produk + Netto + Satuan + (batch)
             $parts = array_filter([$merekName, $productName, $nettoValue, $satuan]);
             $labelText = implode(' ', $parts);
-            $fullText = $labelText . ' (Stok: ' . $batch->qty . ')';
+            $fullText = $labelText . ' (Stok: ' . $batch->current_stock . ')';
             
             $batchList[] = [
                 'id'        => $batch->id,
                 'text'      => $fullText,
                 'price'     => $batch->variant ? $batch->variant->getSellingPrice() : ($product->price_real > 0 ? $product->price_real : $product->price),
-                'stock'     => $batch->qty,
+                'stock'     => $batch->current_stock,
                 'buy_price' => $batch->buy_price ?? 0,
             ];
         }
@@ -485,7 +520,7 @@ class SalesDocumentController extends Controller
                     $mainItem = TransactionItem::create($itemData);
 
                     if (in_array($request->payment_status, ['paid', 'credit']) && $isBundleMain) {
-                        $stockService->explodeBundleComponents($itemData['product_id'], $itemData['qty'], $transaction->id, $mainItem->id);
+                        $stockService->explodeBundleComponents($itemData['product_id'], $itemData['qty'], $transaction->id, $mainItem->id, $transaction->warehouse_id);
                     }
                 }
             });
@@ -510,19 +545,11 @@ class SalesDocumentController extends Controller
         $transaction = Transaction::with('items')->findOrFail($id);
         try {
             DB::transaction(function () use ($transaction) {
-                if (in_array($transaction->payment_status, ['paid', 'credit'])) {
-                    foreach ($transaction->items as $item) {
-                        if ($item->product_batch_id) {
-                            $batch = ProductBatch::find($item->product_batch_id);
-                            if ($batch) {
-                                $batch->increment('qty', $item->qty);
-                                $batch->product->increment('stock', $item->qty);
-                            }
-                        }
-                    }
-                }
+                // Model Jurnal: tanpa restore M (tidak pernah dikurangi); hapus baris lalu sync rumus.
+                $syncProductIds = $transaction->items->pluck('product_id')->all();
                 $transaction->items()->delete();
                 $transaction->delete();
+                Product::bulkSyncStock($syncProductIds);
             });
             return response()->json(['success' => true]);
         } catch (\Exception $e) {
@@ -581,13 +608,10 @@ class SalesDocumentController extends Controller
                     foreach ($transaction->items as $item) {
                         if ($item->product_batch_id) {
                             $batch = $item->batch;
-                            if ($batch) {
-                                if ($batch->qty < $item->qty) {
-                                    throw new \Exception("Stok batch {$batch->batch_no} untuk produk {$item->product->name} tidak mencukupi (tersisa {$batch->qty}).");
-                                }
-                                $batch->decrement('qty', $item->qty);
-                                $item->product->decrement('stock', $item->qty);
+                            if ($batch && $batch->current_stock < $item->qty) {
+                                throw new \Exception("Stok batch {$batch->batch_no} untuk produk {$item->product->name} tidak mencukupi (tersisa {$batch->current_stock}).");
                             }
+                            // Model Jurnal: M tidak dikurangi; keluar tercatat via TI (masuk K).
                         }
                     }
                 }
@@ -774,7 +798,7 @@ class SalesDocumentController extends Controller
             'delivery_type' => 'required|string|max:50',
             'notes' => 'nullable|string',
             'items' => 'required|array|min:1',
-            'items.*.product_batch_id' => 'required|exists:product_batches,id',
+            'items.*.product_batch_id' => 'required|exists:product_batches,id,deleted_at,NULL',
             'items.*.qty' => 'required|integer|min:1',
         ]);
 
@@ -860,17 +884,8 @@ class SalesDocumentController extends Controller
         try {
             DB::transaction(function () use ($id) {
                 $deliveryNote = \App\Models\DeliveryNote::with('items.batch.product')->findOrFail($id);
-                
-                // Kembalikan stok
-                foreach ($deliveryNote->items as $item) {
-                    if ($item->batch) {
-                        $item->batch->increment('qty', $item->qty);
-                    }
-                    if ($item->product) {
-                        $item->product->increment('stock', $item->qty);
-                    }
-                }
-                
+
+                // Model Jurnal: hapus SJ tidak mengembalikan M (pembuatan SJ tidak mengurangi M).
                 // Hapus items dan delivery note
                 $deliveryNote->items()->delete();
                 $deliveryNote->delete();
@@ -955,7 +970,7 @@ class SalesDocumentController extends Controller
             'delivery_type' => 'required|string|max:50',
             'notes' => 'nullable|string',
             'items' => 'required|array|min:1',
-            'items.*.product_batch_id' => 'required|exists:product_batches,id',
+            'items.*.product_batch_id' => 'required|exists:product_batches,id,deleted_at,NULL',
             'items.*.qty' => 'required|integer|min:1',
         ]);
 

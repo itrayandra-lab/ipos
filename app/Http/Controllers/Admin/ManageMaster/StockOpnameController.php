@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Admin\ManageMaster;
 use App\Http\Controllers\Controller;
 use App\Models\ProductBatch;
 use App\Models\ProductVariant;
+use App\Models\StockMovementItem;
 use App\Models\StockOpname;
 use App\Models\StockOpnameItem;
 use App\Models\SupplierReturnItem;
@@ -96,11 +97,19 @@ class StockOpnameController extends Controller
             ->get()
             ->keyBy(fn($item) => $item->product_id . '-' . ($item->product_variant_id ?? '0'));
 
-        $products = $products->map(function ($row) use ($soldQty, $returnedQty) {
+        $movedQty = StockMovementItem::selectRaw('product_id, product_variant_id, SUM(stock_movement_items.qty) as total_moved')
+            ->whereHas('batch', fn($q) => $q->where('warehouse_id', $warehouseId))
+            ->whereHas('stockMovement', fn($q) => $q->whereIn('status', ['transit', 'completed']))
+            ->groupBy('product_id', 'product_variant_id')
+            ->get()
+            ->keyBy(fn($item) => $item->product_id . '-' . ($item->product_variant_id ?? '0'));
+
+        $products = $products->map(function ($row) use ($soldQty, $returnedQty, $movedQty) {
             $key = $row->product_id . '-' . ($row->product_variant_id ?? '0');
             $sold = (int)($soldQty[$key]->total_sold ?? 0);
             $returned = (int)($returnedQty[$key]->total_returned ?? 0);
-            $row->system_qty = max(0, (int)($row->total_qty - $sold - $returned));
+            $moved = (int)($movedQty[$key]->total_moved ?? 0);
+            $row->system_qty = max(0, (int)($row->total_qty - $sold - $returned - $moved));
             $row->display_name = ($row->merek_name ? $row->merek_name . ' ' : '') . $row->product_name;
             $row->netto_label = $row->netto_value ? $row->netto_value . ($row->netto_satuan ?? '') : '-';
             return $row;
@@ -212,13 +221,14 @@ class StockOpnameController extends Controller
                     $batches = ProductBatch::where('product_id', $item->product_id)
                         ->where('product_variant_id', $item->product_variant_id)
                         ->where('warehouse_id', $opname->warehouse_id)
-                        ->where('qty', '>', 0)
                         ->orderBy('created_at', 'asc')
-                        ->get();
+                        ->get()
+                        ->filter(fn($b) => $b->current_stock > 0)
+                        ->values();
 
                     foreach ($batches as $batch) {
                         if ($remaining <= 0) break;
-                        $reduce = min($batch->qty, $remaining);
+                        $reduce = min($batch->current_stock, $remaining);
                         $batch->decrement('qty', $reduce);
                         $remaining -= $reduce;
                     }

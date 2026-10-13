@@ -214,7 +214,7 @@
                                                 <th style="width: 30px;">#</th>
                                                 <th style="min-width: 250px;">Nama Produk</th>
                                                 <th style="width: 130px;">No. Batch</th>
-                                                <th style="width: 130px;">Exp. Date</th>
+                                                <th style="width: 130px;">Exp. (Bln/Thn)</th>
                                                 <th style="width: 140px;">Harga Beli</th>
                                                 <th style="width: 120px;">Qty Terima</th>
                                                 <th>Catatan</th>
@@ -265,7 +265,7 @@
                                                     <input type="text" name="items[{{ $index }}][batch_no]" value="{{ $item->batch_no }}" class="form-control" placeholder="Batch No...">
                                                 </td>
                                                 <td>
-                                                    <input type="date" name="items[{{ $index }}][expiry_date]" value="{{ $item->expiry_date ? $item->expiry_date->format('Y-m-d') : '' }}" class="form-control">
+                                                    <input type="month" name="items[{{ $index }}][expiry_date]" value="{{ $item->expiry_date ? $item->expiry_date->format('Y-m') : '' }}" class="form-control">
                                                 </td>
                                                 <td>
                                                     @php
@@ -497,7 +497,7 @@
                                 <input type="text" name="items[${index}][batch_no]" class="form-control" placeholder="Batch No...">
                             </td>
                             <td>
-                                <input type="date" name="items[${index}][expiry_date]" class="form-control">
+                                <input type="month" name="items[${index}][expiry_date]" class="form-control">
                             </td>
                             <td>
                                 <input type="text" name="items[${index}][buy_price]" value="${formatNumberId(item.unit_price || 0)}" class="form-control buy-price-input text-center" readonly>
@@ -569,7 +569,7 @@
                     <input type="text" name="items[${index}][batch_no]" class="form-control" placeholder="Batch No...">
                 </td>
                 <td>
-                    <input type="date" name="items[${index}][expiry_date]" class="form-control">
+                    <input type="month" name="items[${index}][expiry_date]" class="form-control">
                 </td>
                 <td>
                     <input type="text" name="items[${index}][buy_price]" value="0" class="form-control buy-price-input text-center">
@@ -639,7 +639,7 @@
                     <input type="text" name="items[${index}][batch_no]" class="form-control" placeholder="Batch No...">
                 </td>
                 <td>
-                    <input type="date" name="items[${index}][expiry_date]" class="form-control">
+                    <input type="month" name="items[${index}][expiry_date]" class="form-control">
                 </td>
                 <td>
                     <input type="text" name="items[${index}][buy_price]" value="0" class="form-control buy-price-input text-center">

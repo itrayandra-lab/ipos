@@ -23,19 +23,26 @@ class StockController extends Controller
             ? $user->warehouses
             : \App\Models\Warehouse::orderBy('type')->orderBy('name')->get();
 
-        $batches = ProductBatch::withSum('transactionItems', 'qty')
-            ->withSum('supplierReturnItems', 'qty')
+        $batches = ProductBatch::withSisa()
             ->when($userWarehouseIds, function ($q) use ($userWarehouseIds) {
                 $q->whereIn('warehouse_id', $userWarehouseIds);
             })
             ->get();
 
+        // S = M - K + RR (K = transaksi + return supplier + kirim movement)
+        $sisaOf = function ($b) {
+            return (int)$b->qty - (int)($b->transaction_items_sum_qty ?? 0)
+                - (int)($b->supplier_return_items_sum_qty ?? 0)
+                - (int)($b->stock_movement_items_sum_qty ?? 0)
+                + (int)($b->supplier_return_received_sum_qty ?? 0);
+        };
+
         $totalSku = $batches->unique('product_id')->count();
-        $totalUnits = $batches->sum(function ($b) {
-            return max(0, (int)$b->qty - (int)($b->transaction_items_sum_qty ?? 0) - (int)($b->supplier_return_items_sum_qty ?? 0));
+        $totalUnits = $batches->sum(function ($b) use ($sisaOf) {
+            return max(0, $sisaOf($b));
         });
-        $lowStockCount = $batches->filter(function ($b) {
-            $cur = (int)$b->qty - (int)($b->transaction_items_sum_qty ?? 0) - (int)($b->supplier_return_items_sum_qty ?? 0);
+        $lowStockCount = $batches->filter(function ($b) use ($sisaOf) {
+            $cur = $sisaOf($b);
             return $cur > 0 && $cur < 10;
         })->count();
         $nearExpiredCount = $batches->filter(function ($b) {
@@ -71,6 +78,8 @@ class StockController extends Controller
             ->selectRaw('COALESCE(AVG(product_batches.buy_price), 0) as avg_buy_price')
             ->selectRaw('SUM((SELECT COALESCE(SUM(qty), 0) FROM transaction_items WHERE product_batch_id = product_batches.id)) as sold_qty')
             ->selectRaw('SUM((SELECT COALESCE(SUM(qty), 0) FROM supplier_return_items WHERE product_batch_id = product_batches.id)) as returned_qty')
+            ->selectRaw("SUM((SELECT COALESCE(SUM(i.qty), 0) FROM stock_movement_items i JOIN stock_movements m ON m.id = i.stock_movement_id WHERE i.product_batch_id = product_batches.id AND m.status IN ('transit','completed'))) as moved_qty")
+            ->selectRaw('SUM((SELECT COALESCE(SUM(i.qty), 0) FROM supplier_return_items i JOIN supplier_returns r ON r.id = i.supplier_return_id WHERE i.product_id = product_batches.product_id AND r.warehouse_id = product_batches.warehouse_id AND i.product_batch_id IS NOT NULL AND i.product_batch_id NOT IN (SELECT pb2.id FROM product_batches pb2 WHERE pb2.product_id = product_batches.product_id AND pb2.warehouse_id = product_batches.warehouse_id AND (pb2.product_variant_id <=> product_batches.product_variant_id)) AND product_batches.id = (SELECT MIN(pb3.id) FROM product_batches pb3 WHERE pb3.product_id = product_batches.product_id AND pb3.warehouse_id = product_batches.warehouse_id AND (pb3.product_variant_id <=> product_batches.product_variant_id)))) as rr_qty')
             ->selectRaw('MAX(products.min_stock_alert) as min_stock_alert')
             ->groupBy(
                 'product_batches.product_id',
@@ -99,10 +108,10 @@ class StockController extends Controller
                 return $row->netto_value ? $row->netto_value . $row->satuan : '-';
             })
             ->addColumn('total_current_stock', function ($row) {
-                return (int)($row->initial_qty - $row->sold_qty - $row->returned_qty);
+                return (int)($row->initial_qty - $row->sold_qty - $row->returned_qty - $row->moved_qty + $row->rr_qty);
             })
             ->addColumn('stock_status', function ($row) {
-                $stock = (int)($row->initial_qty - $row->sold_qty - $row->returned_qty);
+                $stock = (int)($row->initial_qty - $row->sold_qty - $row->returned_qty - $row->moved_qty + $row->rr_qty);
                 if ($stock <= 0) return 'habis';
                 $min = max(1, (int)($row->min_stock_alert ?? 10));
                 if ($stock < $min) return 'kritis';
@@ -110,7 +119,7 @@ class StockController extends Controller
                 return 'aman';
             })
             ->addColumn('stock_value', function ($row) {
-                $stock = (int)($row->initial_qty - $row->sold_qty - $row->returned_qty);
+                $stock = (int)($row->initial_qty - $row->sold_qty - $row->returned_qty - $row->moved_qty + $row->rr_qty);
                 return $stock * (float)$row->avg_buy_price;
             })
             ->addColumn('expiry_info', function ($row) {
@@ -130,6 +139,8 @@ class StockController extends Controller
 
     public function create(Request $request)
     {
+        $request->merge(['expiry_date' => normalize_expiry_date($request->expiry_date)]);
+
         $validator = Validator::make($request->all(), [
             'product_id' => 'required|exists:products,id',
             'product_variant_id' => 'nullable|exists:product_variants,id',
@@ -164,6 +175,8 @@ class StockController extends Controller
 
     public function update(Request $request)
     {
+        $request->merge(['expiry_date' => normalize_expiry_date($request->expiry_date)]);
+
         $validator = Validator::make($request->all(), [
             'id' => 'required|exists:product_batches,id',
             'batch_no' => 'required|string|max:255',
@@ -307,7 +320,16 @@ class StockController extends Controller
             ->map(function($batch) {
                 $sold = $batch->transactionItems()->sum('qty');
                 $returned = $batch->supplierReturnItems()->sum('qty');
-                $batch->current_qty = $batch->qty - $sold - $returned;
+                $moved = $batch->stockMovementItems()
+                    ->whereHas('stockMovement', fn($q) => $q->whereIn('status', ['transit', 'completed']))
+                    ->sum('qty');
+                $rr = $batch->returnReceivedItems()->sum('qty');
+                // S = M - K + RR (K = transaksi + return supplier + kirim movement)
+                $batch->current_qty = $batch->qty - $sold - $returned - $moved + $rr;
+                $batch->sold_qty = $sold;
+                $batch->returned_qty = $returned;
+                $batch->moved_qty = $moved;
+                $batch->rr_qty = $rr;
                 return $batch;
             });
 
@@ -391,12 +413,31 @@ class StockController extends Controller
                 ];
             });
 
+        // Batch tujuan movement (ID baru per penerimaan) — tracking via stock_movement_id
+        $receivedViaMovement = $batches->filter(fn($b) => !empty($b->stock_movement_id))
+            ->map(function($batch) {
+                $batch->loadMissing('incomingMovement.fromWarehouse');
+                $mv = $batch->incomingMovement;
+                return [
+                    'type' => 'Mutasi Masuk',
+                    'ref_no' => $mv->reference_number ?? ('MV-' . $batch->stock_movement_id),
+                    'source' => 'Dari: ' . ($mv->fromWarehouse->name ?? '-'),
+                    'batch_no' => $batch->batch_no,
+                    'qty' => $batch->qty,
+                    'date' => $mv->received_at ? $mv->received_at->format('Y-m-d') : ($batch->created_at ? $batch->created_at->format('Y-m-d') : '-'),
+                    'print_url' => null
+                ];
+            })
+            ->values();
+
         // Determine which batch IDs already have incoming coverage
         $movementBatchIds = \App\Models\StockMovementItem::whereIn('product_batch_id', $batchIds)
             ->whereHas('stockMovement', function($q) use ($warehouseId) {
                 $q->where('to_warehouse_id', $warehouseId)->where('status', 'completed');
             })
             ->pluck('product_batch_id')
+            ->unique()
+            ->merge($batches->filter(fn($b) => !empty($b->stock_movement_id))->pluck('id'))
             ->unique();
 
         $coveredBatchNos = \App\Models\GoodsReceipt::whereIn('delivery_note_number', $batchNos)
@@ -467,7 +508,7 @@ class StockController extends Controller
             ];
         });
 
-        $incoming = $fromSupplier->concat($fromMovement)->concat($manualEntries)->sortByDesc('date')->values();
+        $incoming = $fromSupplier->concat($fromMovement)->concat($receivedViaMovement)->concat($manualEntries)->sortByDesc('date')->values();
 
         // 3. Outgoing History (Transactions + Stock Movements)
         $transactions = \App\Models\TransactionItem::with(['transaction.customer', 'batch'])
@@ -489,7 +530,7 @@ class StockController extends Controller
         $movements = \App\Models\StockMovementItem::with(['stockMovement.toWarehouse', 'batch'])
             ->whereIn('product_batch_id', $batchIds)
             ->whereHas('stockMovement', function($q) {
-                $q->where('status', '!=', 'cancelled');
+                $q->whereIn('status', ['transit', 'completed']);
             })
             ->get()
             ->map(function($item) {

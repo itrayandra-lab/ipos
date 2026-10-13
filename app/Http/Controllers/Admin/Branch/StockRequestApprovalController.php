@@ -169,18 +169,20 @@ class StockRequestApprovalController extends Controller
             foreach ($stockRequest->items as $item) {
                 if (!$item->qty_approved || $item->qty_approved < 1) continue;
 
-                // Kurangi stok dari product_batches gudang pusat (FIFO)
+                // Kurangi stok dari product_batches gudang pusat (FIFO, batas pakai S).
+                // Ledger: request cabang tidak masuk K, jadi decrement di sini + batch baru di cabang saat terima.
                 $remaining = $item->qty_approved;
                 $batches   = ProductBatch::where('warehouse_id', $mainWarehouse?->id)
                     ->where('product_id', $item->product_id)
                     ->when($item->product_variant_id, fn($q) => $q->where('product_variant_id', $item->product_variant_id))
-                    ->where('qty', '>', 0)
                     ->orderBy('created_at')
-                    ->get();
+                    ->get()
+                    ->filter(fn($b) => $b->current_stock > 0)
+                    ->values();
 
                 foreach ($batches as $batch) {
                     if ($remaining <= 0) break;
-                    $deduct = min($batch->qty, $remaining);
+                    $deduct = min($batch->current_stock, $remaining);
                     $batch->decrement('qty', $deduct);
                     $remaining -= $deduct;
                 }
