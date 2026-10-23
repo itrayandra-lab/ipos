@@ -246,6 +246,15 @@
                                     <span>Subtotal</span>
                                     <span id="label-subtotal">Rp 0</span>
                                 </div>
+                                <div class="d-flex justify-content-between mb-3 align-items-center border-bottom pb-2">
+                                    <span>Diskon</span>
+                                    <div>
+                                        <span id="label-discount" class="text-danger mr-2">Rp 0</span>
+                                        <button type="button" class="btn btn-sm btn-outline-danger" data-toggle="modal" data-target="#discountModal">
+                                            <i class="fas fa-tag"></i> Set Diskon
+                                        </button>
+                                    </div>
+                                </div>
                                 <div class="d-flex justify-content-between mb-2 align-items-center">
                                     <span>Pajak (PPN 11%)</span>
                                     <select name="tax_type" id="tax_type" class="form-control form-control-sm" style="width: 100px;">
@@ -256,15 +265,6 @@
                                 <div id="tax-amount-row" class="d-flex justify-content-between mb-2" style="display:none !important;">
                                     <span>Nominal Pajak</span>
                                     <span id="label-tax">Rp 0</span>
-                                </div>
-                                <div class="d-flex justify-content-between mb-3 align-items-center border-bottom pb-2">
-                                    <span>Diskon</span>
-                                    <div>
-                                        <span id="label-discount" class="text-danger mr-2">Rp 0</span>
-                                        <button type="button" class="btn btn-sm btn-outline-danger" data-toggle="modal" data-target="#discountModal">
-                                            <i class="fas fa-tag"></i> Set Diskon
-                                        </button>
-                                    </div>
                                 </div>
                                 <div class="d-flex justify-content-between mb-3 align-items-center">
                                     <span>Biaya Lain</span>
@@ -443,10 +443,22 @@ let otherFees = [];
 
         $('#label-subtotal').text('Rp ' + formatNumber(subtotal));
 
-        // Tax
+        // Global Discount (dihitung sebelum PPN)
+        let discVal = parseFloat($('#modal-discount-val').val()) || 0;
+        let discType = $('#modal-discount-type').val();
+        let discFinal = (discType === 'percent') ? (subtotal * (discVal / 100)) : discVal;
+        if (discFinal > subtotal) discFinal = subtotal;
+        
+        $('#label-discount').text('Rp ' + formatNumber(discFinal));
+        $('#val-discount').val(discFinal);
+        $('#val-discount-type').val(discType);
+
+        // Tax (PPN dihitung setelah diskon)
+        let taxBase = subtotal - discFinal;
+        if (taxBase < 0) taxBase = 0;
         let tax = 0;
         if ($('#tax_type').val() === 'ppn') {
-            tax = subtotal * 0.11;
+            tax = taxBase * 0.11;
             $('#tax-amount-row').attr('style', 'display: flex !important;');
         } else {
             $('#tax-amount-row').attr('style', 'display: none !important;');
@@ -454,22 +466,13 @@ let otherFees = [];
         $('#label-tax').text('Rp ' + formatNumber(tax));
         $('#val-tax-amount').val(tax);
 
-        // Global Discount
-        let discVal = parseFloat($('#modal-discount-val').val()) || 0;
-        let discType = $('#modal-discount-type').val();
-        let discFinal = (discType === 'percent') ? (subtotal * (discVal / 100)) : discVal;
-        
-        $('#label-discount').text('Rp ' + formatNumber(discFinal));
-        $('#val-discount').val(discFinal);
-        $('#val-discount-type').val(discType);
-
         // Other Fees
         let otherFeesTotal = getOtherFeesTotal();
         $('#label-other-fees').text('Rp ' + formatNumber(otherFeesTotal));
         saveOtherFees();
 
         // Grand Total
-        let grand = subtotal + tax - discFinal + otherFeesTotal;
+        let grand = subtotal - discFinal + tax + otherFeesTotal;
         if (grand < 0) grand = 0;
         $('#label-grand-total').text(formatNumber(grand));
 

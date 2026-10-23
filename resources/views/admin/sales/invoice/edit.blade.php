@@ -227,6 +227,8 @@
                                 <div class="form-group">
                                     <label>Pajak</label>
                                     <input type="number" name="tax_amount" id="tax_amount" class="form-control" value="{{ $transaction->tax_amount }}" min="0" step="0.01">
+                                    <input type="hidden" name="tax_type" value="{{ $transaction->tax_type ?? 'none' }}">
+                                    <input type="hidden" name="discount_type" value="{{ $transaction->discount_type ?? 'fixed' }}">
                                 </div>
                                 <div class="form-group">
                                     <label>Biaya Lain</label>

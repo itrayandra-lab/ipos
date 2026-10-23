@@ -372,16 +372,16 @@
                         <td class="text-right">Sub Total:</td>
                         <td class="text-right" style="width: 120px;">Rp {{ number_format($transaction->items->sum('subtotal'), 0, ',', '.') }}</td>
                     </tr>
-                    @if($transaction->tax_amount > 0)
-                    <tr>
-                        <td class="text-right">Pajak ({{ strtoupper($transaction->tax_type) }}):</td>
-                        <td class="text-right">Rp {{ number_format($transaction->tax_amount, 0, ',', '.') }}</td>
-                    </tr>
-                    @endif
                     @if($transaction->discount > 0)
                     <tr>
                         <td class="text-right">Diskon:</td>
                         <td class="text-right" style="color: #e74c3c;">- Rp {{ number_format($transaction->discount, 0, ',', '.') }}</td>
+                    </tr>
+                    @endif
+                    @if($transaction->tax_amount > 0)
+                    <tr>
+                        <td class="text-right">Pajak ({{ strtoupper($transaction->tax_type) }}):</td>
+                        <td class="text-right">Rp {{ number_format($transaction->tax_amount, 0, ',', '.') }}</td>
                     </tr>
                     @endif
                     @if(!empty($transaction->other_fees) && is_array($transaction->other_fees))

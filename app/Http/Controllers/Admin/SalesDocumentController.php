@@ -292,11 +292,16 @@ class SalesDocumentController extends Controller
                         $otherFeesTotal += (float)($fee['amount'] ?? 0);
                     }
                 }
-                $taxAmount    = (float) ($request->tax_amount ?? 0);
                 $discountVal  = (float) ($request->discount ?? 0);
                 $taxType      = $request->tax_type ?? 'none';
                 $discountType = $request->discount_type ?? 'fixed';
-                $grandTotal   = ($totalAmount + $taxAmount) - $discountVal + $otherFeesTotal;
+                // PPN dihitung setelah diskon
+                if ($taxType === 'ppn') {
+                    $taxAmount = max(0, $totalAmount - $discountVal) * 0.11;
+                } else {
+                    $taxAmount = 0;
+                }
+                $grandTotal   = ($totalAmount - $discountVal) + $taxAmount + $otherFeesTotal;
                 $txDate = $request->transaction_date ? Carbon::parse($request->transaction_date) : Carbon::now();
                 $mainWarehouseId = \App\Models\Warehouse::where('type', 'main')->value('id');
                 $transaction = Transaction::create([
@@ -481,10 +486,15 @@ class SalesDocumentController extends Controller
                         $otherFeesTotal += (float)($fee['amount'] ?? 0);
                     }
                 }
-                $taxAmount    = (float) ($request->tax_amount ?? 0);
                 $discountVal  = (float) ($request->discount ?? 0);
-                $taxType      = $request->tax_type ?? 'none';
-                $discountType = $request->discount_type ?? 'fixed';
+                $taxType      = $request->tax_type ?? $transaction->tax_type ?? 'none';
+                $discountType = $request->discount_type ?? $transaction->discount_type ?? 'fixed';
+                if ($taxType === 'ppn') {
+                    // PPN dihitung setelah diskon
+                    $taxAmount = max(0, $totalAmount - $discountVal) * 0.11;
+                } else {
+                    $taxAmount = (float) ($request->tax_amount ?? $transaction->tax_amount ?? 0);
+                }
                 $grandTotal   = ($totalAmount + $taxAmount) - $discountVal + $otherFeesTotal;
                 $txDate = $request->transaction_date ? Carbon::parse($request->transaction_date) : $transaction->created_at;
                 
