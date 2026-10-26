@@ -83,6 +83,23 @@ class BatchController extends Controller
             ])->withInput();
         }
 
+        $incomingItem = $batch->incomingMovementItem()->first();
+        if ($batch->stock_movement_id && !$incomingItem
+            && ((int) $request->qty !== (int) $batch->qty
+                || $request->batch_no !== $batch->batch_no)) {
+            return redirect()->back()->withErrors([
+                'qty' => 'Tautkan item movement masuk terlebih dahulu agar M dan sumber batch dapat diverifikasi.',
+            ])->withInput();
+        }
+        if ($incomingItem && (
+            (int) $request->qty !== (int) $incomingItem->qty
+            || $request->batch_no !== $batch->batch_no
+        )) {
+            return redirect()->back()->withErrors([
+                'qty' => "Identitas dan M batch transfer mengikuti movement masuk (M: {$incomingItem->qty}).",
+            ])->withInput();
+        }
+
         $batch->update($request->only(['qty', 'batch_no', 'expiry_date', 'buy_price']));
 
         return redirect()->back()->with('message', 'Data batch berhasil diperbarui');

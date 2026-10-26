@@ -320,6 +320,7 @@ class StockMovementController extends Controller
                     'buy_price'          => $sourceBatch->buy_price,
                     'expiry_date'        => $sourceBatch->expiry_date ?? null,
                     'stock_movement_id'  => $movement->id,
+                    'stock_movement_item_id' => $item->id,
                 ]);
             }
 

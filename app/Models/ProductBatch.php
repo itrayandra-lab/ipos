@@ -21,6 +21,7 @@ class ProductBatch extends Model
         'buy_price',
         'goods_receipt_item_id',
         'stock_movement_id',
+        'stock_movement_item_id',
     ];
 
     public function supplier()
@@ -62,6 +63,11 @@ class ProductBatch extends Model
     public function incomingMovement()
     {
         return $this->belongsTo(\App\Models\StockMovement::class, 'stock_movement_id');
+    }
+
+    public function incomingMovementItem()
+    {
+        return $this->belongsTo(StockMovementItem::class, 'stock_movement_item_id');
     }
 
     /**

@@ -89,6 +89,15 @@
                                             @elseif($src && $src['kind'] === 'movement')
                                                 <span class="badge badge-primary">{{ $src['label'] }}{{ $src['exact'] ? '' : '?' }}</span><br>
                                                 <a href="{{ $src['url'] }}"><small>{{ $src['ref'] }}</small></a>
+                                                @if(isset($src['kirim']) && (int) $src['kirim'] !== (int) $b->qty)
+                                                    <br><span class="badge badge-warning">
+                                                        @if($src['exact'])
+                                                            M beda; seharusnya {{ $fmt($src['kirim']) }}
+                                                        @else
+                                                            Kandidat kirim {{ $fmt($src['kirim']) }}; verifikasi sebelum koreksi
+                                                        @endif
+                                                    </span>
+                                                @endif
                                             @elseif($src && $src['kind'] === 'sj')
                                                 <span class="badge badge-secondary">{{ $src['label'] }}</span><br>
                                                 <a href="{{ $src['url'] }}"><small>{{ $src['ref'] }}</small></a>
@@ -109,6 +118,9 @@
                                                 <button class="btn btn-sm btn-light btn-merge-batch" data-id="{{ $b->id }}" data-no="{{ $b->batch_no }}">Merge</button>
                                                 @if(!$b->product_variant_id)
                                                 <button class="btn btn-sm btn-warning btn-assign-batch" data-id="{{ $b->id }}" data-no="{{ $b->batch_no }}">Varian</button>
+                                                @endif
+                                                @if($src && $src['kind'] === 'movement')
+                                                <button class="btn btn-sm btn-outline-info btn-link-incoming-mv" data-id="{{ $b->id }}">Link MV</button>
                                                 @endif
                                                 <button class="btn btn-sm btn-danger btn-delete-batch" data-id="{{ $b->id }}" data-no="{{ $b->batch_no }}">Hapus</button>
                                             </div>
@@ -551,6 +563,30 @@
     </div>
 
     {{-- Modal sync movement --}}
+    <div class="modal fade" id="linkIncomingMvModal" tabindex="-1" role="dialog" aria-hidden="true">
+        <div class="modal-dialog modal-lg" role="document">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Tautkan Movement Masuk & Koreksi M</h5>
+                    <button type="button" class="close" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">&times;</span></button>
+                </div>
+                <div class="modal-body">
+                    <p>Batch: <strong id="im-batch"></strong> | M saat ini: <strong id="im-current"></strong></p>
+                    <div class="form-group">
+                        <label>Pilih movement yang benar:</label>
+                        <select id="im-item" class="form-control"></select>
+                    </div>
+                    <div id="im-preview" class="alert alert-warning mb-0">Pilih movement untuk melihat perubahan M.</div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-dismiss="modal">Batal</button>
+                    <button type="button" class="btn btn-info" id="btn-do-link-incoming-mv" disabled>Tautkan & Koreksi M</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    {{-- Modal sync movement --}}
     <div class="modal fade" id="syncMvModal" tabindex="-1" role="dialog" aria-hidden="true">
         <div class="modal-dialog modal-lg" role="document">
             <div class="modal-content">
@@ -857,6 +893,79 @@
                     beforeSend: () => $.LoadingOverlay('show'), complete: () => $.LoadingOverlay('hide'),
                     success: (res) => { $('#syncMvModal').modal('hide'); Swal.fire('Berhasil', res.message, 'success').then(reload); },
                     error: (xhr) => err(xhr, 'Gagal sync movement')
+                });
+            });
+
+            // ---- Tautkan movement penerimaan dan koreksi M ----
+            var incomingBatchId = null;
+            $('.btn-link-incoming-mv').on('click', function() {
+                incomingBatchId = $(this).data('id');
+                $('#im-batch').text($(this).closest('tr').find('td:first strong').text() + ' (#' + incomingBatchId + ')');
+                $('#im-current').text($(this).closest('tr').find('td:nth-child(4)').text().trim());
+                $('#im-item').html('<option value="">Memuat kandidat movement...</option>');
+                $('#im-preview').text('Pilih movement untuk melihat perubahan M.');
+                $('#btn-do-link-incoming-mv').prop('disabled', true);
+                $('#linkIncomingMvModal').modal('show');
+
+                $.get("{{ url('admin/adjustment/products/batches') }}/" + incomingBatchId + "/incoming-movements")
+                    .done(function(res) {
+                        var opts = (res.items || []).map(function(item) {
+                            var label = item.reference_number + ' | ' + item.from_warehouse + ' → ' +
+                                item.to_warehouse + ' | diterima ' + (item.received_at || '-') +
+                                ' | qty ' + item.qty + ' | item #' + item.item_id;
+                            return `<option value="${item.item_id}" data-qty="${item.qty}">${$('<div>').text(label).html()}</option>`;
+                        }).join('');
+                        $('#im-current').text(res.batch.qty);
+                        $('#im-batch').text(res.batch.batch_no + ' (#' + res.batch.id + ') — ' + res.batch.warehouse);
+                        $('#im-item').html('<option value="">-- pilih movement --</option>' + opts);
+                        if (!opts) {
+                            $('#im-item').html('<option value="">Tidak ada movement yang cocok</option>');
+                            $('#im-preview').text('Pastikan movement sudah completed, gudang tujuan, produk/varian, dan no batch cocok.');
+                        }
+                    })
+                    .fail(function(xhr) {
+                        $('#im-item').html('<option value="">Gagal memuat kandidat</option>');
+                        err(xhr, 'Gagal memuat movement masuk');
+                    });
+            });
+
+            $('#im-item').on('change', function() {
+                var selected = $(this).find(':selected');
+                var qty = selected.data('qty');
+                var current = Number($('#im-current').text());
+                var valid = $(this).val() !== '';
+                $('#btn-do-link-incoming-mv').prop('disabled', !valid);
+                $('#im-preview').text(valid
+                    ? 'M akan disamakan dari ' + current + ' menjadi ' + qty +
+                        ' sesuai qty yang dikirim pada movement. S akan dihitung ulang setelah ditautkan.'
+                    : 'Pilih movement untuk melihat perubahan M.');
+            });
+
+            $('#btn-do-link-incoming-mv').on('click', function() {
+                var movementItemId = $('#im-item').val();
+                if (!incomingBatchId || !movementItemId) return;
+                var qty = $('#im-item').find(':selected').data('qty');
+                Swal.fire({
+                    title: 'Tautkan movement?',
+                    text: 'M batch akan menjadi ' + qty + ' sesuai qty movement yang dipilih. K transaksi/movement tetap tercatat terpisah.',
+                    icon: 'warning',
+                    showCancelButton: true,
+                    confirmButtonText: 'Tautkan & koreksi M',
+                    cancelButtonText: 'Batal'
+                }).then(function(result) {
+                    if (!result.isConfirmed) return;
+                    $.ajax({
+                        url: "{{ route('admin.adjustment.batches.link_movement') }}",
+                        type: 'POST',
+                        data: { _token: csrf, batch_id: incomingBatchId, movement_item_id: movementItemId },
+                        beforeSend: () => $.LoadingOverlay('show'),
+                        complete: () => $.LoadingOverlay('hide'),
+                        success: (res) => {
+                            $('#linkIncomingMvModal').modal('hide');
+                            Swal.fire('Berhasil', res.message, 'success').then(reload);
+                        },
+                        error: (xhr) => err(xhr, 'Gagal menautkan movement masuk')
+                    });
                 });
             });
 

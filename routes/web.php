@@ -434,6 +434,8 @@ Route::prefix('admin')->middleware(['auth', 'role:super_admin,store_manager,fina
             Route::get('/products/netto/{netto}', [\App\Http\Controllers\Admin\Adjustment\ProductAdjustmentController::class, 'show'])->name('admin.adjustment.products.show');
             Route::post('/products/batches', [\App\Http\Controllers\Admin\Adjustment\ProductAdjustmentController::class, 'createBatch'])->name('admin.adjustment.batches.store');
             Route::post('/products/batches/update', [\App\Http\Controllers\Admin\Adjustment\ProductAdjustmentController::class, 'updateBatch'])->name('admin.adjustment.batches.update');
+            Route::get('/products/batches/{id}/incoming-movements', [\App\Http\Controllers\Admin\Adjustment\ProductAdjustmentController::class, 'incomingMovementCandidates'])->name('admin.adjustment.batches.incoming_movements');
+            Route::post('/products/batches/link-incoming-movement', [\App\Http\Controllers\Admin\Adjustment\ProductAdjustmentController::class, 'linkIncomingMovement'])->name('admin.adjustment.batches.link_movement');
             Route::post('/products/batches/assign-variant', [\App\Http\Controllers\Admin\Adjustment\ProductAdjustmentController::class, 'assignBatchVariant'])->name('admin.adjustment.batches.assign_variant');
             Route::get('/products/batches/{id}/usage', [\App\Http\Controllers\Admin\Adjustment\ProductAdjustmentController::class, 'batchUsage'])->name('admin.adjustment.batches.usage');
             Route::post('/products/batches/merge', [\App\Http\Controllers\Admin\Adjustment\ProductAdjustmentController::class, 'mergeBatch'])->name('admin.adjustment.batches.merge');

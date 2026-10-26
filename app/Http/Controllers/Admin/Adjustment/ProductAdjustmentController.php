@@ -517,9 +517,13 @@ class ProductAdjustmentController extends Controller
         foreach ($batches as $b) {
             // Exact: movement via link (diisi receive() / backfill)
             if ($b->incomingMovement && !isset($map[$b->id])) {
+                $incomingItem = $b->incomingMovementItem;
                 $map[$b->id] = ['kind' => 'movement', 'exact' => true, 'label' => 'Transfer',
                     'ref' => $b->incomingMovement->reference_number,
-                    'url' => route('admin.stock_movements.show', $b->stock_movement_id)];
+                    'url' => route('admin.stock_movements.show', $b->stock_movement_id),
+                    'movement_id' => $b->stock_movement_id,
+                    'movement_item_id' => $incomingItem?->id,
+                    'kirim' => $incomingItem ? (int) $incomingItem->qty : null];
             }
             if (isset($map[$b->id])) {
                 continue;
@@ -538,13 +542,16 @@ class ProductAdjustmentController extends Controller
                     fn($q) => $q->whereNull('i.product_variant_id'))
                 ->where('sb.batch_no', $b->batch_no)
                 ->whereRaw('DATE_ADD(m.received_at, INTERVAL 7 HOUR) BETWEEN DATE_SUB(?, INTERVAL 8 HOUR) AND DATE_ADD(?, INTERVAL 8 HOUR)', [$b->created_at, $b->created_at])
-                ->select('m.id', 'm.reference_number', 'i.qty as kirim')
+                ->select('m.id', 'm.reference_number', 'i.id as movement_item_id', 'i.qty as kirim')
                 ->orderByRaw('ABS(TIMESTAMPDIFF(SECOND, DATE_ADD(m.received_at, INTERVAL 7 HOUR), ?))', [$b->created_at])
                 ->first();
             if ($mv) {
                 $map[$b->id] = ['kind' => 'movement', 'exact' => false, 'label' => 'Transfer?',
                     'ref' => $mv->reference_number . " (kirim {$mv->kirim}, terima {$b->qty})",
-                    'url' => route('admin.stock_movements.show', $mv->id)];
+                    'url' => route('admin.stock_movements.show', $mv->id),
+                    'movement_id' => $mv->id,
+                    'movement_item_id' => $mv->movement_item_id,
+                    'kirim' => (int) $mv->kirim];
                 continue;
             }
             // Dugaan penerimaan: GR item se-produk (+varian), qty sama, ≤14 hari sebelumnya
@@ -616,7 +623,11 @@ class ProductAdjustmentController extends Controller
         $vidList = $variantIds ?: [0];
 
         // Batch milik netto ini + batch produk tanpa varian (kandidat assign)
-        $batches = \App\Models\ProductBatch::with(['warehouse:id,name', 'incomingMovement:id,reference_number'])
+        $batches = \App\Models\ProductBatch::with([
+            'warehouse:id,name',
+            'incomingMovement:id,reference_number',
+            'incomingMovementItem:id,stock_movement_id,qty',
+        ])
             ->withSum('transactionItems as k_trx', 'qty')
             ->withSum('supplierReturnItems as k_ret', 'qty')
             ->withSum(['stockMovementItems as k_mv' => fn($q) => $q->whereHas('stockMovement',
@@ -877,6 +888,26 @@ class ProductAdjustmentController extends Controller
             return response()->json(['status' => 'error',
                 'message' => "No batch '{$d['batch_no']}' sudah dipakai baris #{$dup->id}. Pakai Merge Batch untuk menggabungkannya."], 422);
         }
+        $incomingItem = $b->incomingMovementItem()->first();
+        if ($b->stock_movement_id && !$incomingItem
+            && ((int) $d['qty'] !== (int) $b->qty
+                || $d['batch_no'] !== $b->batch_no
+                || (int) ($d['warehouse_id'] ?? 0) !== (int) ($b->warehouse_id ?? 0))) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Pilih item movement masuk terlebih dahulu agar M dan sumber batch dapat diverifikasi.',
+            ], 422);
+        }
+        if ($incomingItem && (
+            (int) $d['qty'] !== (int) $incomingItem->qty
+            || $d['batch_no'] !== $b->batch_no
+            || (int) ($d['warehouse_id'] ?? 0) !== (int) ($b->warehouse_id ?? 0)
+        )) {
+            return response()->json([
+                'status' => 'error',
+                'message' => "Identitas dan M batch transfer mengikuti movement masuk (M: {$incomingItem->qty}). Gunakan aksi Tautkan Movement Masuk untuk koreksi yang terverifikasi.",
+            ], 422);
+        }
         $b->update([
             'batch_no' => $d['batch_no'],
             'qty' => $d['qty'],
@@ -887,6 +918,135 @@ class ProductAdjustmentController extends Controller
         Product::bulkSyncStock([$b->product_id]);
 
         return response()->json(['status' => 'success', 'message' => 'Batch berhasil diperbarui.']);
+    }
+
+    public function incomingMovementCandidates($batchId)
+    {
+        if (!auth()->user()->hasPermission('access_adjustment_menu')
+            && !auth()->user()->hasPermission('access_adjustment_products')
+            && !auth()->user()->hasPermission('access_products_menu')) {
+            abort(403, 'Anda tidak memiliki akses Adjustment Data.');
+        }
+
+        $batch = \App\Models\ProductBatch::findOrFail($batchId);
+        $variantId = $batch->product_variant_id;
+
+        $items = DB::table('stock_movement_items as i')
+            ->join('stock_movements as m', 'm.id', '=', 'i.stock_movement_id')
+            ->join('product_batches as source', 'source.id', '=', 'i.product_batch_id')
+            ->join('warehouses as wf', 'wf.id', '=', 'm.from_warehouse_id')
+            ->join('warehouses as wt', 'wt.id', '=', 'm.to_warehouse_id')
+            ->where('m.status', 'completed')
+            ->where('m.to_warehouse_id', $batch->warehouse_id)
+            ->where('i.product_id', $batch->product_id)
+            ->where('source.batch_no', $batch->batch_no)
+            ->whereNull('source.deleted_at')
+            ->where(function ($q) use ($variantId) {
+                if ($variantId === null) {
+                    $q->whereNull('i.product_variant_id')
+                        ->whereNull('source.product_variant_id');
+                } else {
+                    $q->where('i.product_variant_id', $variantId)
+                        ->where('source.product_variant_id', $variantId);
+                }
+            })
+            ->when($batch->stock_movement_id, fn($q) => $q->where('m.id', $batch->stock_movement_id))
+            ->whereNotExists(function ($q) use ($batch) {
+                $q->selectRaw('1')
+                    ->from('product_batches as linked')
+                    ->whereColumn('linked.stock_movement_item_id', 'i.id')
+                    ->where('linked.id', '!=', $batch->id);
+            })
+            ->select(
+                'i.id as item_id',
+                'i.qty',
+                'm.id as movement_id',
+                'm.reference_number',
+                'm.received_at',
+                'wf.name as from_warehouse',
+                'wt.name as to_warehouse'
+            )
+            ->orderByDesc('m.received_at')
+            ->orderByDesc('i.id')
+            ->limit(100)
+            ->get();
+
+        return response()->json([
+            'batch' => [
+                'id' => $batch->id,
+                'batch_no' => $batch->batch_no,
+                'qty' => (int) $batch->qty,
+                'warehouse' => $batch->warehouse->name ?? '-',
+            ],
+            'items' => $items,
+        ]);
+    }
+
+    public function linkIncomingMovement(Request $request)
+    {
+        if ($g = $this->adjustmentGuard()) {
+            return $g;
+        }
+
+        $d = $request->validate([
+            'batch_id' => 'required|exists:product_batches,id,deleted_at,NULL',
+            'movement_item_id' => 'required|exists:stock_movement_items,id',
+        ]);
+
+        $result = DB::transaction(function () use ($d) {
+            $batch = \App\Models\ProductBatch::whereNull('deleted_at')
+                ->lockForUpdate()
+                ->findOrFail($d['batch_id']);
+            $item = \App\Models\StockMovementItem::with(['stockMovement', 'batch'])
+                ->lockForUpdate()
+                ->findOrFail($d['movement_item_id']);
+            $movement = $item->stockMovement;
+
+            if ($movement->status !== 'completed') {
+                throw new \Exception('Movement harus sudah selesai diterima.');
+            }
+            if ((int) $movement->to_warehouse_id !== (int) $batch->warehouse_id) {
+                throw new \Exception('Gudang tujuan movement tidak sama dengan gudang batch.');
+            }
+            if ((int) $item->product_id !== (int) $batch->product_id
+                || (int) ($item->product_variant_id ?? 0) !== (int) ($batch->product_variant_id ?? 0)
+                || !$item->batch
+                || $item->batch->batch_no !== $batch->batch_no) {
+                throw new \Exception('Movement tidak cocok dengan produk, varian, atau nomor batch ini.');
+            }
+            if ($batch->goods_receipt_item_id) {
+                throw new \Exception('Batch ini sudah memiliki sumber penerimaan barang; movement masuk tidak dapat ditautkan.');
+            }
+            if ($batch->stock_movement_id && (int) $batch->stock_movement_id !== (int) $movement->id) {
+                throw new \Exception('Batch sudah tertaut ke movement lain.');
+            }
+            $alreadyLinked = DB::table('product_batches')
+                ->where('stock_movement_item_id', $item->id)
+                ->where('id', '!=', $batch->id)
+                ->exists();
+            if ($alreadyLinked) {
+                throw new \Exception('Item movement ini sudah ditautkan ke batch lain.');
+            }
+
+            $previousQty = (int) $batch->qty;
+            $batch->update([
+                'stock_movement_id' => $movement->id,
+                'stock_movement_item_id' => $item->id,
+                'qty' => (int) $item->qty,
+            ]);
+            Product::bulkSyncStock([$batch->product_id]);
+
+            return [
+                'previous_qty' => $previousQty,
+                'received_qty' => (int) $item->qty,
+                'reference_number' => $movement->reference_number,
+            ];
+        });
+
+        return response()->json([
+            'status' => 'success',
+            'message' => "Batch ditautkan ke {$result['reference_number']}. M diperbaiki dari {$result['previous_qty']} menjadi {$result['received_qty']} sesuai qty movement; S dihitung ulang.",
+        ]);
     }
 
     /**
