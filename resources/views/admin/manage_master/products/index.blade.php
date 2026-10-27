@@ -345,6 +345,57 @@
                     }
                 });
             });
+            // Toggle Status Logic (Aktif / Non Aktif)
+            $('#products-table').on('click', '.toggle-status[data-id]', function(e) {
+                e.preventDefault();
+                let id = $(this).data('id');
+                let isActive = $(this).data('aktif') == 1;
+                let newStatus = isActive ? 'Non Aktif' : 'Aktif';
+
+                Swal.fire({
+                    title: isActive ? "Non Aktifkan Produk?" : "Aktifkan Produk?",
+                    text: isActive
+                        ? "Produk akan diubah menjadi Non Aktif dan tidak dapat dijual sampai diaktifkan kembali."
+                        : "Produk akan diubah menjadi Aktif dan dapat dijual kembali.",
+                    icon: "question",
+                    showCancelButton: true,
+                    confirmButtonColor: isActive ? "#d33" : "#0d9488",
+                    confirmButtonText: isActive ? "Ya, non aktifkan!" : "Ya, aktifkan!",
+                    cancelButtonText: "Batal"
+                }).then((result) => {
+                    if (result.isConfirmed) {
+                        $.ajax({
+                            data: {
+                                'id': id,
+                                '_token': "{{ csrf_token() }}"
+                            },
+                            type: 'POST',
+                            url: "{{ route('admin.products.toggle-status') }}",
+                            beforeSend: function() {
+                                $.LoadingOverlay("show");
+                            },
+                            complete: function() {
+                                $.LoadingOverlay("hide");
+                            },
+                            success: function(data) {
+                                Swal.fire({
+                                    title: "Berhasil",
+                                    text: data.message,
+                                    icon: "success"
+                                });
+                                table.ajax.reload(null, false);
+                            },
+                            error: function(err) {
+                                Swal.fire({
+                                    title: "Gagal",
+                                    text: err.responseJSON?.message || "Gagal mengubah status produk (" + newStatus + ")",
+                                    icon: "error"
+                                });
+                            }
+                        });
+                    }
+                });
+            });
         });
     </script>
     @endpush

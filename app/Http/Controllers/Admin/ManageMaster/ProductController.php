@@ -19,7 +19,7 @@ class ProductController extends Controller
     {
         $this->middleware(function ($request, $next) {
             $user = auth()->user();
-            $restrictedMethods = ['create', 'create_view', 'edit', 'update', 'delete', 'syncPrice'];
+            $restrictedMethods = ['create', 'create_view', 'edit', 'update', 'delete', 'syncPrice', 'toggleStatus'];
             
             if ($user && in_array($request->route()->getActionMethod(), $restrictedMethods)) {
                 if (!$user->canEdit('access_products')) {
@@ -241,7 +241,17 @@ class ProductController extends Controller
                 
                 if ($canEdit) {
                     $html .= '
-                            <li><a href="' . route('admin.products.edit', $product->id) . '" class="dropdown-item">Edit</a></li>
+                            <li><a href="' . route('admin.products.edit', $product->id) . '" class="dropdown-item">Edit</a></li>';
+
+                    if ($product->status === 'Y') {
+                        $html .= '
+                            <li><a data-id="' . $product->id . '" data-aktif="1" class="dropdown-item toggle-status" href="#">Non Aktifkan</a></li>';
+                    } else {
+                        $html .= '
+                            <li><a data-id="' . $product->id . '" data-aktif="0" class="dropdown-item toggle-status" href="#">Aktifkan</a></li>';
+                    }
+
+                    $html .= '
                             <li><a data-id="' . $product->id . '" class="dropdown-item hapus" href="#">Hapus</a></li>';
                 }
 
@@ -620,6 +630,45 @@ class ProductController extends Controller
             return response()->json(['status' => 'error', 'message' => 'Produk tidak dapat dihapus karena masih memiliki relasi data lain.'], 409);
         } catch (\Exception $e) {
             return response()->json(['status' => 'error', 'message' => 'Terjadi kesalahan saat menghapus produk: ' . $e->getMessage()], 500);
+        }
+    }
+
+    public function toggleStatus(Request $request)
+    {
+        $validator = Validator::make($request->all(), [
+            'id' => 'required|exists:products,id',
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json([
+                'status' => 'error',
+                'message' => $validator->errors()->first(),
+            ], 422);
+        }
+
+        if (auth()->user()->isSales()) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Anda tidak memiliki akses untuk tindakan ini.',
+            ], 403);
+        }
+
+        try {
+            $product = Product::findOrFail($request->id);
+            $product->status = $product->status === 'Y' ? 'N' : 'Y';
+            $product->save();
+
+            return response()->json([
+                'status' => 'success',
+                'new_status' => $product->status,
+                'message' => $product->status === 'Y'
+                    ? 'Produk berhasil diaktifkan.'
+                    : 'Produk berhasil dinonaktifkan.',
+            ]);
+        } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
+            return response()->json(['status' => 'error', 'message' => 'Produk tidak ditemukan.'], 404);
+        } catch (\Exception $e) {
+            return response()->json(['status' => 'error', 'message' => 'Gagal mengubah status produk: ' . $e->getMessage()], 500);
         }
     }
 
