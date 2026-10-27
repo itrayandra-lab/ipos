@@ -6,6 +6,8 @@ use App\Http\Controllers\Controller;
 use App\Models\Merek;
 use App\Models\Product;
 use App\Models\ProductNetto;
+use App\Models\ProductVariant;
+use App\Models\Supplier;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
@@ -604,6 +606,131 @@ class ProductAdjustmentController extends Controller
         return null;
     }
 
+    public function updateProductSupplier(Request $request)
+    {
+        if ($g = $this->adjustmentGuard()) {
+            return $g;
+        }
+
+        $data = $request->validate([
+            'product_id' => 'required|exists:products,id',
+            'supplier_id' => 'nullable|exists:suppliers,id',
+        ]);
+
+        Product::whereKey($data['product_id'])->update([
+            'supplier_id' => $data['supplier_id'] ?: null,
+        ]);
+
+        return response()->json(['status' => 'success', 'message' => 'Supplier produk berhasil diperbarui.']);
+    }
+
+    public function updateVariantHpp(Request $request)
+    {
+        if ($g = $this->adjustmentGuard()) {
+            return $g;
+        }
+
+        $data = $request->validate([
+            'netto_id' => 'required|exists:product_nettos,id',
+            'variant_id' => 'required|exists:product_variants,id',
+            'product_hpp' => 'required|integer|min:1',
+        ]);
+
+        $variant = ProductVariant::where('id', $data['variant_id'])
+            ->where('product_netto_id', $data['netto_id'])
+            ->firstOrFail();
+
+        $variant->product_hpp = $data['product_hpp'];
+        $variant->price_real = $data['product_hpp'];
+        $variant->save();
+        $variant->recalculatePricing();
+
+        return response()->json(['status' => 'success', 'message' => 'HPP varian berhasil diperbarui.']);
+    }
+
+    public function previewHppBackfill(Request $request, $nettoId)
+    {
+        if ($g = $this->adjustmentGuard()) {
+            return $g;
+        }
+
+        $data = $request->validate([
+            'variant_id' => 'required|exists:product_variants,id',
+        ]);
+        $netto = ProductNetto::findOrFail($nettoId);
+        $variant = ProductVariant::where('id', $data['variant_id'])
+            ->where('product_netto_id', $netto->id)
+            ->firstOrFail();
+
+        if ((int) $variant->product_hpp <= 0) {
+            return response()->json(['status' => 'error', 'message' => 'Isi HPP varian terlebih dahulu.'], 422);
+        }
+
+        $items = $this->hppBackfillQuery((int) $netto->product_id, (int) $variant->id);
+
+        return response()->json([
+            'count' => (clone $items)->count(),
+            'qty' => (int) (clone $items)->sum('qty'),
+            'hpp' => (int) $variant->product_hpp,
+        ]);
+    }
+
+    public function backfillHpp(Request $request)
+    {
+        if ($g = $this->adjustmentGuard()) {
+            return $g;
+        }
+
+        $data = $request->validate([
+            'netto_id' => 'required|exists:product_nettos,id',
+            'variant_id' => 'required|exists:product_variants,id',
+        ]);
+        $netto = ProductNetto::findOrFail($data['netto_id']);
+        $variant = ProductVariant::where('id', $data['variant_id'])
+            ->where('product_netto_id', $netto->id)
+            ->firstOrFail();
+        $hpp = (int) $variant->product_hpp;
+        if ($hpp <= 0) {
+            return response()->json(['status' => 'error', 'message' => 'Isi HPP varian terlebih dahulu.'], 422);
+        }
+
+        $updated = $this->hppBackfillQuery((int) $netto->product_id, (int) $variant->id)
+            ->select('ti.id')->pluck('id')->all();
+        $updated = $updated
+            ? DB::table('transaction_items')->whereIn('id', $updated)->update(['buy_price' => $hpp])
+            : 0;
+
+        return response()->json([
+            'status' => 'success',
+            'count' => $updated,
+            'message' => "{$updated} baris transaksi diperbarui dengan HPP Rp " . number_format($hpp, 0, ',', '.') . '.',
+        ]);
+    }
+
+    /**
+     * Baris transaksi yang HPP-nya boleh diisi dari satu varian:
+     * baris yang sudah bervarian tersebut, ATAU baris tanpa varian yang
+     * batch-nya milik varian itu (data lama sebelum varian dilengkapi).
+     * Hanya baris belum dilunasi supplier dan HPP-nya masih kosong.
+     */
+    private function hppBackfillQuery(int $productId, int $variantId)
+    {
+        return DB::table('transaction_items as ti')
+            ->leftJoin('product_batches as b', 'b.id', '=', 'ti.product_batch_id')
+            ->where('ti.product_id', $productId)
+            ->where(function ($q) use ($variantId) {
+                $q->where('ti.product_variant_id', $variantId)
+                    ->orWhere(function ($w) use ($variantId) {
+                        $w->whereNull('ti.product_variant_id')
+                            ->where('b.product_variant_id', $variantId);
+                    });
+            })
+            ->whereNull('ti.supplier_payment_id')
+            ->where(function ($q) {
+                $q->whereNull('ti.buy_price')->orWhere('ti.buy_price', '<=', 0);
+            });
+    }
+
     /**
      * Detail adjustment 1 netto: batch+stok, transaksi, movement,
      * surat jalan (customer + supplier), penerimaan, PO, return, opname.
@@ -659,6 +786,7 @@ class ProductAdjustmentController extends Controller
             ProductNetto::where('product_id', $product->id)->pluck('id')
         )->with('netto:id,netto_value,satuan')->orderBy('id')->get();
         $warehouses = \App\Models\Warehouse::orderBy('name')->get(['id', 'name']);
+        $suppliers = Supplier::orderBy('name')->get(['id', 'name']);
 
         // Kondisi "terkait netto ini": lewat batch, lewat varian,
         // atau baris product-level tanpa batch & varian (info, perlu dibereskan)
@@ -683,7 +811,9 @@ class ProductAdjustmentController extends Controller
                             ->whereNull('ti.product_batch_id')->whereNull('ti.product_variant_id');
                     });
             })
-            ->select('ti.id', 'ti.transaction_id', 'ti.product_id', 'ti.qty', 'ti.price', 'ti.subtotal', 'ti.product_batch_id', 'ti.product_variant_id',
+            ->leftJoin('product_variants as pv', 'pv.id', '=', 'ti.product_variant_id')
+            ->select('ti.id', 'ti.transaction_id', 'ti.product_id', 'ti.qty', 'ti.price', 'ti.subtotal', 'ti.buy_price', 'ti.supplier_payment_id', 'ti.product_batch_id', 'ti.product_variant_id',
+                'pv.product_hpp as variant_hpp', 'pv.sku_code as variant_sku',
                 't.transaction_code', 't.transaction_date', 't.transaction_type', 't.source', 't.warehouse_id', 'b.batch_no', 'w.name as warehouse_name')
             ->orderByDesc('ti.id')->limit(500)->get();
 
@@ -799,6 +929,7 @@ class ProductAdjustmentController extends Controller
         return view('admin.adjustment.products.show')->with([
             'sb' => 'AdjustmentProduct',
             'netto' => $netto, 'product' => $product,
+            'suppliers' => $suppliers,
             'batches' => $batches, 'batchMap' => $batchMap, 'sourceMap' => $sourceMap, 'trashedBatches' => $trashedBatches,
             'siblingVariants' => $siblingVariants, 'warehouses' => $warehouses,
             'transItems' => $transItems, 'movements' => $movements,
@@ -1277,10 +1408,20 @@ class ProductAdjustmentController extends Controller
             'item_id' => 'required|exists:transaction_items,id',
             'warehouse_id' => 'nullable|exists:warehouses,id',
             'variant_id' => 'nullable|exists:product_variants,id',
+            'buy_price' => 'sometimes|nullable|integer|min:1',
         ]);
         $item = \App\Models\TransactionItem::findOrFail($d['item_id']);
         $trx = \App\Models\Transaction::findOrFail($item->transaction_id);
         $locked = in_array($trx->payment_status, ['paid', 'credit']);
+
+        if (array_key_exists('buy_price', $d)) {
+            if ($item->supplier_payment_id) {
+                return response()->json(['status' => 'error', 'message' => 'HPP baris tidak bisa diubah karena sudah masuk pelunasan supplier.'], 422);
+            }
+            if ($d['buy_price'] !== null) {
+                $item->buy_price = $d['buy_price'];
+            }
+        }
 
         if (array_key_exists('variant_id', $d)) {
             if ($d['variant_id']) {
@@ -1314,6 +1455,89 @@ class ProductAdjustmentController extends Controller
             . ($whChanged && $sibs > 0 ? " Gudang header ikut berubah (transaksi punya {$sibs} baris lain)." : '');
 
         return response()->json(['status' => 'success', 'message' => $msg]);
+    }
+
+    /**
+     * Bulk set varian untuk baris transaksi terpilih (terutama baris lama
+     * tanpa varian), opsional sekaligus mengisi HPP kosong dari HPP varian.
+     */
+    public function bulkUpdateTransactionVariant(Request $request)
+    {
+        if ($g = $this->adjustmentGuard()) {
+            return $g;
+        }
+
+        $d = $request->validate([
+            'item_ids' => 'required|array|min:1',
+            'item_ids.*' => 'integer|exists:transaction_items,id',
+            'variant_id' => 'required|exists:product_variants,id',
+            'fill_hpp' => 'sometimes|boolean',
+        ]);
+
+        $variant = ProductVariant::with('netto:id,product_id')->findOrFail($d['variant_id']);
+        $productId = (int) ($variant->netto->product_id ?? 0);
+        if (!$productId) {
+            return response()->json(['status' => 'error', 'message' => 'Varian tidak terkait produk mana pun.'], 422);
+        }
+
+        $items = \App\Models\TransactionItem::with('transaction:id,payment_status')
+            ->whereIn('id', $d['item_ids'])->get();
+
+        $wrongProduct = $items->filter(fn($i) => (int) $i->product_id !== $productId);
+        if ($wrongProduct->isNotEmpty()) {
+            return response()->json([
+                'status' => 'error',
+                'message' => $wrongProduct->count() . ' baris milik produk lain dan tidak boleh diubah dari halaman ini.',
+            ], 422);
+        }
+
+        $blocked = $items->filter(function ($i) use ($variant) {
+            $locked = in_array($i->transaction->payment_status ?? null, ['paid', 'credit']);
+
+            return $locked && $i->product_variant_id
+                && (int) $i->product_variant_id !== (int) $variant->id;
+        });
+        if ($blocked->isNotEmpty()) {
+            return response()->json([
+                'status' => 'error',
+                'message' => $blocked->count() . ' baris sudah bervarian lain pada transaksi lunas/kredit: #'
+                    . $blocked->pluck('id')->implode(', #') . '. Lepas centangnya lalu ulangi.',
+            ], 422);
+        }
+
+        $hpp = (int) $variant->product_hpp;
+        $fillHpp = (bool) ($d['fill_hpp'] ?? false) && $hpp > 0;
+        $updated = 0;
+        $hppFilled = 0;
+
+        DB::transaction(function () use ($items, $variant, $fillHpp, $hpp, &$updated, &$hppFilled) {
+            foreach ($items as $item) {
+                $changed = false;
+                if ((int) $item->product_variant_id !== (int) $variant->id) {
+                    $item->product_variant_id = $variant->id;
+                    $changed = true;
+                }
+                if ($fillHpp && !$item->supplier_payment_id && (float) ($item->buy_price ?? 0) <= 0) {
+                    $item->buy_price = $hpp;
+                    $hppFilled++;
+                    $changed = true;
+                }
+                if ($changed) {
+                    $item->save();
+                    $updated++;
+                }
+            }
+
+            Product::bulkSyncStock([(int) $items->first()->product_id]);
+        });
+
+        return response()->json([
+            'status' => 'success',
+            'count' => $updated,
+            'hpp_filled' => $hppFilled,
+            'message' => $updated . ' baris diperbarui'
+                . ($hppFilled > 0 ? " (HPP kosong diisi pada {$hppFilled} baris)" : '') . '.',
+        ]);
     }
 
     public function deleteTransactionItem(Request $request)

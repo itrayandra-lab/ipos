@@ -154,6 +154,7 @@ Route::prefix('admin')->middleware(['auth', 'role:super_admin,store_manager,fina
                     Route::post('/sync-price', [ProductAdmin::class , 'syncPrice'])->name('admin.products.sync-price');
                     Route::get('/edit/{id}', [ProductAdmin::class , 'edit'])->name('admin.products.edit');
                     Route::post('update', [ProductAdmin::class , 'update'])->name('admin.products.update');
+                    Route::post('/toggle-status', [ProductAdmin::class , 'toggleStatus'])->name('admin.products.toggle-status');
                     Route::delete('/', [ProductAdmin::class , 'delete']);
                     Route::get('/show/{id}', [ProductAdmin::class , 'show'])->name('admin.products.show');
                 }
@@ -432,6 +433,10 @@ Route::prefix('admin')->middleware(['auth', 'role:super_admin,store_manager,fina
             Route::post('/products/merge', [\App\Http\Controllers\Admin\Adjustment\ProductAdjustmentController::class, 'merge'])->name('admin.adjustment.products.merge');
             // Detail adjustment per netto + aksi perbaikan
             Route::get('/products/netto/{netto}', [\App\Http\Controllers\Admin\Adjustment\ProductAdjustmentController::class, 'show'])->name('admin.adjustment.products.show');
+            Route::post('/products/supplier/update', [\App\Http\Controllers\Admin\Adjustment\ProductAdjustmentController::class, 'updateProductSupplier'])->name('admin.adjustment.products.supplier.update');
+            Route::post('/products/netto/hpp/update', [\App\Http\Controllers\Admin\Adjustment\ProductAdjustmentController::class, 'updateVariantHpp'])->name('admin.adjustment.netto.hpp.update');
+            Route::get('/products/netto/{netto}/hpp-backfill-preview', [\App\Http\Controllers\Admin\Adjustment\ProductAdjustmentController::class, 'previewHppBackfill'])->name('admin.adjustment.netto.hpp_backfill_preview');
+            Route::post('/products/netto/hpp-backfill', [\App\Http\Controllers\Admin\Adjustment\ProductAdjustmentController::class, 'backfillHpp'])->name('admin.adjustment.netto.hpp_backfill');
             Route::post('/products/batches', [\App\Http\Controllers\Admin\Adjustment\ProductAdjustmentController::class, 'createBatch'])->name('admin.adjustment.batches.store');
             Route::post('/products/batches/update', [\App\Http\Controllers\Admin\Adjustment\ProductAdjustmentController::class, 'updateBatch'])->name('admin.adjustment.batches.update');
             Route::get('/products/batches/{id}/incoming-movements', [\App\Http\Controllers\Admin\Adjustment\ProductAdjustmentController::class, 'incomingMovementCandidates'])->name('admin.adjustment.batches.incoming_movements');
@@ -443,6 +448,7 @@ Route::prefix('admin')->middleware(['auth', 'role:super_admin,store_manager,fina
             Route::post('/products/batches/restore', [\App\Http\Controllers\Admin\Adjustment\ProductAdjustmentController::class, 'restoreBatch'])->name('admin.adjustment.batches.restore');
             Route::post('/products/transaction-items/delete', [\App\Http\Controllers\Admin\Adjustment\ProductAdjustmentController::class, 'deleteTransactionItem'])->name('admin.adjustment.transaction_items.delete');
             Route::post('/products/transaction-items/update', [\App\Http\Controllers\Admin\Adjustment\ProductAdjustmentController::class, 'updateTransactionItem'])->name('admin.adjustment.transaction_items.update');
+            Route::post('/products/transaction-items/bulk-variant', [\App\Http\Controllers\Admin\Adjustment\ProductAdjustmentController::class, 'bulkUpdateTransactionVariant'])->name('admin.adjustment.transaction_items.bulk_variant');
             Route::get('/products/movements/{id}/sync-data', [\App\Http\Controllers\Admin\Adjustment\ProductAdjustmentController::class, 'movementSyncData'])->name('admin.adjustment.movements.sync_data');
             Route::post('/products/movements/sync', [\App\Http\Controllers\Admin\Adjustment\ProductAdjustmentController::class, 'movementSync'])->name('admin.adjustment.movements.sync');
             Route::get('/products/netto/{netto}/realokasi-preview', [\App\Http\Controllers\Admin\Adjustment\ProductAdjustmentController::class, 'realokasiPreview'])->name('admin.adjustment.netto.realokasi_preview');

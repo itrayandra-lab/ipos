@@ -44,6 +44,43 @@
                             <a href="{{ route('admin.products.show', $product->id) }}" class="btn btn-sm btn-light">Halaman Produk</a>
                             <a href="{{ route('admin.products.pricing') }}" class="btn btn-sm btn-light">Halaman Pricing</a>
                         </div>
+                        @if($canEdit)
+                        <hr>
+                        <div class="row">
+                            <div class="col-lg-5">
+                                <label class="font-weight-bold">Supplier Produk</label>
+                                <div class="input-group">
+                                    <select id="adjustment-supplier" class="form-control">
+                                        <option value="">— Belum ditentukan —</option>
+                                        @foreach($suppliers as $supplier)
+                                        <option value="{{ $supplier->id }}" {{ (int) $product->supplier_id === (int) $supplier->id ? 'selected' : '' }}>{{ $supplier->name }}</option>
+                                        @endforeach
+                                    </select>
+                                    <div class="input-group-append">
+                                        <button class="btn btn-outline-primary" type="button" id="btn-save-supplier">Simpan Supplier</button>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-lg-7">
+                                <label class="font-weight-bold">HPP Varian Netto Ini</label>
+                                @forelse($netto->variants as $variant)
+                                <div class="input-group mb-2">
+                                    <div class="input-group-prepend">
+                                        <span class="input-group-text">{{ $variant->sku_code ?: ('Varian #' . $variant->id) }}</span>
+                                    </div>
+                                    <input type="number" min="1" step="1" class="form-control adjustment-variant-hpp" id="variant-hpp-{{ $variant->id }}" value="{{ (int) $variant->product_hpp }}" placeholder="HPP beli">
+                                    <div class="input-group-append">
+                                        <button class="btn btn-outline-primary btn-save-variant-hpp" type="button" data-variant="{{ $variant->id }}">Simpan HPP</button>
+                                        <button class="btn btn-outline-warning btn-backfill-hpp" type="button" data-variant="{{ $variant->id }}">Isi transaksi kosong</button>
+                                    </div>
+                                </div>
+                                @empty
+                                <div class="text-muted small">Netto ini belum memiliki varian; HPP tidak dapat ditentukan otomatis.</div>
+                                @endforelse
+                                <small class="text-muted">Backfill mengisi HPP kosong pada transaksi belum dilunasi supplier, termasuk baris lama tanpa varian yang batch-nya milik varian ini. Baris tanpa batch/varian tetap diperbaiki satu per satu di tabel transaksi.</small>
+                            </div>
+                        </div>
+                        @endif
                     </div>
                 </div>
 
@@ -165,20 +202,55 @@
 
                 {{-- Transaksi penjualan --}}
                 <div class="card mb-3">
-                    <div class="card-header"><h4>Transaksi Terkait ({{ $transItems->count() }})</h4></div>
+                    <div class="card-header"><h4 class="mb-0">Transaksi Terkait ({{ $transItems->count() }})</h4></div>
+                    @if($canEdit)
+                    <div class="card-body py-2 border-bottom">
+                        <div class="d-flex flex-wrap align-items-end" style="gap: 8px;">
+                            <div>
+                                <label class="small mb-1 d-block">Set varian untuk baris terpilih</label>
+                                <select id="bulk-variant" class="form-control form-control-sm" style="min-width: 280px;">
+                                    <option value="">— Pilih varian —</option>
+                                    @foreach($siblingVariants as $v)
+                                    <option value="{{ $v->id }}">{{ $v->sku_code ?: ('Varian #' . $v->id) }} — {{ trim(($v->netto->netto_value ?? '') . ' ' . ($v->netto->satuan ?? '')) ?: '(tanpa netto)' }}</option>
+                                    @endforeach
+                                </select>
+                            </div>
+                            <div class="form-check mb-1">
+                                <input class="form-check-input" type="checkbox" id="bulk-fill-hpp" checked>
+                                <label class="form-check-label small" for="bulk-fill-hpp">Isi HPP kosong dari HPP varian</label>
+                            </div>
+                            <button class="btn btn-sm btn-primary mb-1" id="btn-bulk-variant" type="button">Terapkan ke <span id="bulk-count">0</span> baris</button>
+                            <button class="btn btn-sm btn-outline-secondary mb-1" id="btn-select-novariant" type="button">Pilih yang tanpa varian</button>
+                        </div>
+                        <small class="text-muted">Baris yang sudah punya varian lain pada transaksi lunas/kredit tidak akan diubah.</small>
+                    </div>
+                    @endif
                     <div class="card-body p-0">
                         <div class="table-responsive" style="max-height: 400px; overflow-y: auto;">
                             <table class="table table-striped table-sm mb-0">
-                                <thead><tr><th>Tanggal</th><th>Kode</th><th>Tipe</th><th>Gudang</th><th class="text-right">Qty</th><th class="text-right">Harga</th><th>Batch (sumber ambil)</th>@if($canEdit)<th>Aksi</th>@endif</tr></thead>
+                                <thead><tr>@if($canEdit)<th width="32px"><input type="checkbox" id="chk-all-ti" title="Pilih semua"></th>@endif<th>Tanggal</th><th>Kode</th><th>Tipe</th><th>Gudang</th><th class="text-right">Qty</th><th class="text-right">Harga Jual</th><th class="text-right">HPP Beli</th><th>Batch (sumber ambil)</th>@if($canEdit)<th>Aksi</th>@endif</tr></thead>
                                 <tbody>
                                     @forelse($transItems as $t)
                                     <tr>
+                                        @if($canEdit)
+                                        <td><input type="checkbox" class="chk-ti" value="{{ $t->id }}" @if(!$t->product_variant_id) data-novar="1" @endif></td>
+                                        @endif
                                         <td>{{ $t->transaction_date ?? '-' }}</td>
                                         <td><a href="{{ route('admin.transactions.show', $t->transaction_id) }}">{{ $t->transaction_code ?? ('#' . $t->id) }}</a></td>
                                         <td><small>{{ $t->transaction_type ?? '-' }} / {{ $t->source ?? '-' }}</small></td>
                                         <td><small>{{ $t->warehouse_name ?? '-' }}</small></td>
                                         <td class="text-right">{{ $fmt($t->qty) }}</td>
                                         <td class="text-right">{{ $fmt($t->price) }}</td>
+                                        <td class="text-right">
+                                            @php $effectiveHpp = (float) ($t->buy_price ?: $t->variant_hpp); @endphp
+                                            @if($effectiveHpp > 0)
+                                            <strong>{{ $fmt($effectiveHpp) }}</strong>
+                                            @if((float) $t->buy_price <= 0)<br><small class="text-muted">dari master varian</small>@endif
+                                            @else
+                                            <span class="badge badge-danger">HPP kosong</span>
+                                            @endif
+                                            @if($t->supplier_payment_id)<br><span class="badge badge-success">Sudah dilunasi</span>@else<br><span class="badge badge-secondary">Belum dilunasi</span>@endif
+                                        </td>
                                         <td>
                                             @if($t->product_batch_id)
                                                 @php $bm = $batchMap->get($t->product_batch_id); @endphp
@@ -186,17 +258,17 @@
                                                 @if($bm)<br><span class="text-muted">M: {{ $fmt($bm['m']) }} K: {{ $fmt($bm['k']) }} S: {{ $fmt($bm['s']) }}</span>
                                                 @else<br><span class="text-muted">di luar netto ini</span>@endif</small>
                                             @else<span class="badge badge-warning">baris tanpa batch</span>@endif
-                                            @if(!$t->product_variant_id) <span class="badge badge-warning">baris tanpa varian</span>@endif
+                                            @if(!$t->product_variant_id) <span class="badge badge-warning">baris tanpa varian</span>@else <span class="badge badge-light">{{ $t->variant_sku ?: ('varian #' . $t->product_variant_id) }}</span>@endif
                                         </td>
                                         @if($canEdit)
                                         <td>
-                                            <button class="btn btn-sm btn-light btn-edit-ti" data-id="{{ $t->id }}" data-code="{{ $t->transaction_code ?? ('#' . $t->id) }}" data-wh="{{ $t->warehouse_id }}" data-var="{{ $t->product_variant_id }}" data-pid="{{ $t->product_id }}">Edit</button>
+                                            <button class="btn btn-sm {{ $effectiveHpp > 0 ? 'btn-light' : 'btn-warning' }} btn-edit-ti" data-id="{{ $t->id }}" data-code="{{ $t->transaction_code ?? ('#' . $t->id) }}" data-wh="{{ $t->warehouse_id }}" data-var="{{ $t->product_variant_id }}" data-pid="{{ $t->product_id }}" data-hpp="{{ (float) $t->buy_price > 0 ? (int) $t->buy_price : '' }}" data-paid="{{ $t->supplier_payment_id ? 1 : 0 }}">@if($effectiveHpp > 0)Edit @else Isi HPP @endif</button>
                                             <button class="btn btn-sm btn-danger btn-del-ti" data-id="{{ $t->id }}" data-qty="{{ $t->qty }}" data-sub="{{ $t->subtotal }}" data-code="{{ $t->transaction_code ?? ('#' . $t->id) }}">Hapus</button>
                                         </td>
                                         @endif
                                     </tr>
                                     @empty
-                                    <tr><td colspan="8" class="text-center text-muted">Tidak ada transaksi.</td></tr>
+                                    <tr><td colspan="{{ $canEdit ? 10 : 8 }}" class="text-center text-muted">Tidak ada transaksi.</td></tr>
                                     @endforelse
                                 </tbody>
                             </table>
@@ -475,12 +547,12 @@
         </div>
     </div>
 
-    {{-- Modal edit baris transaksi (gudang + varian) --}}
+    {{-- Modal edit baris transaksi --}}
     <div class="modal fade" id="editTiModal" tabindex="-1" role="dialog" aria-hidden="true">
         <div class="modal-dialog" role="document">
             <div class="modal-content">
                 <div class="modal-header">
-                    <h5 class="modal-title">Edit Baris Transaksi</h5>
+                    <h5 class="modal-title">Edit Baris Transaksi / HPP</h5>
                     <button type="button" class="close" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">&times;</span></button>
                 </div>
                 <div class="modal-body">
@@ -499,6 +571,20 @@
                             <option value="">— tanpa varian —</option>
                             @foreach($siblingVariants as $v)
                             <option value="{{ $v->id }}">{{ $v->sku_code }} — {{ trim(($v->netto->netto_value ?? '') . ' ' . ($v->netto->satuan ?? '')) }}</option>
+                            @endforeach
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>HPP Beli Baris Ini (Rp):</label>
+                        <input type="number" min="1" step="1" id="eti-buy-price" class="form-control" placeholder="Isi HPP yang sudah diverifikasi">
+                        <small class="form-text text-muted">HPP disimpan sebagai snapshot dan memengaruhi nilai pelunasan serta laporan HPP transaksi. Untuk baris tanpa varian, pilih acuan atau masukkan nilai yang sudah diverifikasi.</small>
+                        <label class="mt-2">Pilih HPP varian sebagai acuan:</label>
+                        <select id="eti-hpp-source" class="form-control">
+                            <option value="">— Pilih acuan —</option>
+                            @foreach($siblingVariants as $v)
+                                @if((float) $v->product_hpp > 0)
+                                <option value="{{ (int) $v->product_hpp }}">{{ $v->sku_code }} — {{ trim(($v->netto->netto_value ?? '') . ' ' . ($v->netto->satuan ?? '')) }} (Rp {{ $fmt($v->product_hpp) }})</option>
+                                @endif
                             @endforeach
                         </select>
                     </div>
@@ -827,15 +913,133 @@
                 $('#eti-info').text($(this).data('code') + ' (baris #' + editTi + ')');
                 $('#eti-warehouse').val($(this).data('wh') || '');
                 $('#eti-variant').val($(this).data('var') || '');
+                $('#eti-buy-price').val($(this).attr('data-hpp') || '');
+                $('#eti-hpp-source').val('');
+                $('#eti-buy-price').prop('disabled', String($(this).data('paid')) === '1');
+                if (String($(this).data('paid')) === '1') {
+                    $('#eti-buy-price').attr('placeholder', 'Baris sudah dilunasi; HPP terkunci');
+                } else {
+                    $('#eti-buy-price').attr('placeholder', 'Isi HPP yang sudah diverifikasi');
+                }
                 $('#editTiModal').modal('show');
             });
+            $('#eti-hpp-source').on('change', function() {
+                if (this.value) $('#eti-buy-price').val(this.value);
+            });
             $('#btn-do-edit-ti').on('click', function() {
+                var data = { _token: csrf, item_id: editTi, warehouse_id: $('#eti-warehouse').val() || null, variant_id: $('#eti-variant').val() || null };
+                var buyPrice = cleanHarga($('#eti-buy-price').val());
+                if (buyPrice) data.buy_price = buyPrice;
                 $.ajax({ url: "{{ route('admin.adjustment.transaction_items.update') }}", type: 'POST',
-                    data: { _token: csrf, item_id: editTi, warehouse_id: $('#eti-warehouse').val() || null, variant_id: $('#eti-variant').val() || null },
+                    data: data,
                     beforeSend: () => $.LoadingOverlay('show'), complete: () => $.LoadingOverlay('hide'),
                     success: (res) => { $('#editTiModal').modal('hide'); Swal.fire('Berhasil', res.message, 'success').then(reload); },
                     error: (xhr) => err(xhr, 'Gagal menyimpan baris')
                 });
+            });
+
+            $('#btn-save-supplier').on('click', function() {
+                $.ajax({
+                    url: "{{ route('admin.adjustment.products.supplier.update') }}",
+                    type: 'POST',
+                    data: { _token: csrf, product_id: productId, supplier_id: $('#adjustment-supplier').val() || null },
+                    success: (res) => Swal.fire('Berhasil', res.message, 'success').then(reload),
+                    error: (xhr) => err(xhr, 'Gagal menyimpan supplier')
+                });
+            });
+
+            // ---- Bulk set varian (termasuk baris tanpa varian) ----
+            var bulkIds = function() {
+                return $('.chk-ti:checked').map(function() { return $(this).val(); }).get();
+            };
+            var refreshBulkCount = function() {
+                $('#bulk-count').text(bulkIds().length);
+            };
+            $('#chk-all-ti').on('change', function() {
+                $('.chk-ti').prop('checked', this.checked);
+                refreshBulkCount();
+            });
+            $(document).on('change', '.chk-ti', refreshBulkCount);
+            $('#btn-select-novariant').on('click', function() {
+                $('.chk-ti').prop('checked', false);
+                $('.chk-ti[data-novar="1"]').prop('checked', true);
+                refreshBulkCount();
+            });
+            $('#btn-bulk-variant').on('click', function() {
+                var ids = bulkIds();
+                var variantId = $('#bulk-variant').val();
+                if (!variantId) {
+                    Swal.fire('Varian belum dipilih', 'Pilih varian acuan terlebih dahulu.', 'warning');
+                    return;
+                }
+                if (!ids.length) {
+                    Swal.fire('Belum ada baris', 'Centang baris yang ingin diisi variannya.', 'warning');
+                    return;
+                }
+                var fillHpp = $('#bulk-fill-hpp').is(':checked') ? 1 : 0;
+                Swal.fire({
+                    title: 'Terapkan varian ke ' + ids.length + ' baris?',
+                    html: ($('#bulk-variant option:selected').text() || '') + (fillHpp ? '<br><small>HPP kosong akan diisi dari HPP varian ini.</small>' : ''),
+                    icon: 'question',
+                    showCancelButton: true,
+                    confirmButtonText: 'Ya, terapkan',
+                    cancelButtonText: 'Batal'
+                }).then(function(result) {
+                    if (!result.isConfirmed) return;
+                    $.ajax({
+                        url: "{{ route('admin.adjustment.transaction_items.bulk_variant') }}",
+                        type: 'POST',
+                        data: { _token: csrf, item_ids: ids, variant_id: variantId, fill_hpp: fillHpp },
+                        beforeSend: () => $.LoadingOverlay('show'), complete: () => $.LoadingOverlay('hide'),
+                        success: (res) => Swal.fire('Berhasil', res.message, 'success').then(reload),
+                        error: (xhr) => err(xhr, 'Gagal mengisi varian')
+                    });
+                });
+            });
+
+            $('.btn-save-variant-hpp').on('click', function() {
+                var variantId = $(this).data('variant');
+                var hpp = cleanHarga($('#variant-hpp-' + variantId).val());
+                if (!hpp) {
+                    Swal.fire('HPP tidak valid', 'Masukkan HPP lebih besar dari 0.', 'warning');
+                    return;
+                }
+                $.ajax({
+                    url: "{{ route('admin.adjustment.netto.hpp.update') }}",
+                    type: 'POST',
+                    data: { _token: csrf, netto_id: nettoId, variant_id: variantId, product_hpp: hpp },
+                    success: (res) => Swal.fire('Berhasil', res.message, 'success').then(reload),
+                    error: (xhr) => err(xhr, 'Gagal menyimpan HPP varian')
+                });
+            });
+
+            $('.btn-backfill-hpp').on('click', function() {
+                var variantId = $(this).data('variant');
+                $.get("{{ url('admin/adjustment/products/netto') }}/" + nettoId + "/hpp-backfill-preview", { variant_id: variantId })
+                    .done(function(preview) {
+                        if (!preview.count) {
+                            Swal.fire('Tidak ada perubahan', 'Tidak ada transaksi belum dilunasi dengan HPP kosong untuk varian ini.', 'info');
+                            return;
+                        }
+                        Swal.fire({
+                            title: 'Isi HPP transaksi kosong?',
+                            html: `Akan mengisi HPP Rp ${Number(preview.hpp).toLocaleString('id-ID')} pada <strong>${preview.count}</strong> baris belum dilunasi (qty ${preview.qty}). HPP yang sudah terisi dan transaksi yang sudah dilunasi tidak diubah.`,
+                            icon: 'warning',
+                            showCancelButton: true,
+                            confirmButtonText: 'Ya, isi HPP',
+                            cancelButtonText: 'Batal'
+                        }).then(function(result) {
+                            if (!result.isConfirmed) return;
+                            $.ajax({
+                                url: "{{ route('admin.adjustment.netto.hpp_backfill') }}",
+                                type: 'POST',
+                                data: { _token: csrf, netto_id: nettoId, variant_id: variantId },
+                                success: (res) => Swal.fire('Berhasil', res.message, 'success').then(reload),
+                                error: (xhr) => err(xhr, 'Gagal mengisi HPP transaksi')
+                            });
+                        });
+                    })
+                    .fail((xhr) => err(xhr, 'Gagal memeriksa transaksi yang perlu HPP'));
             });
 
             // ---- Lengkapi varian kosong dari batch ----
