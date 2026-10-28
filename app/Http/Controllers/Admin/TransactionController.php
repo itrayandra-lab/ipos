@@ -577,7 +577,7 @@ class TransactionController extends Controller
                                 ->orWhereHas('netto', fn ($netto) => $netto->where('netto_value', 'like', '%' . $search . '%'));
                         });
                 });
-            });
+            })
             ->orderBy('name')
             ->limit(30)
             ->get();
