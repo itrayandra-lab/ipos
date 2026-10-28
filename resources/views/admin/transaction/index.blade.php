@@ -441,20 +441,25 @@
                     <div class="modal-body">
                         <div class="alert alert-info">
                             <i class="fas fa-info-circle mr-2"></i>
-                            Format file: <strong>.xlsx, .xls</strong> (maks 5MB).<br>
-                            Template terdiri dari 3 sheet:<br>
-                            <strong>Transaksi</strong> — isi data penjualan (kolom product_name pakai dropdown dari sheet Referensi Produk)<br>
-                            <strong>Referensi Produk</strong> — daftar produk (otomatis, hanya untuk patokan)<br>
-                            <strong>Referensi Pelanggan</strong> — daftar pelanggan (otomatis, hanya untuk patokan)
+                            Pilih tipe import sesuai sumber transaksi. File akan dibuka di halaman preview terlebih dahulu. Data belum disimpan sampai produk POS, saluran, dan gudang selesai dicocokkan lalu dikonfirmasi.
+                        </div>
+                        <div class="form-group">
+                            <label for="import_type">Tipe Import</label>
+                            <select class="form-control" id="import_type" name="import_type" required>
+                                <option value="">Pilih tipe import</option>
+                                <option value="shopee">Shopee (Ekspor Pesanan Shopee)</option>
+                                <option value="template">Template Import Transaksi (Umum)</option>
+                            </select>
+                            <small class="form-text text-muted" id="import-type-help">Pilih tipe import untuk menyesuaikan format file yang akan diproses.</small>
                         </div>
                         <div class="form-group">
                             <label>Pilih File Excel</label>
                             <div class="custom-file">
-                                <input type="file" class="custom-file-input" id="import-file" name="file" accept=".xlsx,.xls" required>
+                                <input type="file" class="custom-file-input" id="import-file" name="file" accept=".xlsx,.xls,.csv" required>
                                 <label class="custom-file-label" for="import-file">Pilih file...</label>
                             </div>
                         </div>
-                        <div class="text-center mt-3">
+                        <div class="text-center mt-3" id="template-download" style="display: none;">
                             <a href="{{ route('admin.transactions.import.template') }}" class="btn btn-sm btn-outline-primary">
                                 <i class="fas fa-download mr-1"></i> Download Template Excel (Multi Sheet)
                             </a>
@@ -463,7 +468,7 @@
                     <div class="modal-footer">
                         <button type="button" class="btn btn-secondary" data-dismiss="modal">Batal</button>
                         <button type="submit" class="btn btn-success" id="btn-import">
-                            <i class="fas fa-upload mr-1"></i> Import
+                            <i class="fas fa-search mr-1"></i> Upload & Preview
                         </button>
                     </div>
                 </form>
@@ -602,7 +607,21 @@ columns: [
             // Import Modal
             window.showImportModal = function() {
                 $('#importModal').modal('show');
+                $('#import_type').val('');
+                $('#import-file').val('');
+                $('#import-file').next('.custom-file-label').html('Pilih file...');
+                $('#template-download').hide();
+                $('#btn-import').removeClass('btn-progress').attr('disabled', false);
             };
+
+            $('#import_type').on('change', function() {
+                var type = $(this).val();
+                if (type === 'template') {
+                    $('#template-download').show();
+                } else {
+                    $('#template-download').hide();
+                }
+            });
 
             // Custom file input
             $('#import-file').on('change', function() {
@@ -612,6 +631,16 @@ columns: [
 
             // Import form submit
             $('#import-form').on('submit', function(e) {
+                var type = $('#import_type').val();
+                if (!type) {
+                    e.preventDefault();
+                    if (typeof iziToast !== "undefined") {
+                        iziToast.error({ title: 'Error', message: 'Pilih tipe import terlebih dahulu', position: 'topRight' });
+                    } else {
+                        alert('Pilih tipe import terlebih dahulu');
+                    }
+                    return;
+                }
                 var fileInput = $('#import-file')[0];
                 if (!fileInput.files || !fileInput.files[0]) {
                     e.preventDefault();

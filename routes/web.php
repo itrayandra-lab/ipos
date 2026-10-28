@@ -298,6 +298,9 @@ Route::prefix('admin')->middleware(['auth', 'role:super_admin,store_manager,fina
             Route::get('export/pdf', [TransactionAdmin::class , 'exportPdf'])->name('admin.transactions.export.pdf');
             Route::get('import/template', [TransactionAdmin::class , 'downloadTemplate'])->name('admin.transactions.import.template');
             Route::post('import', [TransactionAdmin::class , 'import'])->name('admin.transactions.import');
+            Route::get('import/preview/{token}', [TransactionAdmin::class, 'previewImport'])->name('admin.transactions.import.preview');
+            Route::post('import/confirm', [TransactionAdmin::class, 'confirmImport'])->name('admin.transactions.import.confirm');
+            Route::get('import/products/search', [TransactionAdmin::class, 'searchImportProducts'])->name('admin.transactions.import.products');
             Route::get('show/{id}', [TransactionAdmin::class , 'show'])->name('admin.transactions.show');
             Route::get('edit/{id}', [TransactionAdmin::class , 'edit'])->name('admin.transactions.edit');
             Route::put('{id}', [TransactionAdmin::class , 'update'])->name('admin.transactions.update');

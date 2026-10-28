@@ -1,0 +1,171 @@
+=== ANALISIS FILE: Order.all.20260810_20260909.xlsx ===
+Sheet: orders | Rows data: 144 | Unique orders: 121
+Periode (Waktu Pesanan Dibuat): 2026-08-10 14:08 s/d 2026-09-09 21:15
+
+--- STATUS PESANAN (per order) ---
+  Selesai: 114 (94.2%)  revenue=14.169.166
+  Batal: 7 (5.8%)  revenue=0
+
+--- METODE PEMBAYARAN (per order) ---
+  COD (Bayar di Tempat): 2  revenue=273.355
+  SPayLater: 25  revenue=3.596.349
+  Online Payment: 29  revenue=3.003.268
+  QRIS: 21  revenue=2.293.260
+  Saldo ShopeePay: 30  revenue=3.044.264
+  SeaBank Bayar Instan: 9  revenue=1.385.506
+  Kartu Kredit/Debit: 5  revenue=573.164
+
+--- OPSI PENGIRIMAN (per order) ---
+  Hemat Kargo-SPX Hemat: 15
+  Reguler (Cashless)-SPX Standard: 50
+  Reguler (Cashless): 4
+  Instant-SPX Instant: 14
+  SPX Standard: 2
+  SiCepat Halu: 1
+  Reguler (Cashless)-JNE Reguler: 4
+  Instant Prioritas-SPX Instant Prioritas: 1
+  Reguler (Cashless)-SiCepat REG: 15
+  JNE Reguler: 5
+  Hemat Kargo-Anteraja Economy: 5
+  Hemat Kargo: 2
+  SPX Instant: 1
+  Anteraja Economy: 1
+  SPX Hemat: 1
+
+--- ALASAN PEMBATALAN ---
+  Dibatalkan secara otomatis oleh sistem Shopee. Alasan: Pesanan belum dibayar: 4
+  Dibatalkan oleh Pembeli. Alasan: Menemukan yang lebih murah: 1
+  Dibatalkan oleh Pembeli. Alasan: Lainnya: 1
+  Dibatalkan secara otomatis oleh sistem Shopee. Alasan: Pengiriman gagal: 1
+--- STATUS PEMBATALAN/PENGEMBALIAN ---
+  (tidak ada)
+
+--- FINANSIAL (seluruh order) ---
+  Total Pembayaran (sum AN): 14.169.166
+  Subtotal line items (sum V): 18.169.493
+  Total Diskon (sum W, per order): 13.820.587
+  Ongkir dibayar pembeli (sum AK): 113.000
+  Estimasi potongan ongkir (sum AL): 1.807.300
+  Voucher penjual (sum AC): 785.508
+  Voucher Shopee (sum AE): 2.429.381
+  Total qty terjual (sum T): 150
+  Jumlah line item: 144
+  Produk unik: 15
+  Rata-rata nilai order: 117.101
+  Rata-rata item per order: 1.19
+
+--- TOP 15 PRODUK by QTY ---
+  1. MOMMYLATORY Body Lotion 250mL - Pregnancy & Nursing Safe Bod | qty=48 | revenue=7.675.504 | orders=48
+  2. DERMOND FreshCore Mist – Spray Penyegar Area Intim Pria | qty=23 | revenue=2.142.469 | orders=21
+  3. MOMMYLATORY Shampoo 250 mL - Pregnancy & Nursing Safe Shampo | qty=18 | revenue=2.257.521 | orders=18
+  4. BEAUTYLATORY Ever Fresh Deo Spray 60ML - Deodorant Spray Ant | qty=18 | revenue=316.096 | orders=15
+  5. MOMMYLATORY Shower Gel 250mL - Pregnancy & Nursing Safe | qty=17 | revenue=3.247.945 | orders=16
+  6. DERMOND Reboot Cream - Krim Perawatan Area Intim Pria | qty=11 | revenue=839.875 | orders=10
+  7. DERMOND Menguard Intimate Foam - Pembersih Lembut Area Intim | qty=6 | revenue=643.992 | orders=6
+  8. SAM SUN AND MOON  Prebio Hydra Cream 30 gr - Moisturizer Lot | qty=2 | revenue=227.290 | orders=2
+  9. BABYLATORY Top to Toe Baby Smile Wash 200mL - Sabun dan Sham | qty=1 | revenue=126.490 | orders=1
+  10. BEAUTYLATORY Triple Action Skin Defense Sunscreen 100mL - SP | qty=1 | revenue=68.172 | orders=1
+  11. UMADERM Mangosteen Hybrid Sunscreen SPF 30  10g - Sunscreen  | qty=1 | revenue=25.688 | orders=1
+  12. MOMMYALTORY Stretch Mark Treatment Cream 20ml - Cica Peptide | qty=1 | revenue=158.760 | orders=1
+  13. MOMMYLATORY Daily Intimate Wash Triple Protection | Pembersi | qty=1 | revenue=166.600 | orders=1
+  14. BEAUTYLATORY PHYTOSYNC™ Golden Age Serum | qty=1 | revenue=102.400 | orders=1
+  15. BABYLATORY First Touch Gentle Baby Cream 30g - Krim Ruam den | qty=1 | revenue=170.691 | orders=1
+
+--- TOP 15 PRODUK by REVENUE ---
+  1. MOMMYLATORY Body Lotion 250mL - Pregnancy & Nursing Safe Bod | revenue=7.675.504 | qty=48
+  2. MOMMYLATORY Shower Gel 250mL - Pregnancy & Nursing Safe | revenue=3.247.945 | qty=17
+  3. MOMMYLATORY Shampoo 250 mL - Pregnancy & Nursing Safe Shampo | revenue=2.257.521 | qty=18
+  4. DERMOND FreshCore Mist – Spray Penyegar Area Intim Pria | revenue=2.142.469 | qty=23
+  5. DERMOND Reboot Cream - Krim Perawatan Area Intim Pria | revenue=839.875 | qty=11
+  6. DERMOND Menguard Intimate Foam - Pembersih Lembut Area Intim | revenue=643.992 | qty=6
+  7. BEAUTYLATORY Ever Fresh Deo Spray 60ML - Deodorant Spray Ant | revenue=316.096 | qty=18
+  8. SAM SUN AND MOON  Prebio Hydra Cream 30 gr - Moisturizer Lot | revenue=227.290 | qty=2
+  9. BABYLATORY First Touch Gentle Baby Cream 30g - Krim Ruam den | revenue=170.691 | qty=1
+  10. MOMMYLATORY Daily Intimate Wash Triple Protection | Pembersi | revenue=166.600 | qty=1
+  11. MOMMYALTORY Stretch Mark Treatment Cream 20ml - Cica Peptide | revenue=158.760 | qty=1
+  12. BABYLATORY Top to Toe Baby Smile Wash 200mL - Sabun dan Sham | revenue=126.490 | qty=1
+  13. BEAUTYLATORY PHYTOSYNC™ Golden Age Serum | revenue=102.400 | qty=1
+  14. BEAUTYLATORY Triple Action Skin Defense Sunscreen 100mL - SP | revenue=68.172 | qty=1
+  15. UMADERM Mangosteen Hybrid Sunscreen SPF 30  10g - Sunscreen  | revenue=25.688 | qty=1
+
+--- TOP 15 SKU by QTY ---
+  1. (no sku) | qty=63
+  2. MTY | qty=48
+  3. BTY-DEO | qty=18
+  4. DRM-RC | qty=11
+  5. DRM-IF | qty=6
+  6. SSM-HC | qty=2
+  7. UMD-SS | qty=1
+  8. MTY-DI | qty=1
+
+--- TOP 10 PROVINSI ---
+  1. JAWA BARAT: 28 order
+  2. DKI JAKARTA: 20 order
+  3. BANTEN: 14 order
+  4. JAWA TENGAH: 12 order
+  5. JAWA TIMUR: 10 order
+  6. SUMATERA BARAT: 4 order
+  7. SUMATERA UTARA: 3 order
+  8. SUMATERA SELATAN: 3 order
+  9. KALIMANTAN BARAT: 3 order
+  10. DI YOGYAKARTA: 3 order
+
+--- TOP 15 KOTA/KAB ---
+  1. KOTA JAKARTA BARAT: 9 order
+  2. KOTA BEKASI: 9 order
+  3. KOTA TANGERANG SELATAN: 7 order
+  4. KOTA JAKARTA SELATAN: 5 order
+  5. KAB. BEKASI: 4 order
+  6. KOTA TANGERANG: 4 order
+  7. KOTA JAKARTA TIMUR: 4 order
+  8. KAB. BOGOR: 4 order
+  9. KAB. DELI SERDANG: 3 order
+  10. KOTA BANDUNG: 3 order
+  11. KOTA SEMARANG: 3 order
+  12. KOTA MANADO: 2 order
+  13. KOTA PALEMBANG: 2 order
+  14. KAB. KETAPANG: 2 order
+  15. KAB. BREBES: 2 order
+
+--- TOP 10 PEMBELI by jumlah order ---
+  1. cicienjel: 2 order | revenue=141.295
+  2. grahawitaputri: 2 order | revenue=316.295
+  3. nisa99999: 2 order | revenue=117.005
+  4. jen.roberta: 1 order | revenue=198.403
+  5. putriayuska: 1 order | revenue=76.423
+  6. pancerkhairul: 1 order | revenue=157.614
+  7. v.liony: 1 order | revenue=284.804
+  8. muhammadbalqi: 1 order | revenue=148.080
+  9. triadikta94: 1 order | revenue=99.681
+  10. aksesoris_mx: 1 order | revenue=292.420
+
+--- ORDER PER HARI (created) ---
+  2026-08-10: 3
+  2026-08-11: 1
+  2026-08-12: 6
+  2026-08-13: 6
+  2026-08-14: 4
+  2026-08-17: 2
+  2026-08-18: 2
+  2026-08-19: 6
+  2026-08-20: 1
+  2026-08-21: 5
+  2026-08-22: 1
+  2026-08-23: 5
+  2026-08-24: 2
+  2026-08-25: 7
+  2026-08-26: 5
+  2026-08-27: 1
+  2026-08-28: 7
+  2026-08-29: 1
+  2026-08-30: 1
+  2026-08-31: 5
+  2026-09-01: 7
+  2026-09-02: 6
+  2026-09-03: 5
+  2026-09-04: 2
+  2026-09-05: 2
+  2026-09-06: 7
+  2026-09-07: 3
+  2026-09-08: 8
+  2026-09-09: 10

@@ -15,6 +15,7 @@ use App\Models\TransactionPayment;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\File;
 use App\Models\Warehouse;
+use App\Models\ChannelSetting;
 use App\Services\InvoiceService;
 
 class TransactionController extends Controller
@@ -331,29 +332,500 @@ class TransactionController extends Controller
     {
         $request->validate([
             'file' => 'required|mimes:xlsx,xls,csv|max:5120',
+            'import_type' => 'required|in:shopee,template',
         ]);
 
         try {
-            $import = new \App\Imports\TransactionImport(
-                auth()->id(),
-                $request->warehouse_id
-            );
-
+            $import = new \App\Imports\TransactionOrderImport();
             \Maatwebsite\Excel\Facades\Excel::import($import, $request->file('file'));
 
-            $imported = $import->getImportedCount();
-            $skipped = $import->getSkippedCount();
-
-            $message = "Berhasil mengimport {$imported} transaksi.";
-            if ($skipped > 0) {
-                $message .= " {$skipped} baris dilewati (produk tidak ditemukan atau data tidak valid).";
+            $sourceRows = $import->rows();
+            if ($sourceRows->isEmpty()) {
+                return redirect()->route('admin.transactions.index')
+                    ->with('error', 'File tidak berisi data transaksi.');
             }
 
-            return redirect()->route('admin.transactions.index')
-                ->with('message', $message);
+            $firstRow = $sourceRows->first()->toArray();
+            $importType = $request->input('import_type');
+            $marketplaceFormat = $importType === 'shopee' || (array_key_exists('no_pesanan', $firstRow)
+                && array_key_exists('nama_produk', $firstRow));
+            $templateFormat = $importType === 'template' || array_key_exists('product_name', $firstRow);
+
+            if (!$marketplaceFormat && !$templateFormat) {
+                return redirect()->route('admin.transactions.index')->with(
+                    'error',
+                    'Format file tidak dikenali. Pilih tipe import sesuai file Anda (Shopee atau Template Import Transaksi).'
+                );
+            }
+
+            if ($sourceRows->count() > 5000) {
+                return redirect()->route('admin.transactions.index')
+                    ->with('error', 'File berisi lebih dari 5.000 baris. Pisahkan file sebelum melanjutkan.');
+            }
+
+            $rows = [];
+            $skippedRows = 0;
+            foreach ($sourceRows as $index => $sourceRow) {
+                $row = $sourceRow->toArray();
+
+                if ($marketplaceFormat) {
+                    $status = strtolower(trim((string) ($row['status_pesanan'] ?? '')));
+                    if ($status !== 'selesai') {
+                        $skippedRows++;
+                        continue;
+                    }
+
+                    $orderNumber = trim((string) ($row['no_pesanan'] ?? ''));
+                    $productName = trim((string) ($row['nama_produk'] ?? ''));
+                    $quantity = (int) $this->parseImportNumber($row['jumlah'] ?? 0);
+                    $listPrice = $this->parseImportNumber($row['harga_awal'] ?? 0);
+                    $discountedPrice = $this->parseImportNumber($row['harga_setelah_diskon'] ?? 0);
+                    $subtotal = $this->parseImportNumber($row['subtotal_pesanan'] ?? 0);
+
+                    if ($subtotal <= 0) {
+                        $subtotal = $discountedPrice * $quantity;
+                    }
+                    $price = $listPrice > 0 ? $listPrice : $discountedPrice;
+                    $discount = max(0, ($price * $quantity) - $subtotal);
+                    $dateValue = $row['waktu_pesanan_dibuat'] ?? null;
+                    $sku = trim((string) ($row['nomor_referensi_sku'] ?? $row['sku_induk'] ?? ''));
+                    $variantName = trim((string) ($row['nama_variasi'] ?? ''));
+                    $customerName = trim((string) ($row['nama_penerima'] ?? $row['username_pembeli'] ?? ''));
+                    $customerPhone = trim((string) ($row['no_telepon'] ?? ''));
+                    $paymentStatus = 'paid';
+                    $paymentMethod = 'transfer';
+                    $rowNotes = '';
+                } else {
+                    $orderNumber = trim((string) ($row['transaction_code'] ?? ''));
+                    if ($orderNumber === '') {
+                        $orderNumber = 'BARIS-' . ($index + 2);
+                    }
+                    $productName = trim((string) ($row['product_name'] ?? ''));
+                    $quantity = (int) $this->parseImportNumber($row['qty'] ?? 0);
+                    $price = $this->parseImportNumber($row['price'] ?? 0);
+                    $discount = $this->parseImportNumber($row['discount'] ?? 0);
+                    $subtotal = max(0, ($price * $quantity) - $discount);
+                    $dateValue = $row['transaction_date'] ?? null;
+                    $sku = trim((string) ($row['sku'] ?? $row['code'] ?? ''));
+                    $variantName = '';
+                    $customerName = trim((string) ($row['customer_name'] ?? ''));
+                    $customerPhone = trim((string) ($row['customer_phone'] ?? ''));
+                    $paymentStatus = strtolower(trim((string) ($row['payment_status'] ?? 'paid')));
+                    if (!in_array($paymentStatus, ['paid', 'unpaid', 'credit', 'pending', 'canceled'], true)) {
+                        $paymentStatus = 'paid';
+                    }
+                    $paymentMethod = trim((string) ($row['payment_method'] ?? 'transfer')) ?: 'transfer';
+                    $rowNotes = trim((string) ($row['notes'] ?? ''));
+                }
+
+                if ($orderNumber === '' || $productName === '' || $quantity < 1 || $price < 0) {
+                    $skippedRows++;
+                    continue;
+                }
+
+                $date = $this->parseImportDate($dateValue);
+                $mappingKey = sha1(strtolower(trim($productName . '|' . $sku . '|' . $variantName)));
+                $rows[] = [
+                    'order_number' => $orderNumber,
+                    'product_name' => $productName,
+                    'sku' => $sku,
+                    'variant_name' => $variantName,
+                    'mapping_key' => $mappingKey,
+                    'qty' => $quantity,
+                    'price' => $price,
+                    'discount' => $discount,
+                    'subtotal' => $subtotal,
+                    'transaction_date' => $date->format('Y-m-d'),
+                    'customer_name' => $customerName,
+                    'customer_phone' => $customerPhone,
+                    'payment_status' => $paymentStatus,
+                    'payment_method' => $paymentMethod,
+                    'notes' => $rowNotes,
+                ];
+            }
+
+            if (empty($rows)) {
+                return redirect()->route('admin.transactions.index')
+                    ->with('error', 'Tidak ada baris valid untuk diimpor. Pastikan status pesanan Selesai, nomor pesanan, nama produk, jumlah, dan harga terisi.');
+            }
+
+            $groups = collect($rows)->groupBy('order_number');
+            $orderMarkers = $groups->keys()->map(fn ($number) => $this->orderImportNote($number))->all();
+            $existingNotes = Transaction::whereIn('notes', $orderMarkers)->pluck('notes')->all();
+            $existingNoteLookup = array_fill_keys($existingNotes, true);
+            $orders = $groups->map(function ($items, $number) use ($existingNoteLookup) {
+                return [
+                    'number' => $number,
+                    'rows' => $items->count(),
+                    'products' => $items->groupBy('product_name')->map(function ($productRows, $productName) {
+                        return [
+                            'name' => $productName,
+                            'qty' => $productRows->sum('qty'),
+                        ];
+                    })->values()->all(),
+                    'total' => $items->sum('subtotal'),
+                    'date' => $items->first()['transaction_date'],
+                    'already_imported' => isset($existingNoteLookup[$this->orderImportNote($number)]),
+                ];
+            })->values()->all();
+
+            $products = collect($rows)->groupBy('mapping_key')->map(function ($items) {
+                $row = $items->first();
+                return [
+                    'name' => $row['product_name'],
+                    'sku' => $row['sku'],
+                    'variant_name' => $row['variant_name'],
+                    'rows' => $items->count(),
+                ];
+            });
+
+            $token = \Illuminate\Support\Str::random(40);
+            $preview = [
+                'token' => $token,
+                'created_at' => now()->timestamp,
+                'source_file' => $request->file('file')->getClientOriginalName(),
+                'format' => $marketplaceFormat ? 'marketplace' : 'template',
+                'rows' => $rows,
+                'products' => $products->all(),
+                'orders' => $orders,
+                'skipped_rows' => $skippedRows,
+                'total_rows' => $sourceRows->count(),
+            ];
+            session()->put('transaction_order_imports.' . $token, $preview);
+
+            return redirect()->route('admin.transactions.import.preview', $token);
         } catch (\Exception $e) {
             return redirect()->route('admin.transactions.index')
                 ->with('error', 'Gagal import: ' . $e->getMessage());
+        }
+    }
+
+    public function previewImport($token)
+    {
+        $preview = session()->get('transaction_order_imports.' . $token);
+        if (!$preview || now()->timestamp - $preview['created_at'] > 7200) {
+            session()->forget('transaction_order_imports.' . $token);
+            return redirect()->route('admin.transactions.index')
+                ->with('error', 'Data preview tidak ditemukan atau sudah kedaluwarsa. Silakan upload ulang file.');
+        }
+
+        $user = auth()->user();
+        $warehouses = ($user->isSuperAdmin() || $user->isStoreManager())
+            ? Warehouse::where('status', 'active')->orderBy('name')->get()
+            : $user->warehouses()->where('warehouses.status', 'active')->orderBy('warehouses.name')->get();
+        $channels = ChannelSetting::orderBy('name')->get();
+
+        return view('admin.transaction.import-preview', compact('preview', 'warehouses', 'channels'))
+            ->with('sb', 'Transaction');
+    }
+
+    public function searchImportProducts(Request $request)
+    {
+        $search = trim((string) $request->query('q', ''));
+        $selected = trim((string) $request->query('selected', ''));
+        $hasSelected = preg_match('/^(\d+):(\d*)$/', $selected, $selectedParts) === 1;
+        if (!$hasSelected && mb_strlen($search) < 2) {
+            return response()->json(['results' => []]);
+        }
+
+        $products = Product::with(['merek', 'variants.netto'])
+            ->when($hasSelected, fn ($query) => $query->whereKey((int) $selectedParts[1]))
+            ->when(!$hasSelected, function ($query) use ($search) {
+                $query->where(function ($query) use ($search) {
+                    $query->where('name', 'like', '%' . $search . '%')
+                        ->orWhere('code', 'like', '%' . $search . '%')
+                        ->orWhereHas('merek', fn ($merek) => $merek->where('name', 'like', '%' . $search . '%'))
+                        ->orWhereHas('variants', function ($variants) use ($search) {
+                            $variants->where('variant_name', 'like', '%' . $search . '%')
+                                ->orWhere('sku_code', 'like', '%' . $search . '%')
+                                ->orWhereHas('netto', fn ($netto) => $netto->where('netto_value', 'like', '%' . $search . '%'));
+                        });
+                });
+            })
+            ->orderBy('name')
+            ->limit(30)
+            ->get();
+
+        $results = [];
+        foreach ($products as $product) {
+            $brand = $product->merek ? trim($product->merek->name) : '';
+            $variants = $product->variants;
+
+            if ($variants->isEmpty()) {
+                $results[] = [
+                    'id' => $product->id . ':',
+                    'text' => implode(' ', array_filter([$brand, trim($product->name)])),
+                ];
+                continue;
+            }
+
+            foreach ($variants as $variant) {
+                if ($hasSelected && (string) $variant->id !== $selectedParts[2]) {
+                    continue;
+                }
+                $netto = $variant->netto;
+                $results[] = [
+                    'id' => $product->id . ':' . $variant->id,
+                    'text' => implode(' ', array_filter([
+                        $brand,
+                        trim($product->name),
+                        $netto ? trim($netto->netto_value) : '',
+                        $netto ? trim($netto->satuan ?? '') : '',
+                    ])),
+                ];
+                if (count($results) >= 30 || $hasSelected) {
+                    break 2;
+                }
+            }
+        }
+
+        return response()->json(['results' => $results]);
+    }
+
+    public function confirmImport(Request $request)
+    {
+        $request->validate([
+            'token' => 'required|alpha_num',
+            'source' => 'required|exists:channel_settings,slug',
+            'warehouse_id' => 'required|integer|exists:warehouses,id',
+            'product_map' => 'nullable|array',
+            'product_map.*' => 'nullable|string',
+        ]);
+
+        $token = $request->input('token');
+        $preview = session()->get('transaction_order_imports.' . $token);
+        if (!$preview || now()->timestamp - $preview['created_at'] > 7200) {
+            session()->forget('transaction_order_imports.' . $token);
+            return redirect()->route('admin.transactions.index')
+                ->with('error', 'Data preview tidak ditemukan atau sudah kedaluwarsa. Silakan upload ulang file.');
+        }
+
+        $user = auth()->user();
+        $allowedWarehouseIds = ($user->isSuperAdmin() || $user->isStoreManager())
+            ? Warehouse::where('status', 'active')->pluck('id')->all()
+            : $user->warehouses()->where('warehouses.status', 'active')->pluck('warehouses.id')->all();
+        if (!in_array((int) $request->warehouse_id, $allowedWarehouseIds)) {
+            return redirect()->route('admin.transactions.import.preview', $token)
+                ->with('error', 'Anda tidak memiliki akses ke gudang yang dipilih.')
+                ->withInput($request->except('_token'));
+        }
+
+        $submittedMappings = $request->input('product_map') ?? [];
+        $expectedKeys = array_keys($preview['products']);
+        $productMap = [];
+        foreach ($expectedKeys as $key) {
+            $selectedProduct = trim((string) ($submittedMappings[$key] ?? ''));
+            if ($selectedProduct === '') {
+                continue;
+            }
+
+            if (!preg_match('/^(\d+):(\d*)$/', $selectedProduct, $matches)) {
+                return redirect()->route('admin.transactions.import.preview', $token)
+                    ->with('error', 'Pilihan produk tidak valid. Silakan pilih ulang produk pada preview.')
+                    ->withInput($request->except('_token'));
+            }
+
+            $product = Product::with('variants')->find($matches[1]);
+            $variantId = $matches[2] !== '' ? (int) $matches[2] : null;
+            if (!$product) {
+                return redirect()->route('admin.transactions.import.preview', $token)
+                    ->with('error', 'Produk POS yang dipilih sudah tidak tersedia. Silakan pilih ulang.')
+                    ->withInput($request->except('_token'));
+            }
+
+            if ($variantId && !$product->variants->contains('id', $variantId)) {
+                return redirect()->route('admin.transactions.import.preview', $token)
+                    ->with('error', 'Varian produk tidak sesuai dengan produk yang dipilih.')
+                    ->withInput($request->except('_token'));
+            }
+            if (!$variantId && $product->variants->isNotEmpty()) {
+                return redirect()->route('admin.transactions.import.preview', $token)
+                    ->with('error', 'Produk ini memiliki varian. Pilih varian yang sesuai pada preview.')
+                    ->withInput($request->except('_token'));
+            }
+
+            $productMap[$key] = [
+                'product_id' => $product->id,
+                'variant_id' => $variantId,
+            ];
+        }
+
+        $warehouse = Warehouse::findOrFail($request->warehouse_id);
+        $orderGroups = collect($preview['rows'])->groupBy('order_number');
+        $imported = 0;
+        $duplicates = 0;
+        $skippedRows = 0;
+        $skippedOrders = 0;
+        $syncedProductIds = [];
+
+        try {
+            DB::transaction(function () use (
+                $orderGroups,
+                $productMap,
+                $request,
+                $warehouse,
+                &$imported,
+                &$duplicates,
+                &$skippedRows,
+                &$skippedOrders,
+                &$syncedProductIds
+            ) {
+                $stockService = new \App\Services\StockService();
+                foreach ($orderGroups as $orderNumber => $items) {
+                    $referenceNote = $this->orderImportNote($orderNumber);
+                    if (Transaction::where('notes', $referenceNote)->lockForUpdate()->exists()) {
+                        $duplicates++;
+                        continue;
+                    }
+
+                    $first = $items->first();
+                    $transactionDate = Carbon::parse($first['transaction_date']);
+                    $itemsToCreate = [];
+                    $totalAmount = 0;
+
+                    foreach ($items as $item) {
+                        if (!isset($productMap[$item['mapping_key']])) {
+                            $skippedRows++;
+                            continue;
+                        }
+
+                        $mapping = $productMap[$item['mapping_key']];
+                        $slices = $stockService->allocateAcrossBatches(
+                            $mapping['product_id'],
+                            $mapping['variant_id'],
+                            $warehouse->id,
+                            $item['qty']
+                        );
+
+                        $firstSlice = true;
+                        foreach ($slices as $slice) {
+                            $sliceDiscount = $firstSlice ? $item['discount'] : 0;
+                            $firstSlice = false;
+                            $subtotal = max(0, ($item['price'] * $slice['take']) - $sliceDiscount);
+                            $totalAmount += $subtotal;
+                            $itemsToCreate[] = [
+                                'product_id' => $mapping['product_id'],
+                                'product_variant_id' => $mapping['variant_id'],
+                                'product_batch_id' => $slice['batch']->id,
+                                'buy_price' => $slice['batch']->buy_price ?? 0,
+                                'qty' => $slice['take'],
+                                'price' => $item['price'],
+                                'discount' => $sliceDiscount,
+                                'subtotal' => $subtotal,
+                            ];
+                        }
+                    }
+
+                    if (empty($itemsToCreate)) {
+                        $skippedOrders++;
+                        continue;
+                    }
+
+                    $transaction = Transaction::create([
+                        'transaction_code' => \App\Services\TransactionCodeService::generate(
+                            $transactionDate,
+                            $warehouse->code ?? ''
+                        ),
+                        'user_id' => auth()->id(),
+                        'warehouse_id' => $warehouse->id,
+                        'customer_name' => $first['customer_name'] ?: null,
+                        'customer_phone' => $first['customer_phone'] ?: null,
+                        'source' => $request->source,
+                        'notes' => $referenceNote,
+                        'total_amount' => $totalAmount,
+                        'payment_status' => $first['payment_status'],
+                        'payment_method' => $first['payment_method'],
+                        'delivery_type' => 'delivery',
+                        'delivery_desc' => 'Imported marketplace order',
+                        'transaction_date' => $transactionDate->format('Y-m-d'),
+                    ]);
+
+                    $transaction->update([
+                        'invoice_number' => InvoiceService::generate($transactionDate),
+                    ]);
+
+                    foreach ($itemsToCreate as $itemData) {
+                        $itemData['transaction_id'] = $transaction->id;
+                        TransactionItem::create($itemData);
+                        $syncedProductIds[] = $itemData['product_id'];
+                    }
+
+                    $imported++;
+                }
+
+                Product::bulkSyncStock(array_values(array_unique($syncedProductIds)));
+            });
+        } catch (\Exception $e) {
+            return redirect()->route('admin.transactions.import.preview', $token)
+                ->with('error', 'Import dibatalkan tanpa menyimpan transaksi: ' . $e->getMessage())
+                ->withInput($request->except('_token'));
+        }
+
+        session()->forget('transaction_order_imports.' . $token);
+        $message = "Proses import selesai. {$imported} transaksi berhasil diimpor.";
+        if ($duplicates > 0) {
+            $message .= " {$duplicates} nomor pesanan dilewati karena sudah pernah diimpor.";
+        }
+        if ($skippedRows > 0) {
+            $message .= " {$skippedRows} baris produk tidak diimpor karena belum dicocokkan dengan produk POS.";
+        }
+        if ($skippedOrders > 0) {
+            $message .= " {$skippedOrders} nomor pesanan tidak dibuat karena tidak memiliki produk yang sudah dicocokkan.";
+        }
+
+        return redirect()->route('admin.transactions.index')->with('message', $message);
+    }
+
+    private function orderImportNote(string $orderNumber): string
+    {
+        return 'Import marketplace order: ' . $orderNumber;
+    }
+
+    private function parseImportNumber($value): float
+    {
+        if (is_int($value) || is_float($value)) {
+            return (float) $value;
+        }
+
+        $value = trim((string) $value);
+        if ($value === '') {
+            return 0;
+        }
+
+        $value = preg_replace('/[^0-9,.-]/u', '', $value);
+        if (strpos($value, ',') !== false) {
+            $value = str_replace('.', '', $value);
+            $value = str_replace(',', '.', $value);
+        } else {
+            $value = str_replace('.', '', $value);
+        }
+
+        return is_numeric($value) ? (float) $value : 0;
+    }
+
+    private function parseImportDate($value): Carbon
+    {
+        if ($value instanceof \DateTimeInterface) {
+            return Carbon::instance($value);
+        }
+
+        if (is_numeric($value) && (float) $value > 20000 && (float) $value < 100000) {
+            return Carbon::instance(\PhpOffice\PhpSpreadsheet\Shared\Date::excelToDateTimeObject((float) $value));
+        }
+
+        $value = trim((string) $value);
+        if ($value === '') {
+            return now();
+        }
+
+        try {
+            return Carbon::parse($value);
+        } catch (\Exception $e) {
+            try {
+                return Carbon::createFromFormat('d/m/Y', $value);
+            } catch (\Exception $ignored) {
+                throw new \InvalidArgumentException('Tanggal transaksi tidak valid: ' . $value);
+            }
         }
     }
 

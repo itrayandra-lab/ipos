@@ -1,0 +1,70 @@
+=== ANALISIS LANJUTAN ===
+Line-level: rows=18169493? no
+Sum V (line subtotal): 18.169.493
+Sum W (line diskon): 16.051.270
+Sum X (diskon penjual): 16.051.270
+Sum Y (diskon shopee): 0
+Sum T (qty): 150
+Sum AC (voucher penjual, line): 987.508
+Sum AD (cashback koin): 0
+Sum AE (voucher shopee, line): 3.815.269
+Sum AJ (diskon kartu kredit): 35.329
+Sum AK (ongkir pembeli, line): 113.000
+Sum AL (est potongan ongkir, line): 2.494.900
+Sum AM (ongkir retur): 0
+Sum AO (perkiraan ongkir, line): 2.811.900
+
+Order-level: sum AN (total bayar): 14.169.166
+Sum AK (ongkir pembeli): 113.000
+Sum AL (est potongan ongkir): 1.807.300
+Sum AC (voucher penjual): 785.508
+Sum AE (voucher shopee): 2.429.381
+Sum AO (perkiraan ongkir): 2.084.300
+
+Pembeli unik: 118 | Order multi-item: 17 | Max item dalam 1 order: 3
+Order batal nilai AN: 0
+
+--- BRAND MIX (by qty / revenue) ---
+  MOMMYLATORY: qty=84 | revenue=13.347.570
+  DERMOND: qty=40 | revenue=3.626.336
+  BEAUTYLATORY: qty=20 | revenue=486.668
+  BABYLATORY: qty=2 | revenue=297.181
+  SAM SUN AND MOON: qty=2 | revenue=227.290
+  UMADERM: qty=1 | revenue=25.688
+  MOMMYALTORY: qty=1 | revenue=158.760
+
+--- BIAYA KIRIM per opsi (sum perkiraan ongkir AO) ---
+  Reguler (Cashless)-SPX Standard: 721.500
+  Instant-SPX Instant: 389.000
+  Hemat Kargo-SPX Hemat: 191.500
+  Reguler (Cashless)-SiCepat REG: 191.500
+  JNE Reguler: 141.000
+  Reguler (Cashless)-JNE Reguler: 112.500
+  Reguler (Cashless): 102.000
+  SPX Standard: 59.400
+  SiCepat Halu: 49.000
+  Hemat Kargo-Anteraja Economy: 34.500
+  Anteraja Economy: 24.900
+  Hemat Kargo: 22.000
+  SPX Instant: 20.600
+  Instant Prioritas-SPX Instant Prioritas: 13.000
+  SPX Hemat: 11.900
+
+--- ORDER MULTI-ITEM (combo) ---
+  BABYLATORY Top to Toe Bab + SAM SUN AND MOON  Prebio 
+  MOMMYLATORY Shampoo 250 m + MOMMYLATORY Shower Gel 25 + MOMMYLATORY Body Lotion 2
+  DERMOND Menguard Intimate + DERMOND Reboot Cream - Kr
+  MOMMYLATORY Shampoo 250 m + MOMMYLATORY Shower Gel 25 + MOMMYLATORY Body Lotion 2
+  MOMMYLATORY Shower Gel 25 + MOMMYLATORY Body Lotion 2
+  MOMMYLATORY Shower Gel 25 + MOMMYLATORY Body Lotion 2
+  DERMOND Menguard Intimate + DERMOND FreshCore Mist –  + DERMOND Reboot Cream - Kr
+  DERMOND Menguard Intimate + BEAUTYLATORY Ever Fresh D + DERMOND Reboot Cream - Kr
+  MOMMYLATORY Shampoo 250 m + MOMMYLATORY Shower Gel 25 + MOMMYLATORY Shower Gel 25
+  MOMMYLATORY Shower Gel 25 + UMADERM Mangosteen Hybrid
+  MOMMYLATORY Body Lotion 2 + MOMMYALTORY Stretch Mark 
+  DERMOND Menguard Intimate + DERMOND Reboot Cream - Kr
+  MOMMYLATORY Shower Gel 25 + MOMMYLATORY Body Lotion 2 + MOMMYLATORY Daily Intimat
+  MOMMYLATORY Shampoo 250 m + MOMMYLATORY Body Lotion 2
+  MOMMYLATORY Body Lotion 2 + BEAUTYLATORY Ever Fresh D
+  DERMOND Menguard Intimate + DERMOND Reboot Cream - Kr
+  MOMMYLATORY Shower Gel 25 + MOMMYLATORY Body Lotion 2
