@@ -189,43 +189,7 @@
                 </div>
             </div>
 
-            <div class="card mb-4">
-                <div class="card-header"><h4 class="mb-0">Data Pesanan yang Akan Diproses</h4></div>
-                <div class="card-body table-responsive">
-                    <table class="table table-striped table-bordered order-table">
-                        <thead>
-                            <tr>
-                                <th>No. Pesanan / Transaksi</th>
-                                <th>Tanggal</th>
-                                <th>Nama Produk pada File</th>
-                                <th>Qty</th>
-                                <th>Subtotal</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            @foreach ($preview['rows'] as $row)
-                                <tr>
-                                    <td>
-                                        {{ $row['order_number'] }}
-                                        @if (in_array($row['order_number'], $duplicateOrderNumbers, true))
-                                            <span class="badge badge-warning">Sudah diimpor</span>
-                                        @endif
-                                    </td>
-                                    <td>{{ \Carbon\Carbon::parse($row['transaction_date'])->format('d/m/Y') }}</td>
-                                    <td>
-                                        {{ $row['product_name'] }}
-                                        @if ($row['sku'])
-                                            <small class="text-muted d-block">SKU: {{ $row['sku'] }}</small>
-                                        @endif
-                                    </td>
-                                    <td>{{ $row['qty'] }}</td>
-                                    <td>Rp {{ number_format($row['subtotal'], 0, ',', '.') }}</td>
-                                </tr>
-                            @endforeach
-                        </tbody>
-                    </table>
-                </div>
-            </div>
+            {{-- Data Pesanan yang Akan Diproses dihapus sesuai permintaan --}}
 
             <div class="d-flex justify-content-end mb-4">
                 <button type="submit" class="btn btn-success btn-lg" id="confirm-import-button" {{ $warehouses->isEmpty() || $channels->isEmpty() ? 'disabled' : '' }}>
