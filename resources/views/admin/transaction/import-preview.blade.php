@@ -178,7 +178,7 @@
                                     </td>
                                     <td>{{ $product['rows'] }}</td>
                                     <td class="product-pos-cell">
-                                        <select class="form-control product-map" name="product_map[{{ $key }}]" data-selected="{{ old('product_map.' . $key) }}">
+                                        <select class="form-control product-map" name="product_map[{{ $key }}]" data-selected="{{ old('product_map.' . $key) ?? ($preview['auto_matches'][$key] ?? '') }}">
                                             <option value="">Tidak dicocokkan — lewati produk ini</option>
                                         </select>
                                     </td>

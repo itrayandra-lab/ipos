@@ -479,6 +479,41 @@ class TransactionController extends Controller
                 ];
             });
 
+            $autoMatches = [];
+            foreach ($products as $key => $productInfo) {
+                $sku = trim((string) ($productInfo['sku'] ?? ''));
+                if ($sku === '') {
+                    continue;
+                }
+
+                $skuLower = strtolower($sku);
+
+                $variant = \App\Models\ProductVariant::with('product')
+                    ->whereRaw('LOWER(TRIM(sku_code)) = ?', [$skuLower])
+                    ->first();
+
+                if ($variant && $variant->product) {
+                    $autoMatches[$key] = $variant->product_id . ':' . $variant->id;
+                    continue;
+                }
+
+                $product = Product::with('variants')
+                    ->whereRaw('LOWER(TRIM(code)) = ?', [$skuLower])
+                    ->first();
+
+                if ($product) {
+                    if ($product->variants->isNotEmpty()) {
+                        $firstVariant = $product->variants->first();
+                        if ($firstVariant) {
+                            $autoMatches[$key] = $product->id . ':' . $firstVariant->id;
+                        }
+                        continue;
+                    }
+
+                    $autoMatches[$key] = $product->id . ':';
+                }
+            }
+
             $token = \Illuminate\Support\Str::random(40);
             $preview = [
                 'token' => $token,
@@ -487,6 +522,7 @@ class TransactionController extends Controller
                 'format' => $marketplaceFormat ? 'marketplace' : 'template',
                 'rows' => $rows,
                 'products' => $products->all(),
+                'auto_matches' => $autoMatches,
                 'orders' => $orders,
                 'skipped_rows' => $skippedRows,
                 'total_rows' => $sourceRows->count(),
@@ -541,7 +577,7 @@ class TransactionController extends Controller
                                 ->orWhereHas('netto', fn ($netto) => $netto->where('netto_value', 'like', '%' . $search . '%'));
                         });
                 });
-            })
+            });
             ->orderBy('name')
             ->limit(30)
             ->get();
