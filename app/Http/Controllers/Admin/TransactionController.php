@@ -479,6 +479,20 @@ class TransactionController extends Controller
                 ];
             });
 
+            $processableKeys = [];
+            foreach ($orders as $order) {
+                if (!($order['already_imported'] ?? false)) {
+                    $orderItems = $groups->get($order['number'], collect());
+                    foreach ($orderItems as $it) {
+                        $processableKeys[$it['mapping_key']] = true;
+                    }
+                }
+            }
+
+            $products = $products->filter(function ($item, $key) use ($processableKeys) {
+                return isset($processableKeys[$key]);
+            });
+
             $autoMatches = [];
             foreach ($products as $key => $productInfo) {
                 $sku = trim((string) ($productInfo['sku'] ?? ''));
