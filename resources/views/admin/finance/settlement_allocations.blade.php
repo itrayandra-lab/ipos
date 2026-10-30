@@ -36,50 +36,32 @@
         </div>
 
         {{-- ===== STAT CARDS ===== --}}
-        <div class="row mb-3">
-            <div class="col-md-4 mb-2">
-                <div class="card shadow-sm h-100 border-left-teal">
-                    <div class="card-body py-3">
-                        <div class="d-flex justify-content-between align-items-center">
-                            <div>
-                                <div class="text-muted small text-uppercase font-weight-bold">Transaksi Dipilih</div>
-                                <div class="h4 mb-0 font-weight-bold text-dark">{{ $selectedCount }} transaksi</div>
-                            </div>
-                            <div class="text-right">
-                                <i class="fas fa-list-ul fa-2x text-teal opacity-50"></i>
-                            </div>
-                        </div>
-                    </div>
+        <div class="sett-summary-grid">
+            <div class="sett-stat-card blue">
+                <div class="sett-stat-icon blue">
+                    <i class="fas fa-list-ul"></i>
+                </div>
+                <div class="sett-stat-info">
+                    <div class="sett-stat-label">Transaksi Dipilih</div>
+                    <div class="sett-stat-value">{{ $selectedCount }} transaksi</div>
                 </div>
             </div>
-            <div class="col-md-4 mb-2">
-                <div class="card shadow-sm h-100 border-left-info">
-                    <div class="card-body py-3">
-                        <div class="d-flex justify-content-between align-items-center">
-                            <div>
-                                <div class="text-muted small text-uppercase font-weight-bold">PO Terdampak</div>
-                                <div class="h4 mb-0 font-weight-bold text-dark">{{ $purchaseOrders->count() }} PO</div>
-                            </div>
-                            <div class="text-right">
-                                <i class="fas fa-file-invoice fa-2x text-info opacity-50"></i>
-                            </div>
-                        </div>
-                    </div>
+            <div class="sett-stat-card teal">
+                <div class="sett-stat-icon teal">
+                    <i class="fas fa-file-invoice"></i>
+                </div>
+                <div class="sett-stat-info">
+                    <div class="sett-stat-label">PO Terdampak</div>
+                    <div class="sett-stat-value">{{ $purchaseOrders->count() }} PO</div>
                 </div>
             </div>
-            <div class="col-md-4 mb-2">
-                <div class="card shadow-sm h-100 border-left-danger">
-                    <div class="card-body py-3">
-                        <div class="d-flex justify-content-between align-items-center">
-                            <div>
-                                <div class="text-muted small text-uppercase font-weight-bold">Total Pelunasan</div>
-                                <div class="h4 mb-0 font-weight-bold text-danger">Rp {{ number_format($totalAmount, 0, ',', '.') }}</div>
-                            </div>
-                            <div class="text-right">
-                                <i class="fas fa-money-bill-wave fa-2x text-danger opacity-50"></i>
-                            </div>
-                        </div>
-                    </div>
+            <div class="sett-stat-card red">
+                <div class="sett-stat-icon red">
+                    <i class="fas fa-money-bill-wave"></i>
+                </div>
+                <div class="sett-stat-info">
+                    <div class="sett-stat-label">Total Pelunasan</div>
+                    <div class="sett-stat-value">Rp {{ number_format($totalAmount, 0, ',', '.') }}</div>
                 </div>
             </div>
         </div>
@@ -377,6 +359,50 @@
     }
     .opacity-50 { opacity: 0.5; }
     .opacity-30 { opacity: 0.3; }
+
+    /* ===== SUMMARY CARDS (matching settlement-report) ===== */
+    :root {
+        --slate-50:  #f8fafc;
+        --slate-100: #f1f5f9;
+        --slate-400: #94a3b8;
+        --slate-600: #475569;
+        --slate-800: #1e293b;
+        --blue-100: #dbeafe;
+        --blue-600: #2563eb;
+        --teal-600: #0d9488;
+        --teal-100: #ccfbf1;
+        --red-100: #fee2e2;
+        --red-600: #dc2626;
+    }
+    .sett-summary-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 16px; margin-bottom: 22px; }
+    .sett-stat-card {
+        background: #fff; border-radius: 16px;
+        border: 1.5px solid var(--slate-100);
+        box-shadow: 0 4px 20px rgba(0,0,0,.04);
+        padding: 20px 22px;
+        display: flex; align-items: flex-start; gap: 16px;
+        transition: transform .2s, box-shadow .2s;
+        position: relative; overflow: hidden;
+    }
+    .sett-stat-card:hover { transform: translateY(-3px); box-shadow: 0 12px 32px rgba(0,0,0,.09); }
+    .sett-stat-card::after {
+        content: ''; position: absolute; bottom: 0; left: 0; right: 0;
+        height: 3px;
+    }
+    .sett-stat-card.blue::after   { background: linear-gradient(90deg, var(--blue-600), #60a5fa); }
+    .sett-stat-card.red::after    { background: linear-gradient(90deg, var(--red-600), #f87171); }
+    .sett-stat-card.teal::after   { background: linear-gradient(90deg, var(--teal-600), #34d399); }
+    .sett-stat-icon {
+        width: 46px; height: 46px; border-radius: 12px;
+        display: flex; align-items: center; justify-content: center;
+        font-size: 18px; flex-shrink: 0;
+    }
+    .sett-stat-icon.blue  { background: var(--blue-100);  color: var(--blue-600); }
+    .sett-stat-icon.red   { background: var(--red-100);   color: var(--red-600); }
+    .sett-stat-icon.teal  { background: var(--teal-100);  color: var(--teal-600); }
+    .sett-stat-info { flex: 1; min-width: 0; }
+    .sett-stat-label { font-size: 11px; font-weight: 700; color: var(--slate-400); text-transform: uppercase; letter-spacing: .6px; margin-bottom: 4px; }
+    .sett-stat-value { font-size: 22px; font-weight: 800; color: var(--slate-800); line-height: 1.1; }
 </style>
 <script>
 $(function() {
