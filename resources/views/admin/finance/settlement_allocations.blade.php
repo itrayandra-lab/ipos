@@ -449,9 +449,9 @@
         min-width: 980px;
         table-layout: fixed;
     }
-    .sett-allocation-page .sett-products-table .po-column { width: 13%; }
+    .sett-allocation-page .sett-products-table .po-column { width: 16%; }
     .sett-allocation-page .sett-products-table .supplier-column { width: 14%; }
-    .sett-allocation-page .sett-products-table .product-column { width: 31%; }
+    .sett-allocation-page .sett-products-table .product-column { width: 28%; }
     .sett-allocation-page .sett-products-table .qty-column { width: 7%; }
     .sett-allocation-page .sett-products-table .hpp-column { width: 11%; }
     .sett-allocation-page .sett-products-table .total-column { width: 11%; }
