@@ -148,8 +148,18 @@ class SettlementController extends Controller
                     WHERE spa.transaction_item_id = transaction_items.id) as po_number"),
                 DB::raw('transaction_items.qty as total_qty'),
                 DB::raw('COALESCE(paid_allocations.paid_quantity, 0) as paid_qty'),
-                DB::raw('COALESCE(NULLIF(transaction_items.buy_price, 0), NULLIF(product_batches.buy_price, 0), product_variants.product_hpp, 0) as unit_hpp'),
-                DB::raw('transaction_items.qty * COALESCE(NULLIF(transaction_items.buy_price, 0), NULLIF(product_batches.buy_price, 0), product_variants.product_hpp, 0) as total_cost'),
+                DB::raw('COALESCE((SELECT poi.unit_price FROM supplier_payment_item_allocations spa 
+                    JOIN supplier_payment_items spi ON spa.supplier_payment_item_id = spi.id 
+                    JOIN purchase_order_items poi ON spi.purchase_order_item_id = poi.id 
+                    WHERE spa.transaction_item_id = transaction_items.id 
+                    ORDER BY spa.created_at DESC 
+                    LIMIT 1), NULLIF(transaction_items.buy_price, 0), NULLIF(product_batches.buy_price, 0), product_variants.product_hpp, 0) as unit_hpp'),
+                DB::raw('transaction_items.qty * COALESCE((SELECT poi.unit_price FROM supplier_payment_item_allocations spa 
+                    JOIN supplier_payment_items spi ON spa.supplier_payment_item_id = spi.id 
+                    JOIN purchase_order_items poi ON spi.purchase_order_item_id = poi.id 
+                    WHERE spa.transaction_item_id = transaction_items.id 
+                    ORDER BY spa.created_at DESC 
+                    LIMIT 1), NULLIF(transaction_items.buy_price, 0), NULLIF(product_batches.buy_price, 0), product_variants.product_hpp, 0) as total_cost'),
             ]);
 
         if ($request->filled('start_date')) {
