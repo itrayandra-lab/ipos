@@ -506,11 +506,18 @@ $(document).ready(function() {
             },
             {
                 data: 'supplier_name', searchable: false, className: 'text-center',
-                render: function(data) {
+                render: function(data, type, row) {
+                    var html = '';
                     if (data) {
-                        return '<span class="badge-supplier">' + $('<div>').text(data).html() + '</span>';
+                        html = '<span class="badge-supplier">' + $('<div>').text(data).html() + '</span>';
+                    } else {
+                        html = '<span class="badge-no-supplier">Tanpa Supplier</span>';
                     }
-                    return '<span class="badge-no-supplier">Tanpa Supplier</span>';
+                    // Tampilkan No. PO yang dialokasikan hanya untuk transaksi yang sudah lunas
+                    if (row.payment_status === 'lunas' && row.po_number) {
+                        html += '<br><small class="text-muted d-block mt-1"><i class="fas fa-file-alt mr-1"></i>PO ' + $('<div>').text(row.po_number).html() + '</small>';
+                    }
+                    return html;
                 }
             },
             {

@@ -118,6 +118,8 @@ class SettlementController extends Controller
             ->leftJoin('product_batches', 'transaction_items.product_batch_id', '=', 'product_batches.id')
             ->leftJoin('suppliers as batch_suppliers', 'product_batches.supplier_id', '=', 'batch_suppliers.id')
             ->leftJoin('suppliers as product_suppliers', 'products.supplier_id', '=', 'product_suppliers.id')
+            ->leftJoin('purchase_order_items as po_items', 'transaction_items.purchase_order_item_id', '=', 'po_items.id')
+            ->leftJoin('purchase_orders as po', 'po_items.purchase_order_id', '=', 'po.id')
             ->leftJoinSub($paidQuantities, 'paid_allocations', function ($join) {
                 $join->on('paid_allocations.transaction_item_id', '=', 'transaction_items.id');
             })
@@ -141,6 +143,7 @@ class SettlementController extends Controller
                 DB::raw('COALESCE(product_nettos.satuan, (SELECT pn2.satuan FROM product_nettos pn2 WHERE pn2.product_id = products.id ORDER BY pn2.id LIMIT 1)) as satuan'),
                 DB::raw('COALESCE(batch_suppliers.id, product_suppliers.id) as supplier_id'),
                 DB::raw('COALESCE(batch_suppliers.name, product_suppliers.name) as supplier_name'),
+                DB::raw('po.po_number as po_number'),
                 DB::raw('transaction_items.qty as total_qty'),
                 DB::raw('COALESCE(paid_allocations.paid_quantity, 0) as paid_qty'),
                 DB::raw('COALESCE(NULLIF(transaction_items.buy_price, 0), NULLIF(product_batches.buy_price, 0), product_variants.product_hpp, 0) as unit_hpp'),
