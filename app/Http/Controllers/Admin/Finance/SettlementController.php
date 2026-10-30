@@ -118,15 +118,6 @@ class SettlementController extends Controller
             ->leftJoin('product_batches', 'transaction_items.product_batch_id', '=', 'product_batches.id')
             ->leftJoin('suppliers as batch_suppliers', 'product_batches.supplier_id', '=', 'batch_suppliers.id')
             ->leftJoin('suppliers as product_suppliers', 'products.supplier_id', '=', 'product_suppliers.id')
-            ->leftJoin('purchase_order_items as po_items', 'transaction_items.purchase_order_item_id', '=', 'po_items.id')
-            ->leftJoin('purchase_orders as po', 'po_items.purchase_order_id', '=', 'po.id')
-            ->leftJoin('goods_receipt_items', 'product_batches.goods_receipt_item_id', '=', 'goods_receipt_items.id')
-            ->leftJoin('goods_receipts', 'goods_receipt_items.goods_receipt_id', '=', 'goods_receipts.id')
-            ->leftJoin('purchase_orders as gr_po', 'goods_receipts.purchase_order_id', '=', 'gr_po.id')
-            ->leftJoin('purchase_order_items as batch_po_items', 'product_batches.purchase_order_item_id', '=', 'batch_po_items.id')
-            ->leftJoin('purchase_orders as batch_po', 'batch_po_items.purchase_order_id', '=', 'batch_po.id')
-            ->leftJoin('purchase_order_items as receipt_po_items', 'goods_receipt_items.purchase_order_item_id', '=', 'receipt_po_items.id')
-            ->leftJoin('purchase_orders as receipt_po', 'receipt_po_items.purchase_order_id', '=', 'receipt_po.id')
             ->leftJoinSub($paidQuantities, 'paid_allocations', function ($join) {
                 $join->on('paid_allocations.transaction_item_id', '=', 'transaction_items.id');
             })
@@ -150,7 +141,11 @@ class SettlementController extends Controller
                 DB::raw('COALESCE(product_nettos.satuan, (SELECT pn2.satuan FROM product_nettos pn2 WHERE pn2.product_id = products.id ORDER BY pn2.id LIMIT 1)) as satuan'),
                 DB::raw('COALESCE(batch_suppliers.id, product_suppliers.id) as supplier_id'),
                 DB::raw('COALESCE(batch_suppliers.name, product_suppliers.name) as supplier_name'),
-                DB::raw('COALESCE(po.po_number, batch_po.po_number, receipt_po.po_number, gr_po.po_number) as po_number'),
+                DB::raw("(SELECT GROUP_CONCAT(DISTINCT po.po_number) FROM supplier_payment_item_allocations spa 
+                    JOIN supplier_payment_items spi ON spa.supplier_payment_item_id = spi.id 
+                    JOIN purchase_order_items poi ON spi.purchase_order_item_id = poi.id 
+                    JOIN purchase_orders po ON poi.purchase_order_id = po.id 
+                    WHERE spa.transaction_item_id = transaction_items.id) as po_number"),
                 DB::raw('transaction_items.qty as total_qty'),
                 DB::raw('COALESCE(paid_allocations.paid_quantity, 0) as paid_qty'),
                 DB::raw('COALESCE(NULLIF(transaction_items.buy_price, 0), NULLIF(product_batches.buy_price, 0), product_variants.product_hpp, 0) as unit_hpp'),
