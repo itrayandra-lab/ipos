@@ -289,6 +289,29 @@ class SettlementController extends Controller
             })
             ->values();
 
+        // Ambil netto dan satuan langsung dari product_nettos (bypass opcode cache service)
+        $productIds = $purchaseOrders->flatMap(fn($po) => $po->products->pluck('product_id'))->unique()->values();
+        $nettoLookup = [];
+        if ($productIds->isNotEmpty()) {
+            $nettoRows = DB::table('product_nettos')
+                ->select('product_id', 'netto_value', 'satuan')
+                ->whereIn('product_id', $productIds)
+                ->get()
+                ->keyBy('product_id');
+            foreach ($productIds as $pid) {
+                $nettoLookup[(int) $pid] = $nettoRows->get((int) $pid);
+            }
+        }
+
+        // Tambahkan netto dan satuan ke setiap produk
+        foreach ($purchaseOrders as $po) {
+            foreach ($po->products as $product) {
+                $nettoRow = $nettoLookup[(int) $product->product_id] ?? null;
+                $product->netto_value = $nettoRow->netto_value ?? null;
+                $product->satuan = $nettoRow->satuan ?? null;
+            }
+        }
+
         return view('admin.finance.settlement_allocations', [
             'purchaseOrders' => $purchaseOrders,
             'unmatchedQty' => (float) $allocations->whereNull('purchase_order_item_id')->sum('allocated_qty'),
