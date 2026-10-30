@@ -19,6 +19,7 @@ class SupplierSettlementAllocationService
             ->join('products', 'transaction_items.product_id', '=', 'products.id')
             ->leftJoin('merek', 'products.merek_id', '=', 'merek.id')
             ->leftJoin('product_variants', 'transaction_items.product_variant_id', '=', 'product_variants.id')
+            ->leftJoin('product_nettos', 'product_variants.product_netto_id', '=', 'product_nettos.id')
             ->leftJoin('product_batches', 'transaction_items.product_batch_id', '=', 'product_batches.id')
             ->leftJoin('purchase_order_items as transaction_po_items', 'transaction_items.purchase_order_item_id', '=', 'transaction_po_items.id')
             ->leftJoin('purchase_orders as transaction_pos', 'transaction_po_items.purchase_order_id', '=', 'transaction_pos.id')
@@ -52,6 +53,8 @@ class SupplierSettlementAllocationService
                 'merek.name as merek_name',
                 'product_variants.variant_name',
                 'product_variants.sku_code',
+                DB::raw('COALESCE(product_nettos.netto_value, (SELECT pn.netto_value FROM product_nettos pn WHERE pn.product_id = products.id ORDER BY pn.id LIMIT 1)) as netto_value'),
+                DB::raw('COALESCE(product_nettos.satuan, (SELECT pn2.satuan FROM product_nettos pn2 WHERE pn2.product_id = products.id ORDER BY pn2.id LIMIT 1)) as satuan'),
                 DB::raw('COALESCE(transaction_po_items.purchase_order_id, batch_pos.id, receipt_pos.id) as source_purchase_order_id'),
                 DB::raw('COALESCE(product_batches.supplier_id, transaction_pos.supplier_id, batch_pos.supplier_id, receipt_pos.supplier_id, products.supplier_id) as supplier_id'),
                 DB::raw('COALESCE(batch_suppliers.name, transaction_pos_supplier.name, batch_pos_supplier.name, receipt_pos_supplier.name, product_suppliers.name) as supplier_name'),

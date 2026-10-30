@@ -266,6 +266,8 @@ class SettlementController extends Controller
                             'merek_name' => $item->merek_name,
                             'variant_name' => $item->variant_name,
                             'sku_code' => $item->sku_code,
+                            'netto_value' => $item->netto_value,
+                            'satuan' => $item->satuan,
                             'transaction_item_ids' => $items->pluck('transaction_item_id')->unique()->values()->all(),
                             'qty' => (float) $items->sum('allocated_qty'),
                             'buy_price' => (float) $item->buy_price,

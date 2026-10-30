@@ -6,7 +6,9 @@
         $productLabel = function ($product) {
             $brand = trim((string) ($product->merek_name ?? ''));
             $name = trim((string) ($product->product_name ?? ''));
-            $label = trim(implode(' ', array_filter([$brand, $name])));
+            $netto = trim((string) ($product->netto_value ?? ''));
+            $uom = trim((string) ($product->satuan ?? ''));
+            $label = trim(implode(' ', array_filter([$brand, $name, $netto, $uom])));
             if (!empty($product->variant_name)) {
                 $label .= ' - ' . $product->variant_name;
             }
