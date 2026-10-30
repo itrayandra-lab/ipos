@@ -1,7 +1,7 @@
 @extends('master')
 @section('title', 'Alokasi Pelunasan per PO')
 @section('content')
-<div class="main-content">
+<div class="main-content sett-allocation-page">
     @php
         $productLabel = function ($product) {
             $brand = trim((string) ($product->merek_name ?? ''));
@@ -9,9 +9,6 @@
             $netto = trim((string) ($product->netto_value ?? ''));
             $uom = trim((string) ($product->satuan ?? ''));
             $label = trim(implode(' ', array_filter([$brand, $name, $netto, $uom])));
-            if (!empty($product->variant_name)) {
-                $label .= ' - ' . $product->variant_name;
-            }
             return $label !== '' ? $label : 'Produk';
         };
         $formatQty = fn($qty) => rtrim(rtrim(number_format((float) $qty, 2, ',', '.'), '0'), ',');
@@ -19,20 +16,21 @@
 
     <div class="container-fluid py-4">
         {{-- ===== PAGE HEADER ===== --}}
-        <div class="d-flex justify-content-between align-items-center mb-4">
-            <div>
-                <h1 class="h4 mb-1 font-weight-bold text-dark">
-                    <i class="fas fa-share-square mr-2" style="color: var(--teal-600);"></i>
-                    Alokasi Pelunasan per PO
-                </h1>
-                <p class="text-muted mb-0 small">
-                    {{ $selectedCount }} transaksi terpilih dialokasikan otomatis ke PO yang sudah menerima produk
-                    (FIFO: PO tertua lebih dulu). Pembayaran dilakukan manual per PO.
-                </p>
+        <div class="sett-hero mb-4">
+            <div class="d-flex align-items-center position-relative">
+                <div class="sett-hero-icon">
+                    <i class="fas fa-file-invoice-dollar"></i>
+                </div>
+                <div>
+                    <h1>Alokasi Pelunasan per PO</h1>
+                    <p>{{ $selectedCount }} transaksi terpilih · FIFO berdasarkan PO tertua · Pembayaran diproses per PO</p>
+                </div>
+                <div class="ml-auto">
+                    <a href="{{ route('admin.finance.settlement.index', array_filter($filters)) }}" class="btn-sett-secondary">
+                        <i class="fas fa-arrow-left"></i> Kembali ke Transaksi
+                    </a>
+                </div>
             </div>
-            <a href="{{ route('admin.finance.settlement.index', array_filter($filters)) }}" class="btn btn-outline-secondary btn-sm">
-                <i class="fas fa-arrow-left mr-1"></i> Kembali ke Transaksi
-            </a>
         </div>
 
         {{-- ===== STAT CARDS ===== --}}
@@ -85,7 +83,7 @@
         @endif
 
         {{-- ===== TABS ===== --}}
-        <div class="card shadow-sm">
+        <div class="sett-table-card">
             <div class="card-header bg-white border-bottom-0 py-3">
                 <ul class="nav nav-tabs card-header-tabs" role="tablist">
                     <li class="nav-item">
@@ -104,7 +102,7 @@
                 {{-- ================= PER PRODUK ================= --}}
                 <div class="tab-pane fade show active" id="products-tab" role="tabpanel">
                     <div class="table-responsive">
-                        <table class="table table-hover align-middle mb-0">
+                        <table class="table table-hover align-middle mb-0 sett-allocation-table">
                             <thead class="thead-light">
                                 <tr>
                                     <th style="width: 14%;">No. PO</th>
@@ -172,7 +170,7 @@
                 {{-- ================= PER PO ================= --}}
                 <div class="tab-pane fade" id="purchase-orders-tab" role="tabpanel">
                     <div class="table-responsive">
-                        <table class="table table-hover align-middle mb-0">
+                        <table class="table table-hover align-middle mb-0 sett-allocation-table">
                             <thead class="thead-light">
                                 <tr>
                                     <th style="width: 16%;">No. PO</th>
@@ -359,6 +357,102 @@
     }
     .opacity-50 { opacity: 0.5; }
     .opacity-30 { opacity: 0.3; }
+    .sett-allocation-page { font-family: 'Inter', 'Segoe UI', sans-serif; }
+    .sett-allocation-page .sett-hero {
+        background: linear-gradient(135deg, #0f766e 0%, #115e59 60%, #0c4a6e 100%);
+        border-radius: 18px;
+        padding: 24px 28px;
+        position: relative;
+        overflow: hidden;
+        box-shadow: 0 16px 42px rgba(13, 148, 136, .2);
+    }
+    .sett-allocation-page .sett-hero::after {
+        content: '';
+        position: absolute;
+        width: 220px;
+        height: 220px;
+        right: -70px;
+        top: -110px;
+        border-radius: 50%;
+        background: rgba(255,255,255,.06);
+        pointer-events: none;
+    }
+    .sett-allocation-page .sett-hero-icon {
+        width: 48px;
+        height: 48px;
+        margin-right: 16px;
+        border-radius: 13px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: #fff;
+        background: rgba(255,255,255,.15);
+        font-size: 20px;
+        flex-shrink: 0;
+    }
+    .sett-allocation-page .sett-hero h1 {
+        color: #fff;
+        font-size: 21px;
+        font-weight: 800;
+        letter-spacing: -.3px;
+        margin: 0;
+    }
+    .sett-allocation-page .sett-hero p {
+        color: rgba(255,255,255,.78);
+        font-size: 12px;
+        margin: 4px 0 0;
+    }
+    .sett-allocation-page .sett-hero .btn-sett-secondary {
+        position: relative;
+        z-index: 1;
+        white-space: nowrap;
+    }
+    .sett-allocation-page .sett-table-card {
+        background: #fff;
+        border: 1.5px solid #f1f5f9;
+        border-radius: 16px;
+        box-shadow: 0 4px 24px rgba(0,0,0,.04);
+        overflow: hidden;
+    }
+    .sett-allocation-page .sett-allocation-table {
+        min-width: 900px;
+        font-size: 13px;
+    }
+    .sett-allocation-page .sett-allocation-table thead th {
+        padding: 14px 12px;
+        color: #475569;
+        background: #f8fafc;
+        border-top: 0;
+        border-bottom: 1.5px solid #e2e8f0;
+        font-size: 10px;
+        font-weight: 800;
+        letter-spacing: .45px;
+        text-transform: uppercase;
+        vertical-align: middle;
+    }
+    .sett-allocation-page .sett-allocation-table tbody td {
+        padding: 13px 12px;
+        border-top: 0;
+        border-bottom: 1px solid #f1f5f9;
+        vertical-align: middle;
+    }
+    .sett-allocation-page .sett-allocation-table tbody tr:hover { background: #f0fdfa; }
+    .sett-allocation-page .card-header-tabs .nav-link {
+        color: #64748b;
+        font-size: 12px;
+        font-weight: 700;
+    }
+    .sett-allocation-page .card-header-tabs .nav-link.active {
+        color: #0f766e;
+        border-bottom: 2px solid #0d9488;
+    }
+    @media (max-width: 767.98px) {
+        .sett-allocation-page .sett-hero { padding: 20px; }
+        .sett-allocation-page .sett-hero .d-flex { align-items: flex-start !important; flex-wrap: wrap; }
+        .sett-allocation-page .sett-hero .ml-auto { width: 100%; margin: 16px 0 0 !important; }
+        .sett-allocation-page .sett-hero .btn-sett-secondary { justify-content: center; width: 100%; }
+        .sett-allocation-page .tab-content { padding: 12px !important; }
+    }
 
     /* ===== SUMMARY CARDS (matching settlement-report) ===== */
     :root {
