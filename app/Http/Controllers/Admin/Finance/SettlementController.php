@@ -258,6 +258,7 @@ class SettlementController extends Controller
                     ->map(function ($items) {
                         $item = $items->first();
                         return (object) [
+                            'product_id' => $item->product_id,
                             'purchase_order_id' => $item->purchase_order_id,
                             'po_number' => $item->po_number,
                             'supplier_id' => $item->supplier_id,

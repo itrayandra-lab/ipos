@@ -1,7 +1,7 @@
 @extends('master')
 @section('title', 'Alokasi Pelunasan per PO')
 @section('content')
-<div class="main-content sett-allocation-page">
+<div class="main-content">
     @php
         $productLabel = function ($product) {
             $brand = trim((string) ($product->merek_name ?? ''));
@@ -14,10 +14,10 @@
         $formatQty = fn($qty) => rtrim(rtrim(number_format((float) $qty, 2, ',', '.'), '0'), ',');
     @endphp
 
-    <div class="container-fluid py-4">
+    <section class="section sett-page sett-allocation-page">
         {{-- ===== PAGE HEADER ===== --}}
-        <div class="sett-hero mb-4">
-            <div class="d-flex align-items-center position-relative">
+        <div class="sett-hero">
+            <div class="d-flex align-items-center" style="position:relative;z-index:1;">
                 <div class="sett-hero-icon">
                     <i class="fas fa-file-invoice-dollar"></i>
                 </div>
@@ -33,6 +33,7 @@
             </div>
         </div>
 
+        <div class="section-body">
         {{-- ===== STAT CARDS ===== --}}
         <div class="sett-summary-grid">
             <div class="sett-stat-card blue">
@@ -102,16 +103,16 @@
                 {{-- ================= PER PRODUK ================= --}}
                 <div class="tab-pane fade show active" id="products-tab" role="tabpanel">
                     <div class="table-responsive">
-                        <table class="table table-hover align-middle mb-0 sett-allocation-table">
+                        <table class="table table-hover align-middle mb-0 sett-allocation-table sett-products-table">
                             <thead class="thead-light">
                                 <tr>
-                                    <th style="width: 14%;">No. PO</th>
-                                    <th style="width: 18%;">Supplier</th>
-                                    <th>Produk</th>
-                                    <th class="text-center" style="width: 12%;">Qty Transaksi</th>
-                                    <th class="text-right" style="width: 16%;">HPP per PO</th>
-                                    <th class="text-right" style="width: 16%;">Total Pelunasan</th>
-                                    <th class="text-center" style="width: 14%;">Aksi</th>
+                                    <th class="po-column">No. PO</th>
+                                    <th class="supplier-column">Supplier</th>
+                                    <th class="product-column">Produk</th>
+                                    <th class="qty-column text-center">Qty</th>
+                                    <th class="hpp-column text-right">HPP per PO</th>
+                                    <th class="total-column text-right">Total Pelunasan</th>
+                                    <th class="action-column text-center">Aksi</th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -127,10 +128,10 @@
                                             <td>
                                                 <div class="font-weight-bold text-dark">{{ $productLabel($product) }}</div>
                                             </td>
-                                            <td class="text-center">
-                                                <span class="badge badge-info">{{ $formatQty($product->qty) }} pcs</span>
+                                            <td class="text-center qty-cell">
+                                                <span class="qty-value">{{ $formatQty($product->qty) }}</span>
                                             </td>
-                                            <td class="text-right">
+                                            <td class="text-right hpp-cell">
                                                 Rp {{ number_format($product->buy_price, 0, ',', '.') }}
                                             </td>
                                             <td class="text-right font-weight-bold text-danger">
@@ -170,15 +171,15 @@
                 {{-- ================= PER PO ================= --}}
                 <div class="tab-pane fade" id="purchase-orders-tab" role="tabpanel">
                     <div class="table-responsive">
-                        <table class="table table-hover align-middle mb-0 sett-allocation-table">
+                        <table class="table table-hover align-middle mb-0 sett-allocation-table sett-po-table">
                             <thead class="thead-light">
                                 <tr>
-                                    <th style="width: 16%;">No. PO</th>
-                                    <th style="width: 20%;">Supplier</th>
-                                    <th style="width: 26%;">Produk yang Ada Transaksinya</th>
-                                    <th style="width: 24%;">Transaksi (Qty × HPP)</th>
-                                    <th class="text-right" style="width: 12%;">Total Pelunasan PO</th>
-                                    <th class="text-center" style="width: 12%; white-space: nowrap;">Aksi</th>
+                                    <th class="po-number-column">No. PO</th>
+                                    <th class="po-supplier-column">Supplier</th>
+                                    <th class="po-products-column">Produk</th>
+                                    <th class="po-details-column">Rincian Transaksi</th>
+                                    <th class="po-total-column text-right">Total Pelunasan</th>
+                                    <th class="po-action-column text-center">Aksi</th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -192,26 +193,26 @@
                                         </td>
                                         <td class="align-middle">
                                             @foreach($purchaseOrder->products as $product)
-                                                <div class="d-flex align-items-center border-bottom py-2">
-                                                    <span class="font-weight-sm text-dark">{{ $productLabel($product) }}</span>
+                                                <div class="po-product-line">
+                                                    <span class="po-product-name">{{ $productLabel($product) }}</span>
                                                 </div>
                                             @endforeach
                                         </td>
                                         <td class="align-middle">
                                             @foreach($purchaseOrder->products as $product)
-                                                <div class="d-flex justify-content-between border-bottom py-2">
-                                                    <span class="text-muted">{{ $formatQty($product->qty) }} × Rp {{ number_format($product->buy_price, 0, ',', '.') }}</span>
-                                                    <strong class="text-dark ml-2">Rp {{ number_format($product->subtotal, 0, ',', '.') }}</strong>
+                                                <div class="po-detail-line">
+                                                    <span class="po-calculation">{{ $formatQty($product->qty) }} × Rp {{ number_format($product->buy_price, 0, ',', '.') }}</span>
+                                                    <strong class="po-subtotal">Rp {{ number_format($product->subtotal, 0, ',', '.') }}</strong>
                                                 </div>
                                             @endforeach
                                         </td>
-                                        <td class="text-right font-weight-bold text-danger align-middle">
+                                        <td class="text-right font-weight-bold text-danger align-middle po-total-cell">
                                             Rp {{ number_format($purchaseOrder->total_amount, 0, ',', '.') }}
                                         </td>
-                                        <td class="text-center align-middle">
+                                        <td class="text-center align-middle po-action-cell">
                                             <button
                                                 type="button"
-                                                class="btn btn-sm btn-primary btn-pay-po"
+                                                class="btn btn-sm btn-outline-primary btn-pay-po po-pay-button"
                                                 data-po-id="{{ $purchaseOrder->purchase_order_id }}"
                                                 data-supplier-id="{{ $purchaseOrder->supplier_id }}"
                                                 data-po-number="{{ $purchaseOrder->po_number }}"
@@ -244,9 +245,10 @@
                         </table>
                     </div>
                 </div>
+                </div>
             </div>
         </div>
-    </div>
+    </section>
 </div>
 
 <div class="modal fade" id="poPaymentModal" tabindex="-1" role="dialog" aria-hidden="true">
@@ -304,7 +306,7 @@
     </div>
 </div>
 
-@push('scripts')
+@push('styles')
 <style>
     :root {
         --teal-600: #2a9d8f;
@@ -360,11 +362,12 @@
     .sett-allocation-page { font-family: 'Inter', 'Segoe UI', sans-serif; }
     .sett-allocation-page .sett-hero {
         background: linear-gradient(135deg, #0f766e 0%, #115e59 60%, #0c4a6e 100%);
-        border-radius: 18px;
-        padding: 24px 28px;
+        border-radius: 20px;
+        padding: 28px 32px;
+        margin-bottom: 28px;
         position: relative;
         overflow: hidden;
-        box-shadow: 0 16px 42px rgba(13, 148, 136, .2);
+        box-shadow: 0 20px 60px rgba(13,148,136,.25);
     }
     .sett-allocation-page .sett-hero::after {
         content: '';
@@ -378,34 +381,58 @@
         pointer-events: none;
     }
     .sett-allocation-page .sett-hero-icon {
-        width: 48px;
-        height: 48px;
-        margin-right: 16px;
-        border-radius: 13px;
+        width: 52px;
+        height: 52px;
+        margin-right: 18px;
+        border-radius: 14px;
         display: flex;
         align-items: center;
         justify-content: center;
         color: #fff;
         background: rgba(255,255,255,.15);
-        font-size: 20px;
+        font-size: 22px;
         flex-shrink: 0;
     }
     .sett-allocation-page .sett-hero h1 {
         color: #fff;
-        font-size: 21px;
+        font-size: 22px;
         font-weight: 800;
-        letter-spacing: -.3px;
+        letter-spacing: -.4px;
         margin: 0;
     }
     .sett-allocation-page .sett-hero p {
         color: rgba(255,255,255,.78);
-        font-size: 12px;
-        margin: 4px 0 0;
+        font-size: 13px;
+        margin: 2px 0 0;
     }
     .sett-allocation-page .sett-hero .btn-sett-secondary {
         position: relative;
         z-index: 1;
         white-space: nowrap;
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        padding: 10px 16px;
+        color: #0f766e;
+        background: #fff;
+        border: 1px solid rgba(255,255,255,.7);
+        border-radius: 10px;
+        box-shadow: 0 4px 12px rgba(15, 23, 42, .12);
+        font-size: 13px;
+        font-weight: 700;
+        text-decoration: none;
+        transition: transform .18s ease, box-shadow .18s ease, background .18s ease;
+    }
+    .sett-allocation-page .sett-hero .btn-sett-secondary:hover {
+        color: #115e59;
+        background: #f0fdfa;
+        box-shadow: 0 7px 18px rgba(15, 23, 42, .18);
+        transform: translateY(-1px);
+        text-decoration: none;
+    }
+    .sett-allocation-page .sett-hero .btn-sett-secondary:focus {
+        outline: 3px solid rgba(255,255,255,.45);
+        outline-offset: 2px;
     }
     .sett-allocation-page .sett-table-card {
         background: #fff;
@@ -417,6 +444,102 @@
     .sett-allocation-page .sett-allocation-table {
         min-width: 900px;
         font-size: 13px;
+    }
+    .sett-allocation-page .sett-products-table {
+        min-width: 980px;
+        table-layout: fixed;
+    }
+    .sett-allocation-page .sett-products-table .po-column { width: 13%; }
+    .sett-allocation-page .sett-products-table .supplier-column { width: 14%; }
+    .sett-allocation-page .sett-products-table .product-column { width: 31%; }
+    .sett-allocation-page .sett-products-table .qty-column { width: 7%; }
+    .sett-allocation-page .sett-products-table .hpp-column { width: 11%; }
+    .sett-allocation-page .sett-products-table .total-column { width: 11%; }
+    .sett-allocation-page .sett-products-table .action-column { width: 13%; }
+    .sett-allocation-page .sett-po-table {
+        min-width: 1180px;
+        table-layout: fixed;
+    }
+    .sett-allocation-page .sett-po-table .po-number-column { width: 15%; }
+    .sett-allocation-page .sett-po-table .po-supplier-column { width: 14%; }
+    .sett-allocation-page .sett-po-table .po-products-column { width: 27%; }
+    .sett-allocation-page .sett-po-table .po-details-column { width: 18%; }
+    .sett-allocation-page .sett-po-table .po-total-column { width: 12%; }
+    .sett-allocation-page .sett-po-table .po-action-column { width: 14%; }
+    .sett-allocation-page .sett-po-table .po-number-column,
+    .sett-allocation-page .sett-po-table .po-supplier-column,
+    .sett-allocation-page .sett-po-table .po-total-column,
+    .sett-allocation-page .sett-po-table .po-action-column {
+        white-space: nowrap;
+    }
+    .sett-allocation-page .sett-po-table .po-product-line,
+    .sett-allocation-page .sett-po-table .po-detail-line {
+        min-height: 48px;
+        padding: 9px 0;
+        border-bottom: 1px solid #edf2f7;
+        display: flex;
+        align-items: center;
+    }
+    .sett-allocation-page .sett-po-table .po-product-line:last-child,
+    .sett-allocation-page .sett-po-table .po-detail-line:last-child {
+        border-bottom: 0;
+    }
+    .sett-allocation-page .sett-po-table .po-product-name {
+        color: #1e293b;
+        font-weight: 600;
+        line-height: 1.45;
+        overflow-wrap: anywhere;
+    }
+    .sett-allocation-page .sett-po-table .po-detail-line {
+        justify-content: space-between;
+        gap: 12px;
+    }
+    .sett-allocation-page .sett-po-table .po-calculation {
+        color: #64748b;
+        white-space: nowrap;
+    }
+    .sett-allocation-page .sett-po-table .po-subtotal {
+        color: #1e293b;
+        white-space: nowrap;
+        text-align: right;
+    }
+    .sett-allocation-page .sett-po-table .po-total-cell {
+        font-size: 13px;
+        white-space: nowrap;
+    }
+    .sett-allocation-page .sett-po-table .po-action-cell {
+        padding-left: 8px !important;
+        padding-right: 8px !important;
+    }
+    .sett-allocation-page .sett-po-table .po-pay-button {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 6px;
+        min-width: 108px;
+        padding: 6px 12px;
+        white-space: nowrap;
+    }
+    .sett-allocation-page .sett-products-table .qty-cell {
+        white-space: nowrap;
+        font-variant-numeric: tabular-nums;
+    }
+    .sett-allocation-page .sett-products-table .qty-value {
+        color: #1e293b;
+        font-weight: 700;
+    }
+    .sett-allocation-page .sett-products-table .hpp-cell {
+        white-space: nowrap;
+        font-size: 12px;
+        color: #64748b;
+    }
+    .sett-allocation-page .sett-products-table .po-column,
+    .sett-allocation-page .sett-products-table .supplier-column,
+    .sett-allocation-page .sett-products-table .qty-column,
+    .sett-allocation-page .sett-products-table .hpp-column,
+    .sett-allocation-page .sett-products-table .total-column,
+    .sett-allocation-page .sett-products-table .action-column {
+        white-space: nowrap;
     }
     .sett-allocation-page .sett-allocation-table thead th {
         padding: 14px 12px;
@@ -447,10 +570,12 @@
         border-bottom: 2px solid #0d9488;
     }
     @media (max-width: 767.98px) {
-        .sett-allocation-page .sett-hero { padding: 20px; }
+        .sett-allocation-page .sett-hero { padding: 20px; margin-bottom: 20px; }
         .sett-allocation-page .sett-hero .d-flex { align-items: flex-start !important; flex-wrap: wrap; }
         .sett-allocation-page .sett-hero .ml-auto { width: 100%; margin: 16px 0 0 !important; }
         .sett-allocation-page .sett-hero .btn-sett-secondary { justify-content: center; width: 100%; }
+        .sett-allocation-page .sett-hero h1 { font-size: 19px; }
+        .sett-allocation-page .sett-hero p { max-width: 100%; line-height: 1.5; }
         .sett-allocation-page .tab-content { padding: 12px !important; }
     }
 
@@ -498,6 +623,9 @@
     .sett-stat-label { font-size: 11px; font-weight: 700; color: var(--slate-400); text-transform: uppercase; letter-spacing: .6px; margin-bottom: 4px; }
     .sett-stat-value { font-size: 22px; font-weight: 800; color: var(--slate-800); line-height: 1.1; }
 </style>
+@endpush
+
+@push('scripts')
 <script>
 $(function() {
     $('.btn-pay-po').on('click', function() {
