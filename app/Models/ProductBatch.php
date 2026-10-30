@@ -20,6 +20,7 @@ class ProductBatch extends Model
         'qty',
         'buy_price',
         'goods_receipt_item_id',
+        'purchase_order_item_id',
         'stock_movement_id',
         'stock_movement_item_id',
     ];
@@ -68,6 +69,11 @@ class ProductBatch extends Model
     public function incomingMovementItem()
     {
         return $this->belongsTo(StockMovementItem::class, 'stock_movement_item_id');
+    }
+
+    public function purchaseOrderItem()
+    {
+        return $this->belongsTo(PurchaseOrderItem::class);
     }
 
     /**

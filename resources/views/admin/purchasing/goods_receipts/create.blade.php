@@ -146,7 +146,7 @@
                                                     </option>
                                                 @endforeach
                                             </select>
-                                            <small class="text-muted">Pilih PO untuk auto-isi data supplier, gudang & item</small>
+                                            <small class="text-muted">Pilih PO untuk auto-isi data supplier, gudang & item. Untuk PO berbeda, buat penerimaan terpisah; nomor batch fisik yang sama tetap dapat digunakan.</small>
                                         </div>
                                     </div>
                                 </div>

@@ -151,15 +151,14 @@ class OnlineSaleController extends Controller
                         throw new \Exception('Batch ' . $batch->batch_no . ' tidak tersedia di gudang terpilih');
                     }
 
-                    // Alokasi otomatis lintas ID batch dalam gudang yang sama (FEFO,
-                    // batch pilihan diutamakan). Mis. jual 50: 40 dari ID 1 + 10 dari ID 2.
+                    // Alokasi otomatis lintas ID batch menggunakan FIFO. Mis. jual 50:
+                    // 40 dari lapisan penerimaan tertua + 10 dari lapisan berikutnya.
                     $stockService = new \App\Services\StockService();
                     $slices = $stockService->allocateAcrossBatches(
                         $product->id,
                         $batch->product_variant_id,
                         $request->warehouse_id,
-                        $item['qty'],
-                        $batch->id
+                        $item['qty']
                     );
 
                     // Use input price from form, fallback to pricing service if missing

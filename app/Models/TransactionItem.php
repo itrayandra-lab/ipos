@@ -9,7 +9,7 @@ class TransactionItem extends Model
 {
     use HasFactory;
 
-    protected $fillable = ['transaction_id', 'parent_item_id', 'product_id', 'product_variant_id', 'product_batch_id', 'buy_price', 'qty', 'price', 'discount', 'subtotal', 'is_sample'];
+    protected $fillable = ['transaction_id', 'parent_item_id', 'product_id', 'product_variant_id', 'product_batch_id', 'purchase_order_item_id', 'buy_price', 'qty', 'price', 'discount', 'subtotal', 'is_sample'];
 
     public $timestamps = false;
 
@@ -41,5 +41,10 @@ class TransactionItem extends Model
     public function batch()
     {
         return $this->belongsTo(ProductBatch::class , 'product_batch_id');
+    }
+
+    public function purchaseOrderItem()
+    {
+        return $this->belongsTo(PurchaseOrderItem::class);
     }
 }

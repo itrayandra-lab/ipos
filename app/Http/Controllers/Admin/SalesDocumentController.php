@@ -239,16 +239,15 @@ class SalesDocumentController extends Controller
                         $product  = $batch->product;
 
                         if (in_array($request->payment_status, ['paid', 'credit'])) {
-                            // Alokasi otomatis lintas ID batch dalam gudang yang sama (FEFO,
-                            // batch pilihan diutamakan). Mis. jual 50: 40 dari ID 1 + 10 dari ID 2.
+                            // Alokasi otomatis lintas ID batch menggunakan FIFO. Mis. jual 50:
+                            // 40 dari lapisan penerimaan tertua + 10 dari lapisan berikutnya.
                             // Model Jurnal: M tidak dikurangi; keluar tercatat via TI (masuk K).
                             // Diskon baris dibebankan ke slice pertama agar total tetap.
                             $slices = $allocService->allocateAcrossBatches(
                                 $product->id,
                                 $batch->product_variant_id,
                                 $allocWarehouseId,
-                                $qty,
-                                $batch->id
+                                $qty
                             );
                             $totalAmount += $price * $qty - $discount;
                             $first = true;

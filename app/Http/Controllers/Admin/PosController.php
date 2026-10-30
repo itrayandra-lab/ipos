@@ -372,14 +372,13 @@ class PosController extends Controller
                         $basePrice = \App\Services\PricingService::calculate($batch, $channelSlug);
                     }
 
-                    // Alokasi otomatis lintas ID batch dalam gudang yang sama (FEFO,
-                    // batch pilihan diutamakan). Mis. jual 50: 40 dari ID 1 + 10 dari ID 2.
+                    // Alokasi otomatis lintas ID batch menggunakan FIFO. Mis. jual 50:
+                    // 40 dari lapisan penerimaan tertua + 10 dari lapisan berikutnya.
                     $slices = $stockService->allocateAcrossBatches(
                         $product->id,
                         $batch->product_variant_id,
                         $warehouseId,
-                        $qty,
-                        $batch->id
+                        $qty
                     );
                     $batchId = $batch->id;
                 }

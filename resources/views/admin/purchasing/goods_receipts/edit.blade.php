@@ -165,6 +165,7 @@
                                                     <option value="{{ $po->id }}" {{ $gr->purchase_order_id == $po->id ? 'selected' : '' }}>{{ $po->po_number }} - {{ $po->supplier->name }}</option>
                                                 @endforeach
                                             </select>
+                                            <small class="text-muted">Setiap penerimaan memakai satu PO. PO berbeda dicatat sebagai penerimaan terpisah; nomor batch fisik yang sama tetap dapat digunakan.</small>
                                         </div>
                                     </div>
                                     <div class="col-md-4">

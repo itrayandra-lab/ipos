@@ -108,10 +108,11 @@
 
             {{-- Adjustment Data Group --}}
             @if($user->hasPermission('access_adjustment_menu') || $user->hasPermission('access_adjustment_products') || $user->hasPermission('access_products_menu'))
-            <li class="nav-item dropdown {{ ($sb == 'AdjustmentProduct') ? 'active' : '' }}">
+            <li class="nav-item dropdown {{ in_array($sb, ['AdjustmentProduct', 'AdjustmentPurchaseOrder']) ? 'active' : '' }}">
                 <a href="#" class="nav-link has-dropdown"><i class="fas fa-sliders-h"></i> <span>Adjustment Data</span></a>
                 <ul class="dropdown-menu">
                     <li class="{{ $sb == 'AdjustmentProduct' ? 'active' : '' }}"><a class="nav-link" href="{{ route('admin.adjustment.products.index') }}">List Produk</a></li>
+                    <li class="{{ $sb == 'AdjustmentPurchaseOrder' ? 'active' : '' }}"><a class="nav-link" href="{{ route('admin.adjustment.purchase_orders.index') }}">Adjustment PO</a></li>
                 </ul>
             </li>
             @endif

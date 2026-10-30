@@ -1413,9 +1413,12 @@ class ProductAdjustmentController extends Controller
         $item = \App\Models\TransactionItem::findOrFail($d['item_id']);
         $trx = \App\Models\Transaction::findOrFail($item->transaction_id);
         $locked = in_array($trx->payment_status, ['paid', 'credit']);
+        $hasSupplierPaymentAllocation = DB::table('supplier_payment_item_allocations')
+            ->where('transaction_item_id', $item->id)
+            ->exists();
 
         if (array_key_exists('buy_price', $d)) {
-            if ($item->supplier_payment_id) {
+            if ($item->supplier_payment_id || $hasSupplierPaymentAllocation) {
                 return response()->json(['status' => 'error', 'message' => 'HPP baris tidak bisa diubah karena sudah masuk pelunasan supplier.'], 422);
             }
             if ($d['buy_price'] !== null) {
@@ -1424,6 +1427,9 @@ class ProductAdjustmentController extends Controller
         }
 
         if (array_key_exists('variant_id', $d)) {
+            if ($hasSupplierPaymentAllocation) {
+                return response()->json(['status' => 'error', 'message' => 'Varian baris tidak bisa diubah karena sebagian qty sudah masuk pelunasan supplier.'], 422);
+            }
             if ($d['variant_id']) {
                 $ok = \App\Models\ProductVariant::where('id', $d['variant_id'])
                     ->whereHas('netto', fn($q) => $q->where('product_id', $item->product_id))->exists();
@@ -1512,6 +1518,12 @@ class ProductAdjustmentController extends Controller
 
         DB::transaction(function () use ($items, $variant, $fillHpp, $hpp, &$updated, &$hppFilled) {
             foreach ($items as $item) {
+                if ($item->supplier_payment_id || DB::table('supplier_payment_item_allocations')
+                    ->where('transaction_item_id', $item->id)
+                    ->exists()) {
+                    continue;
+                }
+
                 $changed = false;
                 if ((int) $item->product_variant_id !== (int) $variant->id) {
                     $item->product_variant_id = $variant->id;

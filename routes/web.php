@@ -369,6 +369,7 @@ Route::prefix('admin')->middleware(['auth', 'role:super_admin,store_manager,fina
             // Factory Settlement Report (Laporan Pelunasan Pabrik)
             Route::get('settlement-report', [\App\Http\Controllers\Admin\Finance\SettlementController::class, 'index'])->name('admin.finance.settlement.index');
             Route::get('settlement-report/data', [\App\Http\Controllers\Admin\Finance\SettlementController::class, 'data'])->name('admin.finance.settlement.data');
+            Route::post('settlement-report/allocate', [\App\Http\Controllers\Admin\Finance\SettlementController::class, 'allocationPage'])->name('admin.finance.settlement.allocate');
             Route::get('settlement-report/detail', [\App\Http\Controllers\Admin\Finance\SettlementController::class, 'detail'])->name('admin.finance.settlement.detail');
             Route::post('settlement-report/pay', [\App\Http\Controllers\Admin\Finance\SettlementController::class, 'pay'])->name('admin.finance.settlement.pay');
             Route::get('settlement-report/export/excel', [\App\Http\Controllers\Admin\Finance\SettlementController::class, 'exportExcel'])->name('admin.finance.settlement.export.excel');
@@ -459,6 +460,10 @@ Route::prefix('admin')->middleware(['auth', 'role:super_admin,store_manager,fina
             Route::get('/products/netto/{netto}/fill-variant-preview', [\App\Http\Controllers\Admin\Adjustment\ProductAdjustmentController::class, 'fillEmptyVariantsPreview'])->name('admin.adjustment.netto.fill_variant_preview');
             Route::post('/products/netto/fill-variant', [\App\Http\Controllers\Admin\Adjustment\ProductAdjustmentController::class, 'fillEmptyVariants'])->name('admin.adjustment.netto.fill_variant');
             Route::post('/products/netto/create', [\App\Http\Controllers\Admin\Adjustment\ProductAdjustmentController::class, 'createNettoVariant'])->name('admin.adjustment.netto.create');
+            Route::get('/purchase-orders', [\App\Http\Controllers\Admin\Adjustment\PurchaseOrderAdjustmentController::class, 'index'])->name('admin.adjustment.purchase_orders.index');
+            Route::get('/purchase-orders/data', [\App\Http\Controllers\Admin\Adjustment\PurchaseOrderAdjustmentController::class, 'data'])->name('admin.adjustment.purchase_orders.data');
+            Route::get('/purchase-orders/candidates', [\App\Http\Controllers\Admin\Adjustment\PurchaseOrderAdjustmentController::class, 'candidates'])->name('admin.adjustment.purchase_orders.candidates');
+            Route::post('/purchase-orders/link', [\App\Http\Controllers\Admin\Adjustment\PurchaseOrderAdjustmentController::class, 'update'])->name('admin.adjustment.purchase_orders.update');
         }
         );
 

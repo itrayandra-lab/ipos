@@ -410,31 +410,18 @@ class GoodsReceiptController extends Controller
                     }
 
                     $finalBatchNo = $batchNo ?: 'GR-' . $grItem->id;
-                    $existingBatch = ProductBatch::where('product_id', $productId)
-                        ->where('product_variant_id', $variantId)
-                        ->where('warehouse_id', $gr->warehouse_id)
-                        ->where('batch_no', $finalBatchNo)
-                        ->first();
-
-                    if ($existingBatch) {
-                        $existingBatch->update([
-                            'goods_receipt_item_id' => $grItem->id,
-                            'qty' => (int)$item['qty_received'],
-                            'buy_price' => $buyPrice,
-                            'expiry_date' => $item['expiry_date'] ?? $existingBatch->expiry_date,
-                        ]);
-                    } else {
-                        ProductBatch::create([
-                            'goods_receipt_item_id' => $grItem->id,
-                            'product_id' => $productId,
-                            'product_variant_id' => $variantId,
-                            'warehouse_id' => $gr->warehouse_id,
-                            'batch_no' => $finalBatchNo,
-                            'expiry_date' => $item['expiry_date'] ?? null,
-                            'qty' => (int)$item['qty_received'],
-                            'buy_price' => $buyPrice,
-                        ]);
-                    }
+                    ProductBatch::create([
+                        'goods_receipt_item_id' => $grItem->id,
+                        'purchase_order_item_id' => $grItem->purchase_order_item_id,
+                        'supplier_id' => $gr->supplier_id,
+                        'product_id' => $productId,
+                        'product_variant_id' => $variantId,
+                        'warehouse_id' => $gr->warehouse_id,
+                        'batch_no' => $finalBatchNo,
+                        'expiry_date' => $item['expiry_date'] ?? null,
+                        'qty' => (int)$item['qty_received'],
+                        'buy_price' => $buyPrice,
+                    ]);
                 }
             }
 
@@ -522,9 +509,12 @@ class GoodsReceiptController extends Controller
                 // Remove old FK-linked batches (skip batches already used in stock history)
                 ProductBatch::where('goods_receipt_item_id', $oldItem->id)
                     ->get()
-                    ->each(function ($batch) {
+                    ->each(function ($batch) use ($oldItem) {
                         if ($batch->hasStockHistory()) {
-                            $batch->update(['goods_receipt_item_id' => null]);
+                            $batch->update([
+                                'goods_receipt_item_id' => null,
+                                'purchase_order_item_id' => $batch->purchase_order_item_id ?: $oldItem->purchase_order_item_id,
+                            ]);
                         } else {
                             $batch->delete();
                         }
@@ -624,11 +614,13 @@ class GoodsReceiptController extends Controller
                         ->where('product_variant_id', $variantId)
                         ->where('warehouse_id', $gr->warehouse_id)
                         ->where('batch_no', $finalBatchNo)
+                        ->where('purchase_order_item_id', $grItem->purchase_order_item_id)
                         ->first();
 
                     if ($existingBatch) {
                         $existingBatch->update([
                             'goods_receipt_item_id' => $grItem->id,
+                            'supplier_id' => $gr->supplier_id,
                             'qty' => (int)$item['qty_received'],
                             'buy_price' => $buyPrice,
                             'expiry_date' => $item['expiry_date'] ?? $existingBatch->expiry_date,
@@ -636,6 +628,8 @@ class GoodsReceiptController extends Controller
                     } else {
                         ProductBatch::create([
                             'goods_receipt_item_id' => $grItem->id,
+                            'purchase_order_item_id' => $grItem->purchase_order_item_id,
+                            'supplier_id' => $gr->supplier_id,
                             'product_id' => $productId,
                             'product_variant_id' => $variantId,
                             'warehouse_id' => $gr->warehouse_id,
@@ -702,9 +696,12 @@ class GoodsReceiptController extends Controller
 
                 ProductBatch::where('goods_receipt_item_id', $item->id)
                     ->get()
-                    ->each(function ($batch) {
+                    ->each(function ($batch) use ($item) {
                         if ($batch->hasStockHistory()) {
-                            $batch->update(['goods_receipt_item_id' => null]);
+                            $batch->update([
+                                'goods_receipt_item_id' => null,
+                                'purchase_order_item_id' => $batch->purchase_order_item_id ?: $item->purchase_order_item_id,
+                            ]);
                         } else {
                             $batch->delete();
                         }

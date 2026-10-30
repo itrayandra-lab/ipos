@@ -41,20 +41,19 @@ class PurchaseOrderController extends Controller
 
         $poIds = (clone $baseQuery)->pluck('id');
 
-        $totalTerbayar = 0;
-        if ($poIds->isNotEmpty()) {
-            $productIds = PurchaseOrderItem::whereIn('purchase_order_id', $poIds)
-                ->whereNotNull('product_id')
-                ->pluck('product_id')
-                ->unique()
-                ->toArray();
-
-            if (!empty($productIds)) {
-                $totalTerbayar = (float) DB::table('supplier_payment_items')
-                    ->whereIn('product_id', $productIds)
-                    ->sum('subtotal');
-            }
-        }
+        $totalTerbayar = $poIds->isNotEmpty()
+            ? (float) DB::table('supplier_payment_items as payment_items')
+                ->join('supplier_payments as payments', 'payments.id', '=', 'payment_items.supplier_payment_id')
+                ->where(function ($query) use ($poIds) {
+                    $query->whereIn('payments.purchase_order_id', $poIds)
+                        ->orWhereIn('payment_items.purchase_order_item_id', function ($subQuery) use ($poIds) {
+                            $subQuery->select('id')
+                                ->from('purchase_order_items')
+                                ->whereIn('purchase_order_id', $poIds);
+                        });
+                })
+                ->sum('payment_items.subtotal')
+            : 0;
 
         $sisa = max(0, $totalPembelian - $totalTerbayar);
 
@@ -515,36 +514,40 @@ class PurchaseOrderController extends Controller
             'approvals.user'
         ])->findOrFail($id);
 
-        $productIds = $po->items->pluck('product_id')->filter()->unique()->toArray();
-
         $payments = collect();
-        $totalPaid = 0;
-        if (!empty($productIds)) {
-            $paymentRecords = DB::table('supplier_payment_items')
-                ->join('supplier_payments', 'supplier_payment_items.supplier_payment_id', '=', 'supplier_payments.id')
-                ->join('products', 'supplier_payment_items.product_id', '=', 'products.id')
-                ->leftJoin('users', 'supplier_payments.created_by', '=', 'users.id')
-                ->whereIn('supplier_payment_items.product_id', $productIds)
-                ->select(
-                    'supplier_payments.id as payment_id',
-                    'supplier_payments.payment_number',
-                    'supplier_payments.payment_date',
-                    'supplier_payments.total_amount as payment_total',
-                    'supplier_payments.payment_proof',
-                    'supplier_payments.notes',
-                    'supplier_payment_items.product_id',
-                    'supplier_payment_items.qty',
-                    'supplier_payment_items.buy_price',
-                    'supplier_payment_items.subtotal',
-                    'products.name as product_name',
-                    'users.name as cashier_name'
-                )
-                ->orderBy('supplier_payments.payment_date')
-                ->get();
+        $paymentRecords = DB::table('supplier_payment_items')
+            ->join('supplier_payments', 'supplier_payment_items.supplier_payment_id', '=', 'supplier_payments.id')
+            ->join('products', 'supplier_payment_items.product_id', '=', 'products.id')
+            ->leftJoin('users', 'supplier_payments.created_by', '=', 'users.id')
+            ->where(function ($query) use ($po) {
+                $query->where('supplier_payments.purchase_order_id', $po->id)
+                    ->orWhereIn('supplier_payment_items.purchase_order_item_id', function ($subQuery) use ($po) {
+                        $subQuery->select('id')
+                            ->from('purchase_order_items')
+                            ->where('purchase_order_id', $po->id);
+                    });
+            })
+            ->select(
+                'supplier_payments.id as payment_id',
+                'supplier_payments.payment_number',
+                'supplier_payments.payment_date',
+                'supplier_payments.total_amount as payment_total',
+                'supplier_payments.payment_proof',
+                'supplier_payments.notes',
+                'supplier_payment_items.product_id',
+                'supplier_payment_items.qty',
+                'supplier_payment_items.buy_price',
+                'supplier_payment_items.subtotal',
+                'products.name as product_name',
+                'users.name as cashier_name'
+            )
+            ->orderBy('supplier_payments.payment_date')
+            ->get();
 
+        if ($paymentRecords->isNotEmpty()) {
             $payments = $paymentRecords;
-            $totalPaid = $paymentRecords->sum('subtotal');
         }
+        $totalPaid = $paymentRecords->sum('subtotal');
 
         // Build merged timeline: goods receipts + payments
         $timeline = collect();

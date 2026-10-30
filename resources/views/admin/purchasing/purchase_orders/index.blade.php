@@ -234,8 +234,9 @@
                                     <i class="fas fa-check-circle"></i>
                                 </div>
                                 <div style="flex:1;">
-                                    <div class="stat-label">Total Terbayar</div>
+                                    <div class="stat-label">Total Terbayar per PO</div>
                                     <div class="stat-value-rev" style="font-size:17px;">Rp {{ number_format($totalTerbayar, 0, ',', '.') }}</div>
+                                    <small class="text-muted d-block">Tidak termasuk riwayat lama tanpa tautan PO</small>
                                 </div>
                             </div>
                         </div>

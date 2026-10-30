@@ -237,6 +237,7 @@
         color: var(--slate-600) !important;
         font-weight: 700 !important; font-size: 11px !important;
         text-transform: uppercase; letter-spacing: .5px;
+        text-align: center !important;
         padding: 14px 14px !important; border-top: none !important;
         border-bottom: 1.5px solid var(--slate-100) !important;
     }
@@ -269,85 +270,23 @@
     .cost-text { font-weight: 800; color: var(--red-700); font-size: 13px; }
     .hpp-text  { font-weight: 600; color: var(--slate-600); }
 
-    .btn-detail-row {
-        background: linear-gradient(135deg, #06b6d4, #0891b2);
-        color: #fff; border: none; border-radius: 8px;
-        padding: 6px 14px; font-size: 12px; font-weight: 600;
-        display: inline-flex; align-items: center; gap: 5px;
-        transition: all .2s; cursor: pointer;
+    /* Status pelunasan */
+    .pay-badge {
+        display: inline-block; margin-top: 5px; padding: 2px 9px;
+        border-radius: 20px; font-size: 10px; font-weight: 800;
+        letter-spacing: .3px; text-transform: uppercase; white-space: nowrap;
     }
-    .btn-detail-row:hover { transform: translateY(-1px); box-shadow: 0 4px 14px rgba(6,182,212,.35); }
+    .pay-badge-lunas { background: #dcfce7; color: #166534; border: 1px solid #bbf7d0; }
+    .pay-badge-sebagian { background: #fef3c7; color: #92400e; border: 1px solid #fde68a; }
+
+    /* Baris yang sudah lunas: diredupkan & tidak bisa dipilih */
+    #report-table tbody tr.row-lunas { background: #fafafa; }
+    #report-table tbody tr.row-lunas td { opacity: .62; }
+    #report-table tbody tr.row-lunas .cost-text { text-decoration: line-through; color: var(--slate-400); }
+    #report-table tbody tr.row-lunas .check-item { cursor: not-allowed; }
 
     /* Checkbox */
     .check-item, #checkAll { width: 16px; height: 16px; accent-color: var(--teal-600); cursor: pointer; }
-
-    /* ===== MODAL OVERRIDES ===== */
-    .modal-content {
-        border-radius: 20px !important;
-        border: none !important;
-        box-shadow: 0 30px 80px rgba(0,0,0,.18) !important;
-        overflow: hidden;
-    }
-    .modal-header {
-        background: linear-gradient(135deg, var(--teal-700), var(--teal-800));
-        color: #fff; padding: 20px 26px !important; border: none !important;
-    }
-    .modal-header .modal-title { font-weight: 800; font-size: 16px; }
-    .modal-header .close { color: rgba(255,255,255,.8) !important; opacity: 1 !important; font-size: 22px; text-shadow: none; }
-    .modal-header .close:hover { color: #fff !important; }
-    .modal-body { padding: 24px 26px !important; }
-    .modal-footer { padding: 16px 26px !important; border-top: 1.5px solid var(--slate-100) !important; background: var(--slate-50); }
-
-    /* Payment modal header distinct */
-    #paymentModal .modal-header {
-        background: linear-gradient(135deg, #7c3aed, #4c1d95);
-    }
-
-    /* Tab styling */
-    .nav-tabs { border-bottom: 2px solid var(--slate-100) !important; }
-    .nav-tabs .nav-link {
-        border: none !important; color: var(--slate-400) !important;
-        font-weight: 700; font-size: 13px; padding: 10px 18px;
-        border-radius: 8px 8px 0 0; transition: all .2s;
-    }
-    .nav-tabs .nav-link.active {
-        color: var(--teal-700) !important; background: transparent !important;
-        border-bottom: 2px solid var(--teal-600) !important; margin-bottom: -2px;
-    }
-    .nav-tabs .nav-link:hover:not(.active) { color: var(--slate-700) !important; background: var(--slate-50) !important; }
-
-    /* Detail table inside modal */
-    .detail-inner-table { font-size: 12.5px !important; }
-    .detail-inner-table thead th {
-        background: var(--slate-50) !important; color: var(--slate-600) !important;
-        font-weight: 700 !important; font-size: 11px !important;
-        text-transform: uppercase; letter-spacing: .5px;
-        padding: 10px 12px !important;
-    }
-    .detail-inner-table tbody td { padding: 10px 12px !important; vertical-align: middle !important; }
-
-    /* Form group in modal */
-    .modal-form-label {
-        font-size: 11px; font-weight: 700; color: var(--slate-600);
-        text-transform: uppercase; letter-spacing: .6px; margin-bottom: 6px;
-    }
-    .modal-form-control {
-        border-radius: 10px !important; border: 1.5px solid var(--slate-200) !important;
-        height: 42px !important; font-size: 13px !important;
-        transition: border-color .2s !important;
-    }
-    .modal-form-control:focus {
-        border-color: var(--teal-600) !important;
-        box-shadow: 0 0 0 3px rgba(13,148,136,.12) !important;
-    }
-    textarea.modal-form-control { height: auto !important; }
-    .total-badge-modal {
-        background: linear-gradient(135deg, #fef2f2, #fee2e2);
-        border: 1.5px solid #fecaca; border-radius: 12px;
-        padding: 14px 18px; margin-top: 6px;
-    }
-    .total-badge-modal .label { font-size: 11px; font-weight: 700; color: var(--red-600); text-transform: uppercase; letter-spacing: .6px; }
-    .total-badge-modal .value { font-size: 22px; font-weight: 800; color: var(--red-700); }
 
     /* Processing overlay */
     .dataTables_processing {
@@ -369,7 +308,7 @@
             </div>
             <div>
                 <h1>Laporan Pelunasan Supplier</h1>
-                <p>Monitoring HPP & status pembayaran ke supplier / pabrik</p>
+                <p>Pilih transaksi yang belum lunas untuk melihat alokasi FIFO per PO</p>
             </div>
             <div class="ml-auto sett-breadcrumb d-none d-md-flex">
                 <a href="{{ url('admin') }}">Dashboard</a>
@@ -382,6 +321,12 @@
     </div>
 
     <div class="section-body">
+        @if(session('error'))
+            <div class="alert alert-danger">{{ session('error') }}</div>
+        @endif
+        @if(session('success'))
+            <div class="alert alert-success">{{ session('success') }}</div>
+        @endif
 
         {{-- ===== TOP ACTION BUTTONS ===== --}}
         <div class="sett-actions">
@@ -400,6 +345,10 @@
                 <i class="fas fa-file-pdf"></i> PDF
             </a>
         </div>
+        <p class="text-muted mb-3" style="font-size:12px;">
+            Pilih satu atau beberapa transaksi yang akan dibayar, lalu klik <strong>Bayar Terpilih</strong>.
+            Alokasi ke PO dan proses pembayaran dilakukan pada halaman berikutnya.
+        </p>
 
         {{-- ===== FILTER CARD ===== --}}
         <div class="sett-filter-card">
@@ -442,7 +391,7 @@
                     <i class="fas fa-boxes"></i>
                 </div>
                 <div class="sett-stat-info">
-                    <div class="sett-stat-label">Total Produk Terjual</div>
+                    <div class="sett-stat-label">Total Qty Transaksi</div>
                     <div class="sett-stat-value" id="summary-total-qty">—</div>
                 </div>
             </div>
@@ -451,7 +400,7 @@
                     <i class="fas fa-hand-holding-usd"></i>
                 </div>
                 <div class="sett-stat-info">
-                    <div class="sett-stat-label">Total Pelunasan (HPP)</div>
+                    <div class="sett-stat-label">Total Nilai Transaksi</div>
                     <div class="sett-stat-value" id="summary-total-cost" style="font-size:18px;">—</div>
                 </div>
             </div>
@@ -467,11 +416,10 @@
                 </div>
             </div>
         </div>
-
         {{-- ===== DATA TABLE CARD ===== --}}
         <div class="sett-table-card">
             <div class="sett-table-card-header">
-                <h4><i class="fas fa-table"></i> Daftar Item Belum Lunas</h4>
+                <h4><i class="fas fa-table"></i> Daftar Transaksi Pelunasan Supplier</h4>
                 <span id="table-range-label" class="badge" style="background:var(--teal-50);color:var(--teal-700);font-size:11px;padding:5px 12px;border-radius:20px;font-weight:700;border:1px solid var(--teal-100);"></span>
             </div>
             <div class="table-responsive px-3 pt-2 pb-3">
@@ -482,12 +430,12 @@
                                 <input type="checkbox" id="checkAll" title="Pilih semua">
                             </th>
                             <th width="40px">#</th>
-                            <th>Nama Produk</th>
+                            <th>Kode Transaksi</th>
+                            <th>Tanggal</th>
+                            <th>Produk</th>
                             <th>Supplier</th>
-                            <th class="text-right">HPP Satuan</th>
-                            <th class="text-center">Total Terjual</th>
-                            <th class="text-right">Total HPP</th>
-                            <th width="90px" class="text-center">Aksi</th>
+                            <th class="text-center">Transaksi</th>
+                            <th class="text-right">Total Nilai Transaksi</th>
                         </tr>
                     </thead>
                     <tbody></tbody>
@@ -499,116 +447,7 @@
 </section>
 </div>
 
-{{-- ===== MODAL DETAIL TRANSAKSI ===== --}}
-<div class="modal fade" id="detailModal" tabindex="-1" role="dialog" aria-labelledby="detailModalLabel" aria-hidden="true">
-    <div class="modal-dialog modal-lg" role="document">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title" id="detailModalLabel"><i class="fas fa-chart-bar mr-2"></i>Detail Transaksi</h5>
-                <button type="button" class="close" data-dismiss="modal" aria-label="Close">
-                    <span aria-hidden="true">&times;</span>
-                </button>
-            </div>
-            <div class="modal-body">
-                <div class="table-responsive">
-                    <table class="table table-sm table-bordered detail-inner-table">
-                        <thead>
-                            <tr>
-                                <th>#</th>
-                                <th>Kode Transaksi</th>
-                                <th>Tanggal</th>
-                                <th class="text-center">Qty</th>
-                                <th class="text-right">HPP Satuan</th>
-                                <th class="text-right">Total HPP</th>
-                            </tr>
-                        </thead>
-                        <tbody id="detail-sales-tbody"></tbody>
-                    </table>
-                </div>
-            </div>
-            <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-dismiss="modal" style="border-radius:8px;">Tutup</button>
-            </div>
-        </div>
-    </div>
-</div>
-
-{{-- ===== MODAL PEMBAYARAN ===== --}}
-<div class="modal fade" id="paymentModal" tabindex="-1" role="dialog" aria-hidden="true">
-    <div class="modal-dialog" role="document">
-        <div class="modal-content">
-            <form id="form-payment" enctype="multipart/form-data">
-                <div class="modal-header">
-                    <h5 class="modal-title"><i class="fas fa-money-bill-wave mr-2"></i>Konfirmasi Pembayaran Supplier</h5>
-                    <button type="button" class="close" data-dismiss="modal" aria-label="Close">
-                        <span aria-hidden="true">&times;</span>
-                    </button>
-                </div>
-                <div class="modal-body">
-                    <input type="hidden" name="products" id="pay_products_json">
-
-                    {{-- Highlighted System Total --}}
-                    <div class="alert mb-4" style="background: linear-gradient(135deg, var(--teal-50), #e0fdf4); border: 1.5px solid var(--teal-100); border-radius: 12px; padding: 16px 20px;">
-                        <div class="d-flex justify-content-between align-items-center">
-                            <div>
-                                <h6 class="mb-1" style="color: var(--teal-800); font-weight: 800; font-size: 13px; text-transform: uppercase; letter-spacing: 0.5px;">
-                                    <i class="fas fa-file-invoice-dollar mr-1"></i> Total Tagihan
-                                </h6>
-                                <div style="font-size: 11px; color: var(--teal-600);">Berdasarkan item yang dipilih</div>
-                            </div>
-                            <div id="pay_total_amount_display" style="font-size: 24px; font-weight: 900; color: var(--teal-700); letter-spacing: -0.5px;">
-                                Rp 0
-                            </div>
-                        </div>
-                    </div>
-
-                    <div class="form-group mb-4">
-                        <label class="modal-form-label">Nominal Pembayaran Aktual <span class="text-danger">*</span></label>
-                        <input type="number" name="actual_payment_amount" id="actual_payment_amount" class="form-control modal-form-control" required placeholder="Masukkan nominal yang dibayarkan">
-                    </div>
-
-                    <div class="form-group">
-                        <label class="modal-form-label">Supplier <span class="text-danger">*</span></label>
-                        <select name="supplier_id" class="form-control modal-form-control" required>
-                            <option value="">-- Pilih Supplier --</option>
-                            @foreach($suppliers as $s)
-                                <option value="{{ $s->id }}">{{ $s->name }}</option>
-                            @endforeach
-                        </select>
-                    </div>
-
-                    <div class="form-group">
-                        <label class="modal-form-label">Tanggal Pembayaran <span class="text-danger">*</span></label>
-                        <input type="date" name="payment_date" class="form-control modal-form-control" value="{{ date('Y-m-d') }}" required>
-                    </div>
-
-                    <div class="form-group">
-                        <label class="modal-form-label">Bukti Pembayaran</label>
-                        <label for="proof_input" style="display:block; border:2px dashed var(--slate-200);border-radius:10px;padding:18px;text-align:center;cursor:pointer;transition:border-color .2s; margin-bottom: 0;" id="upload-area">
-                            <i class="fas fa-cloud-upload-alt" style="font-size:24px;color:var(--slate-400);margin-bottom:6px;"></i>
-                            <div style="font-size:12px;color:var(--slate-400);">Klik atau seret file ke sini</div>
-                            <div style="font-size:11px;color:var(--slate-400);margin-top:4px;">JPG, PNG, PDF — Maks. 2 MB</div>
-                            <input type="file" name="payment_proof" id="proof_input" accept="image/*,.pdf" style="display:none;">
-                        </label>
-                        <div id="file-preview" class="mt-2" style="display:none; font-size:12px; color:var(--teal-700); font-weight:600;"></div>
-                    </div>
-
-                    <div class="form-group">
-                        <label class="modal-form-label">Catatan</label>
-                        <textarea name="notes" class="form-control modal-form-control" rows="3" style="height:auto!important; border-radius:10px!important;" placeholder="Tambahkan catatan jika perlu..."></textarea>
-                    </div>
-                </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-dismiss="modal" style="border-radius:8px;">Batal</button>
-                    <button type="submit" class="btn" id="btn-confirm-pay"
-                        style="background:linear-gradient(135deg,#7c3aed,#4c1d95);color:#fff;border-radius:8px;font-weight:700;padding:9px 22px;box-shadow:0 4px 14px rgba(124,58,237,.3);">
-                        <i class="fas fa-check mr-1"></i> Konfirmasi Pembayaran
-                    </button>
-                </div>
-            </form>
-        </div>
-    </div>
-</div>
+{{-- Alokasi PO dan pembayaran dilakukan pada halaman terpisah. --}}
 
 <script>
 $(document).ready(function() {
@@ -636,35 +475,37 @@ $(document).ready(function() {
                 data: null, orderable: false, searchable: false,
                 className: 'text-center',
                 render: function(data, type, row) {
-                    // Build the JSON payload safely — no quotes inside attribute
-                    var payload = JSON.stringify({
-                        product_id : String(row.product_id),
-                        variant_id : row.product_variant_id ? String(row.product_variant_id) : '',
-                        cost       : parseFloat(row.raw_total_cost) || 0
-                    });
-                    // Encode for HTML attribute (replace double-quotes with &quot;)
-                    var safePayload = payload.replace(/"/g, '&quot;');
-                    return '<input type="checkbox" class="check-item" data-product="' + safePayload + '">';
+                    var disabled = row.payment_status === 'lunas';
+                    return '<input type="checkbox" class="check-item" data-transaction-item-id="' + row.transaction_item_id + '"'
+                        + (disabled ? ' disabled title="Transaksi sudah lunas"' : '') + '>';
                 }
             },
-            { data: 'DT_RowIndex', name: 'DT_RowIndex', orderable: false, searchable: false },
+            { data: 'DT_RowIndex', name: 'DT_RowIndex', orderable: false, searchable: false, className: 'text-center' },
             {
-                // col 2 — product name  (server sends plain text via ->editColumn, we render it)
-                data: 'product_name', searchable: false,
+                data: 'transaction_code', searchable: true, className: 'text-center',
                 render: function(data, type, row) {
-                    // data is the server-rendered HTML string (may contain <div> wrapper)
-                    // Strip any outer wrapper and rebuild cleanly
-                    var tmp = $('<div>').html(data);
-                    var plainName = tmp.text().trim() || data;
-                    var sku = row.sku_code
-                        ? '<div class="sett-product-sku">' + $('<div>').text(row.sku_code).html() + '</div>'
-                        : '';
-                    return '<div class="sett-product-name">' + $('<div>').text(plainName).html() + '</div>' + sku;
+                    return '<div class="font-weight-bold">' + $('<div>').text(data || ('#' + row.transaction_item_id)).html() + '</div>'
+                        + (row.invoice_number ? '<small class="text-muted">' + $('<div>').text(row.invoice_number).html() + '</small>' : '');
                 }
             },
             {
-                // col 3 — supplier badge
-                data: 'supplier_name', searchable: false,
+                data: 'transaction_date',
+                searchable: false,
+                className: 'text-center',
+                render: function(data) {
+                    if (!data) return '-';
+                    const parsed = new Date(String(data).replace(' ', 'T'));
+                    return Number.isNaN(parsed.getTime()) ? $('<div>').text(data).html() : parsed.toLocaleDateString('id-ID');
+                }
+            },
+            {
+                data: 'product_name', searchable: true,
+                render: function(data) {
+                    return $('<div>').text(data || '').html();
+                }
+            },
+            {
+                data: 'supplier_name', searchable: false, className: 'text-center',
                 render: function(data) {
                     if (data) {
                         return '<span class="badge-supplier">' + $('<div>').text(data).html() + '</span>';
@@ -672,43 +513,36 @@ $(document).ready(function() {
                     return '<span class="badge-no-supplier">Tanpa Supplier</span>';
                 }
             },
-            // col 4 — HPP satuan
-            { data: 'buy_price', name: 'buy_price', className: 'text-right hpp-text', searchable: false },
             {
-                // col 5 — qty pill
-                data: 'total_qty', name: 'total_qty', className: 'text-center', searchable: false,
-                render: function(data) {
-                    return '<span class="qty-pill">' + data + '</span>';
-                }
-            },
-            {
-                // col 6 — total cost
-                data: 'total_cost', name: 'total_cost', className: 'text-right', searchable: false,
-                render: function(data) {
-                    return '<span class="cost-text">' + data + '</span>';
-                }
-            },
-            {
-                // col 7 — aksi (detail button built client-side, safe from XSS)
-                data: null, name: 'action', orderable: false, searchable: false, className: 'text-center',
+                data: 'total_qty', searchable: false, className: 'text-center',
                 render: function(data, type, row) {
-                    var pid  = encodeURIComponent(row.product_id || '');
-                    var vid  = encodeURIComponent(row.product_variant_id || '');
-                    var plainName = $('<div>').html(row.product_name || '').text();
-                    var pname = $('<div>').text(plainName).html();
-                    var vname = $('<div>').text(row.variant_name || '').html();
-                    return '<button type="button" class="btn-detail-row btn-detail"'
-                        + ' data-product-id="' + row.product_id + '"'
-                        + ' data-variant-id="' + (row.product_variant_id || '') + '"'
-                        + ' data-buy-price="' + (row.raw_buy_price || 0) + '"'
-                        + ' data-product-name="' + pname + '"'
-                        + ' data-variant-name="' + vname + '">'
-                        + '<i class="fas fa-eye"></i> Detail'
-                        + '</button>';
+                    var qty = new Intl.NumberFormat('id-ID', { maximumFractionDigits: 2 }).format(data || 0);
+                    var hpp = new Intl.NumberFormat('id-ID').format(row.unit_hpp || 0);
+                    return '<span class="qty-pill">' + qty + '</span>'
+                        + '<span class="hpp-text ml-1">&times; Rp ' + hpp + '</span>';
+                }
+            },
+            {
+                data: 'total_cost', name: 'total_cost', className: 'text-right', searchable: false,
+                render: function(data, type, row) {
+                    var html = '<span class="cost-text">Rp ' + new Intl.NumberFormat('id-ID').format(data || 0) + '</span>';
+
+                    if (row.payment_status === 'lunas') {
+                        html += '<div><span class="pay-badge pay-badge-lunas"><i class="fas fa-check-circle mr-1"></i>Lunas</span></div>';
+                    } else if (row.payment_status === 'sebagian') {
+                        html += '<div><span class="pay-badge pay-badge-sebagian">Sebagian</span></div>';
+                    }
+
+                    return html;
                 }
             }
         ],
-        order: [[5, 'desc']],
+        order: [[3, 'desc']],
+        createdRow: function(row, data) {
+            if (data.payment_status === 'lunas') {
+                $(row).addClass('row-lunas');
+            }
+        },
         language: {
             processing: '<i class="fas fa-spinner fa-spin mr-2"></i> Memuat data...',
             emptyTable: '<div style="padding:20px;color:var(--slate-400);"><i class="fas fa-inbox" style="font-size:28px;margin-bottom:8px;display:block;"></i>Tidak ada data yang tersedia</div>',
@@ -731,6 +565,8 @@ $(document).ready(function() {
        ============================ */
     $('#filter-form').on('submit', function(e) {
         e.preventDefault();
+        selectedTransactionItems.clear();
+        $('#checkAll').prop('checked', false);
         table.draw();
         updateExportUrls();
         updateRangeLabel();
@@ -745,12 +581,11 @@ $(document).ready(function() {
         const summary = json.summary;
 
         $('#summary-total-qty').text(
-            new Intl.NumberFormat('id-ID').format(summary.total_qty || 0) + ' pcs'
+            new Intl.NumberFormat('id-ID', { maximumFractionDigits: 2 }).format(summary.total_qty || 0) + ' pcs'
         );
         $('#summary-total-cost').text(
             'Rp ' + new Intl.NumberFormat('id-ID').format(summary.total_cost || 0)
         );
-
         if (summary.supplier) {
             $('#supplier-info-wrapper').show();
             $('#supplier-bank-name').text(summary.supplier.bank_name || '—');
@@ -778,19 +613,36 @@ $(document).ready(function() {
     /* ============================
        CHECKBOX LOGIC
        ============================ */
+    const selectedTransactionItems = new Set();
+    table.on('draw', function() {
+        $('.check-item').each(function() {
+            this.checked = selectedTransactionItems.has(String($(this).data('transaction-item-id')));
+        });
+        togglePayButton();
+    });
+
     $('#checkAll').on('change', function() {
-        $('.check-item').prop('checked', $(this).prop('checked'));
+        $('.check-item:not(:disabled)').prop('checked', $(this).prop('checked'));
+        $('.check-item:not(:disabled)').each(function() {
+            const id = String($(this).data('transaction-item-id'));
+            if (this.checked) selectedTransactionItems.add(id);
+            else selectedTransactionItems.delete(id);
+        });
         togglePayButton();
     });
 
     $(document).on('change', '.check-item', function() {
-        const allChecked = ($('.check-item').length === $('.check-item:checked').length);
+        const id = String($(this).data('transaction-item-id'));
+        if (this.checked) selectedTransactionItems.add(id);
+        else selectedTransactionItems.delete(id);
+        const selectableItems = $('.check-item:not(:disabled)');
+        const allChecked = (selectableItems.length === $('.check-item:not(:disabled):checked').length);
         $('#checkAll').prop('checked', allChecked);
         togglePayButton();
     });
 
     function togglePayButton() {
-        const count = $('.check-item:checked').length;
+        const count = selectedTransactionItems.size;
         if (count > 0) {
             $('#pay-count-badge').text(count);
             $('#btn-pay-selected').css('display', 'inline-flex');
@@ -803,84 +655,19 @@ $(document).ready(function() {
        OPEN PAYMENT MODAL
        ============================ */
     $('#btn-pay-selected').on('click', function() {
-        const selectedProducts = [];
-        let totalCost = 0;
-        $('.check-item:checked').each(function() {
-            // Parse back the JSON payload from the HTML attribute
-            var raw = $(this).attr('data-product');
-            var prod;
-            try { prod = JSON.parse(raw); } catch(e) { prod = $(this).data('product'); }
-            if (!prod) return;
-            selectedProducts.push({ product_id: prod.product_id, variant_id: prod.variant_id });
-            totalCost += parseFloat(prod.cost) || 0;
+        if (selectedTransactionItems.size === 0) return;
+        const $form = $('<form>', {
+            method: 'POST',
+            action: "{{ route('admin.finance.settlement.allocate') }}"
+        }).append($('<input>', { type: 'hidden', name: '_token', value: '{{ csrf_token() }}' }));
+        selectedTransactionItems.forEach(id => {
+            $form.append($('<input>', { type: 'hidden', name: 'transaction_item_ids[]', value: id }));
         });
-        if (selectedProducts.length === 0) return;
-
-        // Auto-fill supplier if a single supplier is filtered
-        const supplierId = $('#supplier_id').val();
-        if (supplierId) {
-            $('#paymentModal select[name=supplier_id]').val(supplierId);
-        }
-
-        $('#pay_products_json').val(JSON.stringify(selectedProducts));
-        $('#pay_total_amount_display').text('Rp ' + new Intl.NumberFormat('id-ID').format(totalCost));
-        $('#actual_payment_amount').val(totalCost);
-        $('#paymentModal').modal('show');
-    });
-
-    /* ============================
-       UPLOAD AREA INTERACTION
-       ============================ */
-    $('#proof_input').on('change', function() {
-        if (this.files.length > 0) {
-            $('#file-preview').show().html(
-                `<i class="fas fa-paperclip mr-1"></i> ${this.files[0].name}`
-            );
-            $('#upload-area').css('border-color', 'var(--teal-600)');
-        }
-    });
-
-    /* ============================
-       SUBMIT PAYMENT
-       ============================ */
-    $('#form-payment').on('submit', function(e) {
-        e.preventDefault();
-        const formData = new FormData(this);
-        formData.append('_token', '{{ csrf_token() }}');
-
-        const $btn = $('#btn-confirm-pay').prop('disabled', true).html('<i class="fas fa-spinner fa-spin mr-1"></i> Memproses...');
-
-        $.ajax({
-            url: "{{ route('admin.finance.settlement.pay') }}",
-            method: "POST",
-            data: formData,
-            processData: false,
-            contentType: false,
-            success: function(res) {
-                if (res.status === 'success') {
-                    $('#paymentModal').modal('hide');
-                    $('#form-payment')[0].reset();
-                    $('#file-preview').hide();
-                    $('#upload-area').css('border-color', 'var(--slate-200)');
-                    table.ajax.reload();
-                    showToast('success', 'Pembayaran berhasil disimpan!');
-                } else {
-                    showToast('error', res.message || 'Gagal memproses pembayaran');
-                }
-            },
-            error: function(xhr) {
-                let msg = 'Terjadi kesalahan saat memproses pembayaran';
-                if (xhr.responseJSON && xhr.responseJSON.message) {
-                    msg = xhr.responseJSON.message;
-                } else if (xhr.responseJSON && xhr.responseJSON.errors) {
-                    msg = Object.values(xhr.responseJSON.errors)[0][0];
-                }
-                showToast('error', msg);
-            },
-            complete: function() {
-                $btn.prop('disabled', false).html('<i class="fas fa-check mr-1"></i> Konfirmasi Pembayaran');
-            }
+        ['start_date', 'end_date', 'supplier_id'].forEach(name => {
+            $form.append($('<input>', { type: 'hidden', name: name, value: $('#' + name).val() }));
         });
+        $('body').append($form);
+        $form.trigger('submit');
     });
 
     /* ============================
@@ -893,124 +680,6 @@ $(document).ready(function() {
         $('#btn-export-pdf').attr('href', "{{ route('admin.finance.settlement.export.pdf') }}" + params);
     }
     updateExportUrls();
-
-    /* ============================
-       DETAIL MODAL
-       ============================ */
-            $(document).on('click', '.btn-detail', function() {
-                const productId = $(this).data('product-id');
-                const variantId = $(this).data('variant-id');
-                const buyPrice = $(this).data('buy-price');
-                const productName = $(this).data('product-name');
-                const startDate = $('#start_date').val();
-                const endDate = $('#end_date').val();
-
-                $('#detailModalLabel').text(`Detail: ${productName}`);
-                $('#detail-sales-tbody').html('<tr><td colspan="6" class="text-center">Loading...</td></tr>');
-                $('#detail-payments-tbody').html('<tr><td colspan="6" class="text-center py-3 text-muted"><i class="fas fa-spinner fa-spin mr-1"></i> Loading...</td></tr>');
-                $('#detailModal').modal('show');
-
-                $.ajax({
-                    url: "{{ route('admin.finance.settlement.detail') }}",
-                    method: "GET",
-                    data: {
-                        product_id: productId,
-                        variant_id: variantId,
-                        buy_price: buyPrice,
-                        start_date: startDate,
-                        end_date: endDate
-                    },
-                    success: function(response) {
-                        let totalSalesHpp = 0;
-                        let htmlSales = '';
-                        if (!response.sales || response.sales.length === 0) {
-                            htmlSales = '<tr><td colspan="6" class="text-center">Tidak ada transaksi ditemukan.</td></tr>';
-                        } else {
-                            response.sales.forEach((item, index) => {
-                                const date = new Date(item.created_at).toLocaleString('id-ID', {
-                                    day: '2-digit', month: '2-digit', year: 'numeric',
-                                    hour: '2-digit', minute: '2-digit'
-                                });
-                                totalSalesHpp += parseFloat(item.total_hpp || 0);
-                                htmlSales += `
-                                    <tr>
-                                        <td>${index + 1}</td>
-                                        <td>
-                                            <div class="font-weight-700 text-primary">${item.transaction_code || '#' + item.id}</div>
-                                            <div class="small text-muted">${item.invoice_number || ''}</div>
-                                        </td>
-                                        <td>${date}</td>
-                                        <td class="text-center"><span class="qty-pill">${item.qty}</span></td>
-                                        <td class="text-right">Rp ${new Intl.NumberFormat('id-ID').format(item.buy_price)}</td>
-                                        <td class="text-right font-weight-700 text-danger">Rp ${new Intl.NumberFormat('id-ID').format(item.total_hpp)}</td>
-                                    </tr>`;
-                            });
-                            htmlSales += `<tr style="background:var(--slate-50);">
-                                <td colspan="5" class="text-right font-weight-700">Total HPP Belum Lunas</td>
-                                <td class="text-right font-weight-800 text-danger">Rp ${new Intl.NumberFormat('id-ID').format(totalSalesHpp)}</td>
-                            </tr>`;
-                        }
-                        $('#detail-sales-tbody').html(htmlSales);
-
-                        let htmlPayments = '';
-                        if (!response.payments || response.payments.length === 0) {
-                            htmlPayments = `<tr><td colspan="6" class="text-center py-3 text-muted"><i class="fas fa-inbox mr-1"></i> Belum ada riwayat pembayaran.</td></tr>`;
-                        } else {
-                            response.payments.forEach((item, index) => {
-                                const date = new Date(item.payment_date).toLocaleDateString('id-ID', {
-                                    day:'2-digit', month:'2-digit', year:'numeric'
-                                });
-                                htmlPayments += `
-                                    <tr>
-                                        <td>${index + 1}</td>
-                                        <td>
-                                            <div class="font-weight-700">PAY-${item.id}</div>
-                                            ${item.payment_proof ? `<a href="/storage/${item.payment_proof}" target="_blank" class="small text-info"><i class="fas fa-file-invoice mr-1"></i>Lihat Bukti</a>` : ''}
-                                        </td>
-                                        <td>${date}</td>
-                                        <td class="text-center"><span class="qty-pill">${item.qty}</span></td>
-                                        <td class="text-right">Rp ${new Intl.NumberFormat('id-ID').format(item.buy_price)}</td>
-                                        <td class="text-right font-weight-700" style="color:var(--teal-700)">Rp ${new Intl.NumberFormat('id-ID').format(item.subtotal)}</td>
-                                    </tr>`;
-                            });
-                        }
-                        $('#detail-payments-tbody').html(htmlPayments);
-                    },
-                    error: function() {
-                        const errRow = cols => `<tr><td colspan="${cols}" class="text-center text-danger py-3"><i class="fas fa-exclamation-circle mr-1"></i>Gagal mengambil data.</td></tr>`;
-                        $('#detail-sales-tbody').html(errRow(6));
-                        $('#detail-payments-tbody').html(errRow(6));
-                    }
-                });
-            });
-
-    /* ============================
-       TOAST HELPER
-       ============================ */
-    function showToast(type, message) {
-        const color = type === 'success' ? 'var(--teal-700)' : 'var(--red-600)';
-        const icon  = type === 'success' ? 'fa-check-circle' : 'fa-times-circle';
-        const toast = $(`
-            <div style="
-                position:fixed; bottom:28px; right:28px; z-index:99999;
-                background:#fff; color:${color}; border-left:4px solid ${color};
-                border-radius:12px; padding:14px 22px; box-shadow:0 8px 30px rgba(0,0,0,.15);
-                font-weight:700; font-size:14px; display:flex; align-items:center; gap:10px;
-                animation: slideInToast .3s ease;
-            ">
-                <i class="fas ${icon}" style="font-size:18px;"></i> ${message}
-            </div>
-        `);
-        $('body').append(toast);
-        setTimeout(() => toast.fadeOut(400, () => toast.remove()), 3500);
-    }
 });
 </script>
-
-<style>
-@keyframes slideInToast {
-    from { transform: translateX(60px); opacity: 0; }
-    to   { transform: translateX(0);    opacity: 1; }
-}
-</style>
 @endsection

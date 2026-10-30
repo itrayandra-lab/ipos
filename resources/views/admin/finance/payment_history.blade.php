@@ -134,6 +134,7 @@
                                         <th width="10px">#</th>
                                         <th>Supplier</th>
                                         <th>No. Pembayaran</th>
+                                        <th>No. PO</th>
                                         <th>Tanggal Bayar</th>
                                         <th class="text-right">Total Nominal</th>
                                         <th>Petugas</th>
@@ -163,6 +164,7 @@
                 <div class="modal-body">
                     <div class="row mb-3" id="payment-info-header">
                         <div class="col-md-3"><strong>No. Bayar:</strong> <span id="detail-number" class="font-weight-bold"></span></div>
+                        <div class="col-md-3"><strong>No. PO:</strong> <span id="detail-po"></span></div>
                         <div class="col-md-3"><strong>Supplier:</strong> <span id="detail-supplier"></span></div>
                         <div class="col-md-3"><strong>Tanggal:</strong> <span id="detail-date"></span></div>
                         <div class="col-md-3"><strong>Petugas:</strong> <span id="detail-cashier"></span></div>
@@ -174,7 +176,7 @@
                                     <th>#</th>
                                     <th>Produk</th>
                                     <th class="text-center">Qty</th>
-                                    <th class="text-right">HPP Satuan</th>
+                                    <th class="text-right">Harga per PO</th>
                                     <th class="text-right">Subtotal</th>
                                 </tr>
                             </thead>
@@ -218,7 +220,8 @@
                             return '<span class="font-weight-bold">' + (data || '-') + '</span>';
                         }
                     },
-                    { data: 'payment_date', name: 'payment_date' },
+                        { data: 'po_number', name: 'po_number', defaultContent: '-' },
+                        { data: 'payment_date', name: 'payment_date' },
                     { data: 'total_amount', name: 'total_amount', className: 'text-right' },
                     { data: 'cashier_name', name: 'cashier_name', defaultContent: '-' },
                     { data: 'payment_proof_link', name: 'payment_proof_link', className: 'text-center', orderable: false },
@@ -229,7 +232,7 @@
                     },
                     { data: 'action', name: 'action', orderable: false, searchable: false, className: 'text-center' }
                 ],
-                order: [[3, 'desc']]
+                order: [[4, 'desc']]
             });
 
             $('#filter-form').on('submit', function(e) {
@@ -249,6 +252,7 @@
                         if (res.status === 'success') {
                             $('#detailPaymentModalLabel').text('Detail Pembayaran: ' + (res.payment.payment_number || '#' + res.payment.id));
                             $('#detail-number').text(res.payment.payment_number || '-');
+                            $('#detail-po').text(res.payment.po_number || '-');
                             $('#detail-supplier').text(res.payment.supplier_name || '-');
                             $('#detail-date').text(res.payment.payment_date ? new Date(res.payment.payment_date).toLocaleDateString('id-ID') : '-');
                             $('#detail-cashier').text(res.payment.cashier_name || '-');
@@ -273,7 +277,7 @@
                                 html += `
                                     <tr>
                                         <td>${index + 1}</td>
-                                        <td><div class="font-weight-600">${productName}</div></td>
+                                        <td><div class="font-weight-600">${productName}</div><small class="text-muted">${item.po_number || ''}</small></td>
                                         <td class="text-center">${parseFloat(item.qty)}</td>
                                         <td class="text-right">Rp ${new Intl.NumberFormat('id-ID').format(item.buy_price)}</td>
                                         <td class="text-right">Rp ${new Intl.NumberFormat('id-ID').format(item.subtotal)}</td>

@@ -11,28 +11,27 @@ class StockService
 {
     /**
      * Alokasi penjualan lintas ID batch dalam 1 gudang (Model Jurnal M-K-S).
-     * Urutan: batch pilihan dulu (jika ada & S>0), lalu FEFO
-     * (expiry ASC, null terakhir, dibuat paling awal).
+     * Urutan: FIFO berdasarkan tanggal penerimaan.
      * M = qty batch (tetap), S = current_stock. Tidak mengurangi M.
      *
      * @return array [['batch' => ProductBatch, 'take' => int], ...]
      * @throws \Exception jika total S < qty dibutuhkan
      */
-    public function allocateAcrossBatches($productId, $variantId, $warehouseId, $qtyNeeded, $preferredBatchId = null)
+    public function allocateAcrossBatches($productId, $variantId, $warehouseId, $qtyNeeded)
     {
-        $batches = ProductBatch::where('product_id', $productId)
-            ->where('warehouse_id', $warehouseId)
-            ->when($variantId, fn($q) => $q->where('product_variant_id', $variantId),
-                fn($q) => $q->whereNull('product_variant_id'))
-            ->orderByRaw('COALESCE(expiry_date, ?) ASC', ['9999-12-31'])
-            ->orderBy('created_at')
+        $batches = ProductBatch::query()
+            ->leftJoin('goods_receipt_items as receipt_items', 'receipt_items.id', '=', 'product_batches.goods_receipt_item_id')
+            ->leftJoin('goods_receipts', 'goods_receipts.id', '=', 'receipt_items.goods_receipt_id')
+            ->where('product_batches.product_id', $productId)
+            ->where('product_batches.warehouse_id', $warehouseId)
+            ->when($variantId, fn($q) => $q->where('product_batches.product_variant_id', $variantId),
+                fn($q) => $q->whereNull('product_batches.product_variant_id'))
+            ->select('product_batches.*')
+            ->orderByRaw('COALESCE(goods_receipts.received_date, product_batches.created_at) ASC')
+            ->orderBy('product_batches.id')
             ->get()
             ->filter(fn($b) => $b->current_stock > 0)
             ->values();
-
-        if ($preferredBatchId && $batches->firstWhere('id', $preferredBatchId)) {
-            $batches = $batches->sortBy(fn($b) => $b->id == $preferredBatchId ? 0 : 1)->values();
-        }
 
         $totalAvailable = $batches->sum(fn($b) => $b->current_stock);
         if ($totalAvailable < $qtyNeeded) {
@@ -54,7 +53,7 @@ class StockService
     }
 
     /**
-     * Deduct stock using FEFO (First Expired First Out) logic.
+     * Deduct stock using FIFO (First In First Out) logic.
      * It creates TransactionItem records for each batch consumed.
      * Model Jurnal: M tidak dikurangi; keluar tercatat via TI (masuk K).
      *
@@ -65,18 +64,20 @@ class StockService
      * @param int|null $warehouseId Batasi ke gudang transaksi (null = semua gudang, legacy)
      * @return void
      */
-    public function deductStockFEFO($productId, $qtyNeeded, $transactionId, $parentItemId = null, $warehouseId = null)
+    public function deductStockFIFO($productId, $qtyNeeded, $transactionId, $parentItemId = null, $warehouseId = null)
     {
-        // 1. Get available batches for this product that have stock
-        // Filter those where current_stock > 0 (S = M - K, Model Jurnal)
-        // current_stock = qty - sum(transaction_items.qty) - returns - movements
-        $batches = ProductBatch::where('product_id', $productId)
-            ->when($warehouseId, fn($q) => $q->where('warehouse_id', $warehouseId))
+        $batches = ProductBatch::query()
+            ->leftJoin('goods_receipt_items as receipt_items', 'receipt_items.id', '=', 'product_batches.goods_receipt_item_id')
+            ->leftJoin('goods_receipts', 'goods_receipts.id', '=', 'receipt_items.goods_receipt_id')
+            ->where('product_batches.product_id', $productId)
+            ->when($warehouseId, fn($q) => $q->where('product_batches.warehouse_id', $warehouseId))
+            ->select('product_batches.*')
+            ->orderByRaw('COALESCE(goods_receipts.received_date, product_batches.created_at) ASC')
+            ->orderBy('product_batches.id')
             ->get()
             ->filter(function ($batch) {
                 return $batch->current_stock > 0;
-            })
-            ->sortBy('expiry_date'); // FEFO logic
+            });
 
         $remaining = $qtyNeeded;
 
@@ -106,6 +107,12 @@ class StockService
         // In a strict system, this might throw an exception, but for now, we just complete.
     }
 
+    // Keep the legacy method name for callers outside this service.
+    public function deductStockFEFO($productId, $qtyNeeded, $transactionId, $parentItemId = null, $warehouseId = null)
+    {
+        return $this->deductStockFIFO($productId, $qtyNeeded, $transactionId, $parentItemId, $warehouseId);
+    }
+
     /**
      * Process stock for a sold bundle, exploding it into components and deducting their stock.
      */
@@ -116,7 +123,7 @@ class StockService
 
         foreach ($product->bundleItems as $component) {
             $totalComponentQty = $component->quantity * $bundleQty;
-            $this->deductStockFEFO($component->product_id, $totalComponentQty, $transactionId, $parentItemId, $warehouseId);
+            $this->deductStockFIFO($component->product_id, $totalComponentQty, $transactionId, $parentItemId, $warehouseId);
         }
     }
 
@@ -143,7 +150,7 @@ class StockService
                 $components = $product->bundleItems;
                 foreach ($components as $component) {
                     $totalComponentQty = $component->quantity * $qty;
-                    $this->deductStockFEFO($component->product_id, $totalComponentQty, $transactionId, $mainItem->id);
+                    $this->deductStockFIFO($component->product_id, $totalComponentQty, $transactionId, $mainItem->id);
                 }
             }
 
