@@ -28,7 +28,8 @@ class PosController extends Controller
         $mainWarehouse = \App\Models\Warehouse::where('type', 'main')->first();
         $mainWarehouseId = $mainWarehouse ? $mainWarehouse->id : 1;
 
-        $batches = ProductBatch::with(['product.merek', 'variant'])
+        $posChannel = $this->getPosChannel();
+        $batches = ProductBatch::with(['product.merek', 'product.variants', 'variant'])
             ->withSum('transactionItems', 'qty')
             ->withSum('supplierReturnItems', 'qty')
             ->withSum(['stockMovementItems as stock_movement_items_sum_qty' => function ($q) {
@@ -66,9 +67,7 @@ class PosController extends Controller
             $batchList[] = [
                 'id'        => $batch->id,
                 'text'      => $labelText . ' (' . $batch->batch_no . ' - ' . $sisa . ')',
-                'price'     => $batch->variant 
-                                ? $batch->variant->getSellingPrice()
-                                : $product->getSellingPrice(),
+                'price'     => \App\Services\PricingService::getSellingPriceForBatch($batch, $posChannel),
                 'stock'     => $sisa,
                 'buy_price' => $batch->buy_price ?? 0,
                 'product_id' => $product->id,
@@ -114,6 +113,7 @@ class PosController extends Controller
         // yang ditampilkan & dijual adalah S (sisa = M - K).
         $batchQuery = ProductBatch::with([
                 'product.merek',
+                'product.variants',
                 'product.photos',
                 'product.category',
                 'variant.netto',
@@ -181,14 +181,7 @@ class PosController extends Controller
                 }
 
                 // Selling price logic: variant first, then product fallback (handles bundle/transitional)
-                $sellingPrice = $variant 
-                    ? $variant->getSellingPrice()
-                    : $product->getSellingPrice();
-
-                // Fallback to PricingService if still 0
-                if ($sellingPrice <= 0) {
-                    $sellingPrice = \App\Services\PricingService::calculate($batch, $channelSlug);
-                }
+                $sellingPrice = \App\Services\PricingService::getSellingPriceForBatch($batch, $channelSlug);
 
                 // Get first photo
                 $photo = $product->photos->first();
@@ -354,23 +347,12 @@ class PosController extends Controller
                     $batchId = null;
                     $slices = null;
                 } else {
-                    $batch = ProductBatch::with(['product', 'variant'])->findOrFail($item['batch_id']);
+                    $batch = ProductBatch::with(['product.variants', 'variant'])->findOrFail($item['batch_id']);
                     if ((int)$batch->warehouse_id !== (int)$warehouseId) {
                         throw new \Exception("Batch {$batch->batch_no} tidak tersedia di gudang terpilih.");
                     }
 
-                    // Pricing logic
-                    $variantPrice = $batch->variant ? $batch->variant->getSellingPrice() : null;
-
-                    if ($variantPrice) {
-                        $basePrice = $variantPrice;
-                    } elseif ($product->price_real > 0) {
-                        $basePrice = $product->price_real;
-                    } elseif ($product->price > 0) {
-                        $basePrice = $product->price;
-                    } else {
-                        $basePrice = \App\Services\PricingService::calculate($batch, $channelSlug);
-                    }
+                    $basePrice = \App\Services\PricingService::getSellingPriceForBatch($batch, $channelSlug);
 
                     // Alokasi otomatis lintas ID batch menggunakan FIFO. Mis. jual 50:
                     // 40 dari lapisan penerimaan tertua + 10 dari lapisan berikutnya.

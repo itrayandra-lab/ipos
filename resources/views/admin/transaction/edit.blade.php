@@ -176,6 +176,7 @@
                                         </td>
                                         <td>
                                             <input type="number" name="items[{{ $index }}][price]" class="form-control item-price" value="{{ $item->price }}" min="0" step="0.01" required>
+                                            <small class="form-text text-muted item-price-suggestion"></small>
                                         </td>
                                         <td>
                                             <input type="text" class="form-control item-subtotal" value="Rp {{ number_format($item->subtotal, 0, ',', '.') }}" readonly>
@@ -312,6 +313,7 @@ function addRow() {
         </td>
         <td>
             <input type="number" name="items[${idx}][price]" class="form-control item-price" value="0" min="0" step="0.01" required>
+            <small class="form-text text-muted item-price-suggestion"></small>
         </td>
         <td>
             <input type="text" class="form-control item-subtotal" value="Rp 0" readonly>
@@ -377,8 +379,23 @@ function updateTotals() {
     $('#total').val('Rp ' + total.toLocaleString('id-ID'));
 }
 
+function updatePriceSuggestion(row, price) {
+    const suggestion = $(row).find('.item-price-suggestion');
+    const suggestedPrice = Number(price);
+
+    if (!Number.isFinite(suggestedPrice) || suggestedPrice <= 0) {
+        suggestion.text('Harga saran belum tersedia di Pricing.');
+        return;
+    }
+
+    suggestion.text('Harga saran Pricing: Rp ' + suggestedPrice.toLocaleString('id-ID'));
+}
+
 $(document).ready(function() {
     $('.select2-items').select2({ width: '100%' });
+    $('.select2-items').each(function() {
+        updatePriceSuggestion($(this).closest('tr'), $(this).find(':selected').data('price'));
+    });
     
     $('#add-row').on('click', addRow);
     
@@ -426,8 +443,10 @@ $(document).ready(function() {
     
     $(document).on('change', '.select2-items', function() {
         let option = $(this).find(':selected');
-        let price = option.data('price');
-        $(this).closest('tr').find('.item-price').val(price);
+        let price = Number(option.data('price'));
+        const row = $(this).closest('tr');
+        updatePriceSuggestion(row, price);
+        row.find('.item-price').val(Number.isFinite(price) && price > 0 ? price : '');
         updateTotals();
     });
     

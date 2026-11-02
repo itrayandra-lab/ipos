@@ -940,7 +940,7 @@ class TransactionController extends Controller
                 ->get();
         }
         
-        $batches = ProductBatch::with(['product.merek', 'variant'])
+        $batches = ProductBatch::with(['product.merek', 'product.variants', 'variant'])
             ->where('qty', '>', 0)
             ->whereHas('product', fn($q) => $q->where('status', 'Y'))
             ->get()
@@ -971,7 +971,7 @@ class TransactionController extends Controller
             $batchList[] = [
                 'id'        => $batch->id,
                 'text'      => $labelText . ' (' . $batch->batch_no . ' - ' . $batch->qty . ')',
-                'price'     => $batch->variant ? $batch->variant->getSellingPrice() : ($product->price_real > 0 ? $product->price_real : $product->price),
+                'price'     => \App\Services\PricingService::getSellingPriceForBatch($batch, 'offline-store'),
                 'stock'     => $batch->qty,
                 'buy_price' => $batch->buy_price ?? 0,
             ];

@@ -7,6 +7,15 @@ use App\Models\ProductBatch;
 
 class PricingService
 {
+    public static function getSellingPriceForBatch(ProductBatch $batch, $channelSlug)
+    {
+        $sellingPrice = $batch->variant
+            ? $batch->variant->getSellingPrice()
+            : $batch->product->getSellingPrice();
+
+        return $sellingPrice > 0 ? $sellingPrice : self::calculate($batch, $channelSlug);
+    }
+
     /**
      * Calculate suggested selling price for a specific batch and channel.
      */
