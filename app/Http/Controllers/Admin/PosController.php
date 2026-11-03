@@ -18,6 +18,7 @@ use App\Services\StockService;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Str;
+use Illuminate\Validation\ValidationException;
 
 class PosController extends Controller
 {
@@ -43,6 +44,11 @@ class PosController extends Controller
 
         $batchList = [];
         foreach ($batches as $batch) {
+            $sisa = $batch->current_stock;
+            if ($sisa <= 0) {
+                continue;
+            }
+
             $product     = $batch->product;
             $merekName   = ($product && $product->merek) ? trim($product->merek->name) : '';
             $productName = trim($product->name ?? '');
@@ -63,7 +69,6 @@ class PosController extends Controller
                 }
             }
             $labelText = implode(' ', array_unique($finalParts));
-            $sisa = $batch->current_stock;
             $batchList[] = [
                 'id'        => $batch->id,
                 'text'      => $labelText . ' (' . $batch->batch_no . ' - ' . $sisa . ')',
@@ -144,6 +149,11 @@ class PosController extends Controller
         // Group batches by variant_id (or product_id if no variant)
         $variantGroups = [];
         foreach ($batches as $batch) {
+            $sisa = $batch->current_stock;
+            if ($sisa <= 0) {
+                continue;
+            }
+
             $product = $batch->product;
             $variant = $batch->variant;
 
@@ -199,9 +209,7 @@ class PosController extends Controller
                     'total_stock'   => 0,
                 ];
             }
-
             // S per ID batch (rekapan per varian = jumlah S semua ID)
-            $sisa = $batch->current_stock;
             $variantGroups[$groupKey]['batches'][] = [
                 'id'            => $batch->id,
                 'batch_no'      => $batch->batch_no,
@@ -394,7 +402,14 @@ class PosController extends Controller
                     $finalPrice += $itemFee;
                 }
 
-                $subtotal = ($finalPrice * $qty) - $itemDiscount;
+                $itemTotal = $finalPrice * $qty;
+                if ($itemDiscount > $itemTotal) {
+                    throw ValidationException::withMessages([
+                        'items' => "Diskon item {$product->name} tidak boleh melebihi harga jual item.",
+                    ]);
+                }
+
+                $subtotal = $itemTotal - $itemDiscount;
                 $totalAmount += $subtotal;
                 
                 if ($affiliate) {
@@ -464,6 +479,12 @@ class PosController extends Controller
                     }
                 }
 
+                if ($finalDiscount > $totalAmount) {
+                    throw ValidationException::withMessages([
+                        'discount_manual' => 'Total diskon manual dan voucher tidak boleh melebihi sisa total belanja.',
+                    ]);
+                }
+
                 $otherFees = [];
                 $otherFeesTotal = 0;
                 if ($request->other_fees) {
@@ -474,6 +495,11 @@ class PosController extends Controller
                 }
 
                 $finalTotal = $totalAmount - $finalDiscount + $otherFeesTotal;
+                if ($finalTotal < 0) {
+                    throw ValidationException::withMessages([
+                        'discount_manual' => 'Total transaksi tidak boleh kurang dari Rp 0.',
+                    ]);
+                }
 
                 // Validation: Cash Received
                 if ($isSample) {
@@ -586,6 +612,11 @@ class PosController extends Controller
                     'cashier_name' => $authUser->name
                 ]);
             });
+        } catch (ValidationException $e) {
+            return response()->json([
+                'success' => false,
+                'message' => $e->validator->errors()->first(),
+            ], 422);
         } catch (\Exception $e) {
             return response()->json(['success' => false, 'message' => $e->getMessage()], 500);
         }

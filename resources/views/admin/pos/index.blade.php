@@ -290,6 +290,7 @@
                         <strong id="modal-total-discount-val">Rp 0</strong>
                     </div>
                 </div>
+                <div id="discount-validation-message" class="alert alert-danger mt-3 mb-0" style="display:none;"></div>
             </div>
             <div class="modal-footer">
                 <button type="button" class="btn btn-primary btn-block tablet-btn" data-dismiss="modal">OK</button>
@@ -444,6 +445,7 @@
                         <strong id="item-discount-calc-display" class="text-danger">Rp 0</strong>
                     </div>
                 </div>
+                <div id="item-discount-validation-message" class="alert alert-danger mt-3 mb-0" style="display:none;"></div>
             </div>
             <div class="modal-footer">
                 <button type="button" class="btn btn-primary btn-block tablet-btn" id="btn-save-item-discount">Terapkan Diskon</button>
@@ -1101,6 +1103,10 @@
                 swal('Peringatan', 'Keranjang masih kosong!', 'warning');
                 return;
             }
+            if ($(this).prop('disabled')) {
+                swal('Diskon tidak valid', 'Total diskon tidak boleh melebihi subtotal barang.', 'warning');
+                return;
+            }
 
             let data = {
                 _token: '{{ csrf_token() }}',
@@ -1223,9 +1229,17 @@
                     actualDiscount = value;
                 }
 
+                if (actualDiscount > totalItemPrice) {
+                    $('#item-discount-validation-message')
+                        .text('Diskon tidak boleh melebihi harga jual total item.')
+                        .show();
+                    return;
+                }
+
                 item.discount = actualDiscount;
                 item.discount_type = type;
                 item.discount_value = value;
+                $('#item-discount-validation-message').hide().text('');
                 
                 saveCart();
                 renderCart();
@@ -1236,7 +1250,7 @@
 
         function updateItemDiscountPreview() {
             let id = $('#item-discount-batch-id').val();
-            let item = cart.find(i => i.batch_id == id);
+            let item = cart.find(i => i.pseudo_batch_id == id);
             if (!item) return;
 
             let type = $('#item-discount-type').val();
@@ -1254,6 +1268,9 @@
             }
 
             $('#item-discount-calc-display').text('Rp ' + calculated.toLocaleString('id-ID'));
+            $('#item-discount-validation-message')
+                .toggle(calculated > totalItemPrice)
+                .text('Diskon tidak boleh melebihi harga jual total item.');
         }
     });
 
@@ -1580,7 +1597,16 @@
 
         let totalDiscount = discountManual + voucherDiscount + itemDiscountsTotal;
         let otherFeesTotal = getOtherFeesTotal();
-        let total = Math.max(0, subtotal - totalDiscount + otherFeesTotal);
+        const itemDiscountInvalid = cart.some(item => {
+            let price = parseFloat(item.price) + getProductMarkup(item.product_id, item.price);
+            return parseFloat(item.discount || 0) > price * item.qty;
+        });
+        const discountInvalid = itemDiscountInvalid || totalDiscount > subtotal;
+        const total = Math.max(0, subtotal - totalDiscount + otherFeesTotal);
+        $('#discount-validation-message')
+            .toggle(discountInvalid)
+            .text('Diskon tidak boleh melebihi harga jual item atau total subtotal barang.');
+        $('#btn-submit-order').prop('disabled', discountInvalid);
         
         // Update Sidebar View
         $('#cart-subtotal').text('Rp ' + subtotal.toLocaleString('id-ID'));
