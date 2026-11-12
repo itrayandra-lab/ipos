@@ -55,7 +55,7 @@
                 <div class="card-header">
                     <h4>Riwayat Transaksi Kas Kecil</h4>
                     <div class="card-header-action">
-                        @if(in_array(auth()->user()->role, ['finance', 'super_admin']))
+                        @if(auth()->user()->hasPermission('access_petty_cash') || auth()->user()->hasPermission('access_finance_menu'))
                         <button class="btn btn-success btn-sm mr-2" onclick="openTopUpModal()">
                             <i class="fas fa-arrow-alt-circle-down mr-1"></i> Top Up Saldo
                         </button>
@@ -154,7 +154,7 @@
                             <div class="form-group">
                                 <label>Tipe Transaksi <span class="text-danger">*</span></label>
                                 <select class="form-control" name="type" id="pc-type" required>
-                                    @if(in_array(auth()->user()->role, ['finance', 'super_admin']))
+                                    @if(auth()->user()->hasPermission('access_petty_cash') || auth()->user()->hasPermission('access_finance_menu'))
                                     <option value="in">Kas Masuk (Top Up Saldo)</option>
                                     @endif
                                     <option value="out" selected>Kas Keluar (Pengeluaran)</option>
@@ -279,7 +279,7 @@
                             <div class="form-group">
                                 <label>Tipe Transaksi <span class="text-danger">*</span></label>
                                 <select class="form-control" id="edit-type" name="type" required>
-                                    @if(in_array(auth()->user()->role, ['finance', 'super_admin']))
+                                    @if(auth()->user()->hasPermission('access_petty_cash') || auth()->user()->hasPermission('access_finance_menu'))
                                     <option value="in">Kas Masuk (Top Up Saldo)</option>
                                     @endif
                                     <option value="out">Kas Keluar (Pengeluaran)</option>

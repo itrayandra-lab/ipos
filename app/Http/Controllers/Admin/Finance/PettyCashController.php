@@ -120,6 +120,16 @@ class PettyCashController extends Controller
             ->make(true);
     }
 
+    private function pettyCashGuard()
+    {
+        $u = auth()->user();
+        if (!$u->hasPermission('access_petty_cash') && !$u->hasPermission('access_finance_menu')) {
+            return response()->json(['success' => false, 'status' => 'error', 'message' => 'Anda tidak memiliki akses Petty Cash.'], 403);
+        }
+
+        return null;
+    }
+
     public function show($id)
     {
         $trx = PettyCashTransaction::with(['user', 'category'])->findOrFail($id);
@@ -130,6 +140,9 @@ class PettyCashController extends Controller
 
     public function update(Request $request, $id)
     {
+        if ($g = $this->pettyCashGuard()) {
+            return $g;
+        }
         $request->validate([
             'type'                => 'required|in:in,out',
             'payment_method'      => 'required|in:cash,transfer,qris',
@@ -202,6 +215,9 @@ class PettyCashController extends Controller
 
     public function destroy($id)
     {
+        if ($g = $this->pettyCashGuard()) {
+            return $g;
+        }
         try {
             DB::transaction(function () use ($id) {
                 $trx = PettyCashTransaction::findOrFail($id);
@@ -235,6 +251,9 @@ class PettyCashController extends Controller
 
     public function store(Request $request)
     {
+        if ($g = $this->pettyCashGuard()) {
+            return $g;
+        }
         $request->validate([
             'type'                => 'required|in:in,out',
             'payment_method'      => 'required|in:cash,transfer,qris',
