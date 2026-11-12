@@ -1409,9 +1409,23 @@ class ProductAdjustmentController extends Controller
             'warehouse_id' => 'nullable|exists:warehouses,id',
             'variant_id' => 'nullable|exists:product_variants,id',
             'buy_price' => 'sometimes|nullable|integer|min:1',
+            'batch_id' => 'sometimes|nullable|exists:product_batches,id',
         ]);
         $item = \App\Models\TransactionItem::findOrFail($d['item_id']);
         $trx = \App\Models\Transaction::findOrFail($item->transaction_id);
+
+        if (array_key_exists('batch_id', $d) && (int) ($d['batch_id'] ?? 0) !== (int) ($item->product_batch_id ?? 0)) {
+            if (DB::table('supplier_payment_item_allocations')->where('transaction_item_id', $item->id)->exists()) {
+                return response()->json(['status' => 'error', 'message' => 'Batch baris tidak bisa diubah karena sebagian qty sudah masuk pelunasan supplier.'], 422);
+            }
+            if ($d['batch_id']) {
+                $batch = \App\Models\ProductBatch::findOrFail($d['batch_id']);
+                if ((int) $batch->product_id !== (int) $item->product_id) {
+                    return response()->json(['status' => 'error', 'message' => 'Batch bukan milik produk baris ini.'], 422);
+                }
+            }
+            $item->product_batch_id = $d['batch_id'] ?: null;
+        }
         $locked = in_array($trx->payment_status, ['paid', 'credit']);
         $hasSupplierPaymentAllocation = DB::table('supplier_payment_item_allocations')
             ->where('transaction_item_id', $item->id)

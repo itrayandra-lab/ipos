@@ -262,7 +262,7 @@
                                         </td>
                                         @if($canEdit)
                                         <td>
-                                            <button class="btn btn-sm {{ $effectiveHpp > 0 ? 'btn-light' : 'btn-warning' }} btn-edit-ti" data-id="{{ $t->id }}" data-code="{{ $t->transaction_code ?? ('#' . $t->id) }}" data-wh="{{ $t->warehouse_id }}" data-var="{{ $t->product_variant_id }}" data-pid="{{ $t->product_id }}" data-hpp="{{ (float) $t->buy_price > 0 ? (int) $t->buy_price : '' }}" data-paid="{{ $t->supplier_payment_id ? 1 : 0 }}">@if($effectiveHpp > 0)Edit @else Isi HPP @endif</button>
+                                            <button class="btn btn-sm {{ $effectiveHpp > 0 ? 'btn-light' : 'btn-warning' }} btn-edit-ti" data-id="{{ $t->id }}" data-code="{{ $t->transaction_code ?? ('#' . $t->id) }}" data-wh="{{ $t->warehouse_id }}" data-var="{{ $t->product_variant_id }}" data-pid="{{ $t->product_id }}" data-batch="{{ $t->product_batch_id }}" data-hpp="{{ (float) $t->buy_price > 0 ? (int) $t->buy_price : '' }}" data-paid="{{ $t->supplier_payment_id ? 1 : 0 }}">@if($effectiveHpp > 0)Edit @else Isi HPP @endif</button>
                                             <button class="btn btn-sm btn-danger btn-del-ti" data-id="{{ $t->id }}" data-qty="{{ $t->qty }}" data-sub="{{ $t->subtotal }}" data-code="{{ $t->transaction_code ?? ('#' . $t->id) }}">Hapus</button>
                                         </td>
                                         @endif
@@ -573,6 +573,15 @@
                             <option value="{{ $v->id }}">{{ $v->sku_code }} — {{ trim(($v->netto->netto_value ?? '') . ' ' . ($v->netto->satuan ?? '')) }}</option>
                             @endforeach
                         </select>
+                    </div>
+                    <div class="form-group"><label>Batch stok baris ini:</label>
+                        <select id="eti-batch" class="form-control">
+                            <option value="">— tanpa batch —</option>
+                            @foreach($batches as $b)
+                            <option value="{{ $b->id }}" data-var="{{ $b->product_variant_id }}">ID {{ $b->id }} — {{ $b->batch_no ?? '-' }} | {{ $b->warehouse->name ?? '-' }} | stok {{ (int) $b->qty }}</option>
+                            @endforeach
+                        </select>
+                        <small class="text-muted">Dipakai untuk memindahkan transaksi yang salah ambil stok ke batch yang benar. Memilih batch otomatis menyamakan varian.</small>
                     </div>
                     <div class="form-group">
                         <label>HPP Beli Baris Ini (Rp):</label>
@@ -914,6 +923,7 @@
                 $('#eti-warehouse').val($(this).data('wh') || '');
                 $('#eti-variant').val($(this).data('var') || '');
                 $('#eti-buy-price').val($(this).attr('data-hpp') || '');
+                $('#eti-batch').val($(this).attr('data-batch') || '');
                 $('#eti-hpp-source').val('');
                 $('#eti-buy-price').prop('disabled', String($(this).data('paid')) === '1');
                 if (String($(this).data('paid')) === '1') {
@@ -923,11 +933,15 @@
                 }
                 $('#editTiModal').modal('show');
             });
+            $('#eti-batch').on('change', function() {
+                var v = $(this).find('option:selected').data('var');
+                if (v) $('#eti-variant').val(String(v));
+            });
             $('#eti-hpp-source').on('change', function() {
                 if (this.value) $('#eti-buy-price').val(this.value);
             });
             $('#btn-do-edit-ti').on('click', function() {
-                var data = { _token: csrf, item_id: editTi, warehouse_id: $('#eti-warehouse').val() || null, variant_id: $('#eti-variant').val() || null };
+                var data = { _token: csrf, item_id: editTi, warehouse_id: $('#eti-warehouse').val() || null, variant_id: $('#eti-variant').val() || null, batch_id: $('#eti-batch').val() || '' };
                 var buyPrice = cleanHarga($('#eti-buy-price').val());
                 if (buyPrice) data.buy_price = buyPrice;
                 $.ajax({ url: "{{ route('admin.adjustment.transaction_items.update') }}", type: 'POST',
