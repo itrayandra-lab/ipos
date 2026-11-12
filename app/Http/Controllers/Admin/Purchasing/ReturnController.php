@@ -78,9 +78,75 @@ class ReturnController extends Controller
         $batches = ProductBatch::with(['product.merek', 'variant.netto'])
             ->where('warehouse_id', $warehouse_id)
             ->where('qty', '>', 0)
+            ->orderBy('id')
             ->get();
 
-        return response()->json($batches);
+        // Gabungkan batch yang no batch, produk, varian & gudangnya sama (beda ID)
+        // jadi satu baris dengan total stok gabungan.
+        $groups = [];
+        foreach ($batches as $b) {
+            $key = $b->product_id . '|' . strtolower(trim((string) $b->batch_no));
+            if (!isset($groups[$key])) {
+                $row = $b->toArray();
+                $row['current_stock'] = 0;
+                $row['merged_ids'] = [];
+                $groups[$key] = $row;
+            }
+            $groups[$key]['current_stock'] += $b->current_stock;
+            $groups[$key]['merged_ids'][] = $b->id;
+        }
+
+        $result = array_values(array_filter($groups, fn($g) => $g['current_stock'] > 0));
+
+        return response()->json($result);
+    }
+
+    /**
+     * Pecah tiap item return ke batch-batch yang no batch, produk, varian dan
+     * gudangnya sama (urut ID; batch yang dipilih lebih dulu). Qty yang melebihi
+     * stok satu batch otomatis dilanjutkan ke batch berikutnya.
+     * $oldQty = [batch_id => qty] return lama (saat edit) yang dikembalikan ke stok.
+     */
+    private function allocateItems(array $items, array $oldQty = []): array
+    {
+        $out = [];
+        $used = [];
+
+        foreach ($items as $item) {
+            $base = ProductBatch::findOrFail($item['product_batch_id']);
+            $siblings = ProductBatch::withSisa()
+                ->where('warehouse_id', $base->warehouse_id)
+                ->where('product_id', $base->product_id)
+                ->whereRaw('LOWER(TRIM(batch_no)) = ?', [strtolower(trim((string) $base->batch_no))])
+                ->orderByRaw('id = ? DESC', [$base->id])
+                ->orderBy('id')
+                ->get();
+
+            $need = (int) $item['qty'];
+            foreach ($siblings as $sb) {
+                if ($need <= 0) {
+                    break;
+                }
+                $avail = $sb->current_stock + ($oldQty[$sb->id] ?? 0) - ($used[$sb->id] ?? 0);
+                if ($avail <= 0) {
+                    continue;
+                }
+                $take = min($need, $avail);
+                $used[$sb->id] = ($used[$sb->id] ?? 0) + $take;
+                $need -= $take;
+                if (isset($out[$sb->id])) {
+                    $out[$sb->id]['qty'] += $take;
+                } else {
+                    $out[$sb->id] = ['batch' => $sb, 'qty' => $take, 'reason' => $item['reason'] ?? null];
+                }
+            }
+
+            if ($need > 0) {
+                throw new \Exception("Stok tidak mencukupi untuk batch " . $base->batch_no . ". Kurang " . $need . " pcs dari total stok gabungan.");
+            }
+        }
+
+        return array_values($out);
     }
 
     public function store(Request $request)
@@ -101,23 +167,10 @@ class ReturnController extends Controller
         try {
             DB::beginTransaction();
 
-            // Pre-load batches with relations to avoid N+1 and repeated heavy stock calculations
-            $itemBatchIds = collect($request->items)->pluck('product_batch_id')->toArray();
-            $batchData = ProductBatch::whereIn('id', $itemBatchIds)
-                ->withSum('transactionItems', 'qty')
-                ->withSum('supplierReturnItems', 'qty')
-                ->get()
-                ->keyBy('id');
-
-            foreach ($request->items as $item) {
-                $batch = $batchData[$item['product_batch_id']];
-                if ($batch->current_stock < $item['qty']) {
-                    throw new \Exception("Stok tidak mencukupi untuk batch " . $batch->batch_no . ". Stok saat ini: " . $batch->current_stock);
-                }
-            }
+            $allocated = $this->allocateItems($request->items);
 
             $txDate = $request->return_date ? Carbon::parse($request->return_date) : Carbon::now();
-            
+
             // Generate Return Number: RT/BL/[RomanMonth]/[YY]/[MonthlySequence]
             $romanMonths = ['I', 'II', 'III', 'IV', 'V', 'VI', 'VII', 'VIII', 'IX', 'X', 'XI', 'XII'];
             $romanMonth = $romanMonths[$txDate->month - 1];
@@ -127,7 +180,7 @@ class ReturnController extends Controller
                 ->whereMonth('return_date', $txDate->month)
                 ->orderBy('id', 'desc')
                 ->first();
-            
+
             $lastNumber = 0;
             if ($lastReturn && $lastReturn->return_number) {
                 $parts = explode('/', $lastReturn->return_number);
@@ -135,7 +188,7 @@ class ReturnController extends Controller
                     $lastNumber = (int) $parts[4];
                 }
             }
-            
+
             $newNumber = str_pad($lastNumber + 1, 4, '0', STR_PAD_LEFT);
             $returnNumber = "RT/BL/{$romanMonth}/{$year}/{$newNumber}";
 
@@ -150,25 +203,27 @@ class ReturnController extends Controller
                 'status' => 'completed',
             ]);
 
-            foreach ($request->items as $item) {
-                $batch = $batchData[$item['product_batch_id']];
-                
+            foreach ($allocated as $a) {
+                $batch = $a['batch'];
+
                 SupplierReturnItem::create([
                     'supplier_return_id' => $return->id,
                     'product_id' => $batch->product_id,
                     'product_variant_id' => $batch->product_variant_id,
                     'product_batch_id' => $batch->id,
-                    'qty' => $item['qty'],
-                    'buy_price' => $batch->buy_price, 
-                    'total' => $batch->buy_price * $item['qty'],
-                    'reason' => $item['reason'] ?? null,
+                    'qty' => $a['qty'],
+                    'buy_price' => $batch->buy_price,
+                    'total' => $batch->buy_price * $a['qty'],
+                    'reason' => $a['reason'],
                 ]);
             }
 
+            Product::bulkSyncStock(collect($allocated)->pluck('batch.product_id')->unique()->all());
+
             DB::commit();
             return response()->json([
-                'status' => 'success', 
-                'message' => 'Return barang berhasil disimpan dan stok telah dikurangi', 
+                'status' => 'success',
+                'message' => 'Return barang berhasil disimpan dan stok telah dikurangi',
                 'redirect' => route('admin.purchasing.returns.index')
             ]);
 
@@ -205,33 +260,12 @@ class ReturnController extends Controller
             DB::beginTransaction();
 
             $return = SupplierReturn::findOrFail($id);
-            
+
             // Collect affected products for sync later
             $old_product_ids = $return->items->pluck('product_id')->toArray();
 
-            // Pre-load batches
-            $itemBatchIds = collect($request->items)->pluck('product_batch_id')->toArray();
-            $batchData = ProductBatch::whereIn('id', $itemBatchIds)
-                ->withSum('transactionItems', 'qty')
-                ->withSum('supplierReturnItems', 'qty')
-                ->get()
-                ->keyBy('id');
-
-            // Check stock availability for new/updated items
-            foreach ($request->items as $item) {
-                $batch = $batchData[$item['product_batch_id']];
-                
-                // Get old qty if this item already existed in this return
-                $oldItem = $return->items()->where('product_batch_id', $item['product_batch_id'])->first();
-                $oldQty = $oldItem ? $oldItem->qty : 0;
-                
-                // Effective stock = current stock + what was already returned in this transaction
-                $effectiveStock = $batch->current_stock + $oldQty;
-
-                if ($effectiveStock < $item['qty']) {
-                    throw new \Exception("Stok tidak mencukupi untuk batch " . $batch->batch_no . ". Stok tersedia: " . $effectiveStock);
-                }
-            }
+            $oldQty = $return->items->groupBy('product_batch_id')->map->sum('qty')->all();
+            $allocated = $this->allocateItems($request->items, $oldQty);
 
             // Update main return record
             $return->update([
@@ -246,25 +280,27 @@ class ReturnController extends Controller
             $return->items()->delete();
 
             // Create new items
-            foreach ($request->items as $item) {
-                $batch = $batchData[$item['product_batch_id']];
-                
+            foreach ($allocated as $a) {
+                $batch = $a['batch'];
+
                 SupplierReturnItem::create([
                     'supplier_return_id' => $return->id,
                     'product_id' => $batch->product_id,
                     'product_variant_id' => $batch->product_variant_id,
                     'product_batch_id' => $batch->id,
-                    'qty' => $item['qty'],
+                    'qty' => $a['qty'],
                     'buy_price' => $batch->buy_price,
-                    'total' => $batch->buy_price * $item['qty'],
-                    'reason' => $item['reason'] ?? null,
+                    'total' => $batch->buy_price * $a['qty'],
+                    'reason' => $a['reason'],
                 ]);
             }
 
+            Product::bulkSyncStock(array_unique(array_merge($old_product_ids, collect($allocated)->pluck('batch.product_id')->all())));
+
             DB::commit();
             return response()->json([
-                'status' => 'success', 
-                'message' => 'Return barang berhasil diperbarui dan stok telah disinkronkan', 
+                'status' => 'success',
+                'message' => 'Return barang berhasil diperbarui dan stok telah disinkronkan',
                 'redirect' => route('admin.purchasing.returns.index')
             ]);
 
@@ -293,7 +329,9 @@ class ReturnController extends Controller
         try {
             DB::beginTransaction();
             $return = SupplierReturn::findOrFail($id);
+            $pids = $return->items->pluck('product_id')->unique()->all();
             $return->delete();
+            Product::bulkSyncStock($pids);
 
             DB::commit();
             return response()->json(['status' => 'success', 'message' => 'Return barang berhasil dihapus']);
