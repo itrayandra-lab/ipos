@@ -273,7 +273,7 @@ class ProductController extends Controller
             'merek_id' => 'required|exists:merek,id',
             'category_id' => 'required|exists:categories,id',
             'sub_category_id' => 'nullable|exists:sub_categories,id',
-            'product_type_id' => 'required|exists:product_types,id',
+            'product_type_id' => 'nullable|exists:product_types,id',
             'supplier_id' => 'nullable|exists:suppliers,id',
             'min_stock_alert' => 'required|integer|min:0',
             'variants' => 'required|array|min:1',
@@ -349,8 +349,8 @@ class ProductController extends Controller
                 $variantName = $product->name . ' ' . $v['netto'] . ($v['satuan'] ?? '');
 
                 // Auto-generate SKU
-                $nettoPart = preg_replace('/[^0-9]/', '', $v['netto']);
-                $generatedSku = strtoupper("{$merekCode}-{$categoryCode}-{$productCode}-{$nettoPart}");
+                $nettoPart = preg_replace('/[^0-9.,]/', '', (string) $v['netto']) . preg_replace('/\s+/', '', (string) ($v['satuan'] ?? ''));
+                $generatedSku = strtoupper("{$merekCode}-{$productCode}-{$nettoPart}");
                 
                 // Ensure SKU is unique by adding suffix if needed (Case-Insensitive Check)
                 $finalSku = $generatedSku;

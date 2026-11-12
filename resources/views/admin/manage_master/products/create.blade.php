@@ -496,7 +496,7 @@
                                                 </select>
                                             </div>
                                         </div>
-                                        <div class="col-md-3">
+                                        <div class="col-md-3 d-none">
                                             <div class="form-group">
                                                 <label>Sub Kategori</label>
                                                 <select class="form-control select2" name="sub_category_id"
@@ -508,12 +508,11 @@
                                     </div>
 
                                     <div class="row">
-                                        <div class="col-md-6">
+                                        <div class="col-md-6 d-none">
                                             <div class="form-group">
-                                                <label><i class="fas fa-shapes mr-1"></i> Tipe Produk <span
-                                                        class="text-danger">*</span></label>
+                                                <label><i class="fas fa-shapes mr-1"></i> Tipe Produk</label>
                                                 <select class="form-control select2" name="product_type_id"
-                                                    id="add-product-type" required>
+                                                    id="add-product-type">
                                                     <option value="">Pilih Tipe Produk</option>
                                                     @foreach($productTypes as $pt)
                                                         <option value="{{ $pt->id }}">{{ $pt->name }}</option>
@@ -751,24 +750,23 @@
             return c ? (c.code || 'UNK') : 'UNK';
         }
 
-        function generateSku(merekId, categoryId, productCode, netto) {
+        function generateSku(merekId, productCode, netto, satuan) {
             const mCode = getMerekCode(merekId);
-            const cCode = getCategoryCode(categoryId);
-            const pCode = productCode || 'UNK';
-            const nPart = (netto || '').replace(/[^0-9]/g, '');
-            return `${mCode}-${cCode}-${pCode}-${nPart}`.toUpperCase();
+            const pCode = (productCode || 'UNK').replace(/\s+/g, '');
+            const nPart = (netto || '').replace(/[^0-9.,]/g, '') + (satuan || '').replace(/\s+/g, '');
+            return `${mCode}-${pCode}-${nPart}`.toUpperCase();
         }
 
         function updateAllSkus() {
             const merekId = $('select[name="merek_id"]').val();
-            const categoryId = $('#add-category').val();
             const productCode = $('input[name="code"]').val();
 
             $('#table-variants tbody tr').each(function () {
                 const skuInput = $(this).find('input[name*="[sku]"]');
                 if (skuInput.attr('data-manual') !== 'true') {
                     const netto = $(this).find('input[name*="[netto]"]').val();
-                    const sku = generateSku(merekId, categoryId, productCode, netto);
+                    const satuan = $(this).find('select[name*="[satuan]"]').val();
+                    const sku = generateSku(merekId, productCode, netto, satuan);
                     skuInput.val(sku);
                 }
             });
@@ -818,6 +816,10 @@
 
             // SKU Generation Triggers
             $('input[name="name"], input[name="code"], select[name="merek_id"], #add-category').on('change input', function () {
+                updateAllSkus();
+            });
+
+            $(document).on('change', 'select[name*="[satuan]"]', function () {
                 updateAllSkus();
             });
 
