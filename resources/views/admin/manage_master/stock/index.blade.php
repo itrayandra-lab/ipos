@@ -302,6 +302,9 @@
                         <option value="near">Hampir Expired</option>
                         <option value="safe">Masih Lama</option>
                     </select>
+                    <label class="mb-0 d-flex align-items-center" style="font-size:13px;white-space:nowrap;cursor:pointer;">
+                        <input type="checkbox" id="show-empty" class="mr-1"> Tampilkan stok habis
+                    </label>
                 </div>
 
                 <div class="table-responsive">
@@ -315,8 +318,7 @@
                                 <th style="width:120px;">Gudang</th>
                                 <th style="width:140px;">Stok</th>
                                 <th style="width:100px;" class="text-right">Nilai</th>
-                                <th style="width:90px;">Kadaluarsa</th>
-                                <th style="width:40px;"></th>
+                                <th style="width:80px;" class="text-center">Aksi</th>
                             </tr>
                         </thead>
                     </table>
@@ -341,6 +343,7 @@ $(document).ready(function() {
             url: '{{ url("admin/manage-master/stock/all") }}',
             data: function(d) {
                 d.warehouse_id = activeWarehouseId;
+                d.show_empty = $('#show-empty').is(':checked') ? 1 : 0;
             }
         },
         columns: [
@@ -351,8 +354,7 @@ $(document).ready(function() {
             { data: 'warehouse_name', name: 'warehouse_name' },
             { data: 'stock_display', name: 'total_current_stock', searchable: false, orderable: false },
             { data: 'value_display', name: 'stock_value', className: 'text-right', orderable: false, searchable: false },
-            { data: 'expiry_display', name: 'expiry_info', orderable: false, searchable: false },
-            { data: 'action', name: 'action', orderable: false, searchable: false }
+            { data: 'action', name: 'action', className: 'text-center', orderable: false, searchable: false }
         ],
         order: [],
         dom: 'rt<"d-flex justify-content-between align-items-center px-3 py-2"ip>',
@@ -367,7 +369,7 @@ $(document).ready(function() {
         drawCallback: function() { $('.dataTables_paginate').addClass('pagination-sm'); }
     });
 
-    // Render stock display, value, expiry
+    // Render stock display, value
     table.on('xhr.dt', function(e, settings, json) {
         if (!json || !json.data) return;
         $.each(json.data, function(i, row) {
@@ -387,16 +389,8 @@ $(document).ready(function() {
 
             row.value_display = stock > 0 ? 'Rp ' + Number(row.stock_value).toLocaleString('id-ID') : '-';
 
-            if (row.expiry_info) {
-                const exp = new Date(row.expiry_info);
-                const now = new Date();
-                const diffDays = Math.ceil((exp - now) / (1000 * 60 * 60 * 24));
-                let cls = 'expiry-safe', label = exp.toLocaleDateString('id-ID', { month: 'short', year: 'numeric' });
-                if (diffDays < 0) { cls = 'expiry-danger'; label = 'Expired'; }
-                else if (diffDays <= 30) { cls = 'expiry-warning'; label += ' (' + diffDays + ' hari)'; }
-                row.expiry_display = `<span class="expiry-badge ${cls}">${label}</span>`;
-            } else {
-                row.expiry_display = '<span class="text-muted" style="font-size:11px;">-</span>';
+            if (stock <= 0) {
+                row.batch_count = '-';
             }
         });
     });
@@ -406,6 +400,8 @@ $(document).ready(function() {
         activeWarehouseId = $(this).val();
         table.ajax.reload();
     });
+
+    $('#show-empty').on('change', function() { table.ajax.reload(); });
 
     // Status filter (client-side)
     let statusFilterFn = null;

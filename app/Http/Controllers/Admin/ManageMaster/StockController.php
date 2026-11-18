@@ -61,7 +61,7 @@ class StockController extends Controller
             ->selectRaw('SUM((SELECT COALESCE(SUM(qty), 0) FROM transaction_items WHERE product_batch_id = product_batches.id)) as sold_qty')
             ->selectRaw('SUM((SELECT COALESCE(SUM(qty), 0) FROM supplier_return_items WHERE product_batch_id = product_batches.id)) as returned_qty')
             ->selectRaw("SUM((SELECT COALESCE(SUM(i.qty), 0) FROM stock_movement_items i JOIN stock_movements m ON m.id = i.stock_movement_id WHERE i.product_batch_id = product_batches.id AND m.status IN ('transit','completed'))) as moved_qty")
-            ->selectRaw('SUM((SELECT COALESCE(SUM(i.qty), 0) FROM supplier_return_items i JOIN supplier_returns r ON r.id = i.supplier_return_id WHERE i.product_id = product_batches.product_id AND r.warehouse_id = product_batches.warehouse_id AND i.product_batch_id IS NOT NULL AND i.product_batch_id NOT IN (SELECT pb2.id FROM product_batches pb2 WHERE pb2.product_id = product_batches.product_id AND pb2.warehouse_id = product_batches.warehouse_id AND (pb2.product_variant_id <=> product_batches.product_variant_id)) AND product_batches.id = (SELECT MIN(pb3.id) FROM product_batches pb3 WHERE pb3.product_id = product_batches.product_id AND pb3.warehouse_id = product_batches.warehouse_id AND (pb3.product_variant_id <=> product_batches.product_variant_id)))) as rr_qty')
+            ->selectRaw('0 as rr_qty') // RR dinonaktifkan: return supplier hanya mengurangi stok
             ->selectRaw('MAX(products.min_stock_alert) as min_stock_alert')
             ->groupBy(
                 'product_batches.product_id',
@@ -197,7 +197,7 @@ class StockController extends Controller
             ->selectRaw('SUM((SELECT COALESCE(SUM(qty), 0) FROM transaction_items WHERE product_batch_id = product_batches.id)) as sold_qty')
             ->selectRaw('SUM((SELECT COALESCE(SUM(qty), 0) FROM supplier_return_items WHERE product_batch_id = product_batches.id)) as returned_qty')
             ->selectRaw("SUM((SELECT COALESCE(SUM(i.qty), 0) FROM stock_movement_items i JOIN stock_movements m ON m.id = i.stock_movement_id WHERE i.product_batch_id = product_batches.id AND m.status IN ('transit','completed'))) as moved_qty")
-            ->selectRaw('SUM((SELECT COALESCE(SUM(i.qty), 0) FROM supplier_return_items i JOIN supplier_returns r ON r.id = i.supplier_return_id WHERE i.product_id = product_batches.product_id AND r.warehouse_id = product_batches.warehouse_id AND i.product_batch_id IS NOT NULL AND i.product_batch_id NOT IN (SELECT pb2.id FROM product_batches pb2 WHERE pb2.product_id = product_batches.product_id AND pb2.warehouse_id = product_batches.warehouse_id AND (pb2.product_variant_id <=> product_batches.product_variant_id)) AND product_batches.id = (SELECT MIN(pb3.id) FROM product_batches pb3 WHERE pb3.product_id = product_batches.product_id AND pb3.warehouse_id = product_batches.warehouse_id AND (pb3.product_variant_id <=> product_batches.product_variant_id)))) as rr_qty')
+            ->selectRaw('0 as rr_qty') // RR dinonaktifkan: return supplier hanya mengurangi stok
             ->selectRaw('MAX(products.min_stock_alert) as min_stock_alert')
             ->groupBy(
                 'product_batches.product_id',
@@ -206,6 +206,10 @@ class StockController extends Controller
             )
             ->when($warehouseId, function ($q) use ($warehouseId) {
                 $q->where('product_batches.warehouse_id', $warehouseId);
+            })
+            // Default: sembunyikan produk yang stoknya sudah 0 (kecuali dicentang "Tampilkan stok habis")
+            ->when(!$request->boolean('show_empty'), function ($q) {
+                $q->havingRaw('(initial_qty - sold_qty - returned_qty - moved_qty + rr_qty) > 0');
             });
 
         return DataTables::of($batches)
@@ -246,9 +250,7 @@ class StockController extends Controller
             ->addColumn('action', function ($row) {
                 $url = url('admin/manage-master/stock/detail-audit') . '?product_id=' . $row->product_id . '&variant_id=' . $row->product_variant_id . '&warehouse_id=' . $row->warehouse_id;
                 return '
-                    <a href="' . $url . '" class="btn btn-detail-icon" title="Lihat Detail">
-                        <i class="fas fa-chevron-right"></i>
-                    </a>
+                    <a href="' . $url . '" class="btn btn-sm btn-primary" title="Lihat Detail">Detail</a>
                 ';
             })
             ->rawColumns(['action'])
@@ -674,7 +676,7 @@ class StockController extends Controller
                     'ref_no' => $item->supplierReturn->return_number ?? '-',
                     'destination' => 'Ke: ' . ($item->supplierReturn->supplier->name ?? '-'),
                     'qty' => $item->qty,
-                    'date' => $item->supplierReturn->return_date ? $item->supplierReturn->return_date->format('Y-m-d') : '-',
+                    'date' => $item->supplierReturn->return_date ? \Carbon\Carbon::parse($item->supplierReturn->return_date)->format('Y-m-d') : '-',
                     'batch_no' => $item->batch->batch_no ?? '-',
                     'print_url' => null
                 ];

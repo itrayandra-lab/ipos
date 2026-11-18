@@ -719,9 +719,19 @@ class ProductController extends Controller
 
     public function show($id)
     {
-        $product = Product::with(['merek', 'category', 'subCategory', 'productType', 'variants.netto', 'photos', 'batches', 'bundleItems.componentProduct.merek'])->findOrFail($id);
+        $product = Product::with(['merek', 'category', 'subCategory', 'productType', 'variants.netto', 'photos', 'bundleItems.componentProduct.merek'])->findOrFail($id);
+
+        // Stok realtime per batch per gudang: pakai sisa stok sebenarnya (bukan qty masuk)
+        $batches = \App\Models\ProductBatch::withSisa()
+            ->with(['warehouse', 'variant'])
+            ->where('product_id', $product->id)
+            ->get()
+            ->sortBy(fn($b) => ($b->warehouse->name ?? '') . '|' . $b->batch_no)
+            ->values();
+        $emptyBatchCount = $batches->filter(fn($b) => $b->current_stock == 0)->count();
+        $batches = $batches->filter(fn($b) => $b->current_stock != 0)->values();
         
-        return view('admin.manage_master.products.show', compact('product'))->with([
+        return view('admin.manage_master.products.show', compact('product', 'batches', 'emptyBatchCount'))->with([
             'sb' => 'Product'
         ]);
     }

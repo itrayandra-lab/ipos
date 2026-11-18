@@ -149,7 +149,10 @@ class ProductBatch extends Model
      */
     public function returnReceivedItems()
     {
+        // RR DINONAKTIFKAN: return supplier hanya MENGURANGI stok batch yang direturn,
+        // tidak menambah batch lain. Perpindahan antar gudang dicatat sebagai Stock Movement.
         return $this->hasMany(SupplierReturnItem::class, 'product_id', 'product_id')
+            ->whereRaw('1 = 0')
             ->where('supplier_return_items.product_batch_id', '!=', $this->id)
             ->where(function ($q) {
                 if (is_null($this->product_variant_id)) {
@@ -168,7 +171,9 @@ class ProductBatch extends Model
      */
     public function returnReceivedItemsAgg()
     {
+        // RR dinonaktifkan (lihat returnReceivedItems).
         return $this->hasMany(SupplierReturnItem::class, 'product_id', 'product_id')
+            ->whereRaw('1 = 0')
             ->whereColumn('supplier_return_items.product_batch_id', '!=', 'product_batches.id')
             ->whereRaw('supplier_return_items.product_variant_id <=> product_batches.product_variant_id')
             ->whereHas('supplierReturn', fn($q) => $q->whereColumn('supplier_returns.warehouse_id', 'product_batches.warehouse_id'));

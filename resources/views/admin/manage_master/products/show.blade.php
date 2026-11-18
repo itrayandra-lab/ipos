@@ -27,7 +27,11 @@
     .variant-row { border-left: 4px solid #6777ef; background: #f9f9ff; transition: all 0.2s; margin-bottom: 10px; border-radius: 5px; }
     .variant-row:hover { background: #f1f1ff; transform: translateX(5px); }
     
-    .batch-table thead th { background: #f4f6f9; color: #333; text-transform: uppercase; font-size: 0.7rem; border: none; }
+    .batch-table { table-layout: auto; width: 100%; }
+    .batch-table thead th { background: #f4f6f9; color: #333; text-transform: uppercase; font-size: 0.7rem; border: none; white-space: nowrap; vertical-align: middle; padding: 12px 14px; }
+    .batch-table tbody td { vertical-align: middle; padding: 12px 14px; font-size: 0.85rem; }
+    .batch-table .col-nowrap { white-space: nowrap; }
+    .batch-table tfoot td { border-top: 2px solid #e4e6fc; padding: 12px 14px; }
     
     .section-title-premium { position: relative; padding-bottom: 10px; margin-bottom: 20px; font-weight: 700; color: #34395e; }
     .section-title-premium::after { content: ''; position: absolute; bottom: 0; left: 0; width: 40px; height: 3px; background: #6777ef; border-radius: 3px; }
@@ -125,6 +129,7 @@
                                             <tr>
                                                 <th>Produk</th>
                                                 <th>SKU</th>
+                                                <th class="text-right">HPP</th>
                                                 <th class="text-right">Harga Jual</th>
                                             </tr>
                                         </thead>
@@ -135,6 +140,7 @@
                                                         <div class="font-weight-bold">{{ $variant->variant_name }}</div>
                                                     </td>
                                                     <td><code>{{ $variant->sku_code }}</code></td>
+                                                    <td class="text-right">{{ $variant->product_hpp > 0 ? 'Rp ' . number_format($variant->product_hpp, 0, ',', '.') : '-' }}</td>
                                                     <td class="text-right font-weight-bold text-primary">Rp {{ number_format($variant->price, 0, ',', '.') }}</td>
                                                 </tr>
                                             @endforeach
@@ -180,19 +186,21 @@
                                     <table class="table table-sm batch-table">
                                         <thead>
                                             <tr>
+                                                <th>Gudang</th>
                                                 <th>Batch No</th>
-                                                <th>Produk</th>
-                                                <th>Kadaluarsa (Bln/Thn)</th>
+                                                <th>Varian</th>
+                                                <th>Exp</th>
                                                 <th class="text-right">Hrg Beli</th>
-                                                <th class="text-right">Sisa Stok</th>
+                                                <th class="text-right">Stok</th>
                                             </tr>
                                         </thead>
                                         <tbody>
-                                            @forelse($product->batches as $batch)
+                                            @forelse($batches as $batch)
                                                 <tr>
-                                                    <td><span class="badge badge-light font-weight-normal">{{ $batch->batch_no }}</span></td>
-                                                    <td>{{ $batch->variant->variant_name ?? '-' }}</td>
-                                                    <td>
+                                                    <td class="col-nowrap">{{ $batch->warehouse->name ?? '-' }}</td>
+                                                    <td class="col-nowrap"><span class="badge badge-light font-weight-normal">{{ $batch->batch_no }}</span></td>
+                                                    <td>{{ $batch->variant->variant_name ?? $product->name }}</td>
+                                                    <td class="col-nowrap">
                                                         @if($batch->expiry_date)
                                                             <span class="{{ \Carbon\Carbon::parse($batch->expiry_date)->isPast() ? 'text-danger font-weight-bold' : '' }}">
                                                             {{ \Carbon\Carbon::parse($batch->expiry_date)->format('m/Y') }}
@@ -201,17 +209,28 @@
                                                             -
                                                         @endif
                                                     </td>
-                                                    <td class="text-right">Rp {{ number_format($batch->buy_price, 0, ',', '.') }}</td>
-                                                    <td class="text-right font-weight-bold text-dark">{{ number_format($batch->qty, 0, ',', '.') }}</td>
+                                                    <td class="text-right col-nowrap">{{ $batch->buy_price ? 'Rp ' . number_format($batch->buy_price, 0, ',', '.') : '-' }}</td>
+                                                    <td class="text-right col-nowrap font-weight-bold {{ $batch->current_stock < 0 ? 'text-danger' : 'text-dark' }}">{{ number_format($batch->current_stock, 0, ',', '.') }}</td>
                                                 </tr>
                                             @empty
                                                 <tr>
-                                                    <td colspan="5" class="text-center py-4 text-muted">Belum ada data batch untuk produk ini.</td>
+                                                    <td colspan="6" class="text-center py-4 text-muted">Tidak ada stok pada batch produk ini.</td>
                                                 </tr>
                                             @endforelse
                                         </tbody>
+                                        @if($batches->count())
+                                        <tfoot>
+                                            <tr class="font-weight-bold">
+                                                <td colspan="5" class="text-right text-uppercase" style="font-size:0.75rem;">Total Stok</td>
+                                                <td class="text-right">{{ number_format($batches->sum('current_stock'), 0, ',', '.') }}</td>
+                                            </tr>
+                                        </tfoot>
+                                        @endif
                                     </table>
                                 </div>
+                                @if($emptyBatchCount)
+                                <small class="text-muted d-block mt-2">{{ $emptyBatchCount }} batch dengan stok 0 tidak ditampilkan.</small>
+                                @endif
                             </div>
 
                             <div class="mt-4 d-flex justify-content-end">
