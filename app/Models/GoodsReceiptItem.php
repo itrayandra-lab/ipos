@@ -12,6 +12,7 @@ class GoodsReceiptItem extends Model
     protected $fillable = [
         'goods_receipt_id',
         'purchase_order_item_id',
+        'supplier_return_item_id',
         'product_id',
         'product_variant_id',
         'product_name',

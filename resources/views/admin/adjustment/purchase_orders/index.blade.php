@@ -111,7 +111,7 @@ $(function() {
         }).done(function(response) {
             const options = ['<option value="">-- Pilih PO --</option>'];
             (response.items || []).forEach(function(item) {
-                const qtyLeft = Math.max(0, parseFloat(item.quantity) - parseFloat(item.paid_qty || 0));
+                const qtyLeft = Math.max(0, parseFloat(item.quantity) - parseFloat(item.returned_qty || 0) - parseFloat(item.paid_qty || 0));
                 const label = `${item.po_number} — ${item.supplier_name} — ${item.product_name || 'Item PO'} (sisa ${new Intl.NumberFormat('id-ID').format(qtyLeft)})`;
                 options.push(`<option value="${item.purchase_order_item_id}" ${qtyLeft <= 0 ? 'disabled' : ''}>${$('<div>').text(label).html()}</option>`);
             });

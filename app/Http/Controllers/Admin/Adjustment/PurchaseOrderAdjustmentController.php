@@ -115,6 +115,7 @@ class PurchaseOrderAdjustmentController extends Controller
                 'purchase_order_items.id as purchase_order_item_id',
                 'purchase_order_items.quantity',
                 'purchase_order_items.paid_qty',
+                'purchase_order_items.returned_qty',
                 'purchase_order_items.product_name',
                 'purchase_orders.id as purchase_order_id',
                 'purchase_orders.po_number',
@@ -182,6 +183,8 @@ class PurchaseOrderAdjustmentController extends Controller
                     'purchase_order_item_id' => $item->id,
                     'updated_at' => now(),
                 ]);
+                // return atas batch ini kini terhitung sebagai return item PO (mengurangi qty yang dibayar)
+                \App\Models\PurchaseOrderItem::syncReturned([$item->id]);
             } else {
                 $saleItem = DB::table('transaction_items')
                     ->where('id', $data['source_id'])

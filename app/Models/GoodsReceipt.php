@@ -12,6 +12,7 @@ class GoodsReceipt extends Model
     protected $fillable = [
         'sj_number',
         'purchase_order_id',
+        'supplier_return_id',
         'supplier_id',
         'delivery_note_number',
         'delivery_date',
@@ -36,6 +37,11 @@ class GoodsReceipt extends Model
     public function purchaseOrder()
     {
         return $this->belongsTo(PurchaseOrder::class);
+    }
+
+    public function supplierReturn()
+    {
+        return $this->belongsTo(SupplierReturn::class);
     }
 
     public function supplier()

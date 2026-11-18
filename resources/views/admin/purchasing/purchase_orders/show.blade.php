@@ -141,6 +141,7 @@
                 $totalQtyOrdered = $po->items->sum('quantity');
                 $totalQtyReceived = $po->items->sum(fn($i) => $i->goodsReceiptItems->sum('quantity_received'));
                 $totalQtyPaid = $po->items->sum('paid_qty');
+                $totalQtyReturned = $po->items->sum('returned_qty');
             @endphp
 
             <div class="po-summary-card" style="margin-bottom:28px;padding:20px 24px;">
@@ -257,6 +258,8 @@
                                         <tr>
                                             <th>Produk</th>
                                             <th class="text-center" style="width:70px;">Order</th>
+                                            <th class="text-center" style="width:70px;">Return</th>
+                                            <th class="text-center" style="width:80px;">Pengganti</th>
                                             <th style="width:160px;">Penerimaan</th>
                                             <th style="width:160px;">Pembayaran</th>
                                             <th class="text-center" style="width:80px;">Outstanding</th>
@@ -268,11 +271,14 @@
                                         @foreach($po->items as $item)
                                         @php
                                             $qtyOrdered = (float) $item->quantity;
-                                            $qtyReceived = (float) $item->goodsReceiptItems->sum('quantity_received');
+                                            $qtyReceived = (float) $item->goodsReceiptItems->whereNull('supplier_return_item_id')->sum('quantity_received');
                                             $qtyPaid = (float) ($item->paid_qty ?? 0);
+                                            $qtyReturned = (float) ($item->returned_qty ?? 0);
+                                            $qtyReplaced = (float) ($item->replaced_qty ?? 0);
+                                            $qtyPayable = max(0, $qtyOrdered - $qtyReturned + $qtyReplaced); // qty yang harus dibayar
                                             $rcvPct = $qtyOrdered > 0 ? min(100, round(($qtyReceived / $qtyOrdered) * 100)) : 0;
-                                            $payPct = $qtyOrdered > 0 ? min(100, round(($qtyPaid / $qtyOrdered) * 100)) : 0;
-                                            $outstandingQty = max(0, $qtyOrdered - $qtyPaid);
+                                            $payPct = $qtyPayable > 0 ? min(100, round(($qtyPaid / $qtyPayable) * 100)) : 0;
+                                            $outstandingQty = max(0, $qtyPayable - $qtyPaid);
                                             $displayName = str_replace(' - ', ' ', $item->product_name);
                                         @endphp
                                         <tr>
@@ -280,6 +286,8 @@
                                                 <div style="font-weight:600;color:var(--slate-800);">{{ $displayName }}</div>
                                             </td>
                                             <td class="text-center font-weight-bold">{{ number_format($qtyOrdered, 0) }}</td>
+                                            <td class="text-center" style="color:{{ $qtyReturned > 0 ? 'var(--red-500)' : 'var(--slate-400)' }};">{{ $qtyReturned > 0 ? number_format($qtyReturned, 0) : '-' }}</td>
+                                            <td class="text-center" style="color:{{ $qtyReplaced > 0 ? 'var(--green-600)' : 'var(--slate-400)' }};">{{ $qtyReplaced > 0 ? number_format($qtyReplaced, 0) : '-' }}</td>
                                             <td class="progress-cell">
                                                 <div class="progress progress-sm">
                                                     <div class="progress-bar {{ $rcvPct >= 100 ? 'bg-success' : 'bg-info' }}" role="progressbar" style="width:{{ $rcvPct }}%;" aria-valuenow="{{ $rcvPct }}" aria-valuemin="0" aria-valuemax="100"></div>
@@ -290,7 +298,7 @@
                                                 <div class="progress progress-sm">
                                                     <div class="progress-bar {{ $payPct >= 100 ? 'bg-success' : 'bg-warning' }}" role="progressbar" style="width:{{ $payPct }}%;" aria-valuenow="{{ $payPct }}" aria-valuemin="0" aria-valuemax="100"></div>
                                                 </div>
-                                                <div class="progress-label">{{ number_format($qtyPaid, 0) }}/{{ number_format($qtyOrdered, 0) }} ({{ $payPct }}%)</div>
+                                                <div class="progress-label">{{ number_format($qtyPaid, 0) }}/{{ number_format($qtyPayable, 0) }} ({{ $payPct }}%)</div>
                                             </td>
                                             <td class="text-center font-weight-bold" style="color:{{ $outstandingQty > 0 ? 'var(--red-500)' : 'var(--green-600)' }};">{{ number_format($outstandingQty, 0) }}</td>
                                             <td class="text-right">Rp {{ number_format($item->unit_price, 0, ',', '.') }}</td>

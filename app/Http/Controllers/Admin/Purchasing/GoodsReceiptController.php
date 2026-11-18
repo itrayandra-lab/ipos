@@ -172,7 +172,95 @@ class GoodsReceiptController extends Controller
         $pos = PurchaseOrder::whereIn('status', ['submitted', 'approved', 'partial'])->get();
         $suppliers = Supplier::where('status', 'active')->get();
         $warehouses = \App\Models\Warehouse::where('status', 'active')->get();
-        return view('admin.purchasing.goods_receipts.create', compact('gr_number', 'pos', 'suppliers', 'warehouses'))->with('sb', 'GoodsReceipt');
+        $returns = $this->returnsWithRemaining();
+        return view('admin.purchasing.goods_receipts.create', compact('gr_number', 'pos', 'suppliers', 'warehouses', 'returns'))->with('sb', 'GoodsReceipt');
+    }
+
+    /** Qty item return yang sudah diganti supplier (penerimaan pengganti), per item return. */
+    private function replacedByReturnItem(?int $excludeGrId = null)
+    {
+        return DB::table('goods_receipt_items')
+            ->whereNotNull('supplier_return_item_id')
+            ->when($excludeGrId, fn($q) => $q->where('goods_receipt_id', '!=', $excludeGrId))
+            ->selectRaw('supplier_return_item_id, SUM(quantity_received) as qty')
+            ->groupBy('supplier_return_item_id')
+            ->pluck('qty', 'supplier_return_item_id');
+    }
+
+    /** Return supplier yang masih punya sisa qty belum diganti. */
+    private function returnsWithRemaining()
+    {
+        $replaced = $this->replacedByReturnItem();
+
+        return \App\Models\SupplierReturn::with(['supplier', 'items'])
+            ->orderByDesc('id')->limit(300)->get()
+            ->map(function ($r) use ($replaced) {
+                $r->remaining_total = $r->items->sum(fn($i) => max(0, $i->qty - (float) ($replaced[$i->id] ?? 0)));
+                return $r;
+            })
+            ->filter(fn($r) => $r->remaining_total > 0)
+            ->values();
+    }
+
+    /** Item return untuk penerimaan pengganti: qty return, sudah diganti, sisa, dan item PO terkait. */
+    public function getReturnItems(Request $request)
+    {
+        $return = \App\Models\SupplierReturn::with(['items.product.merek', 'items.variant.netto', 'items.batch'])->findOrFail($request->return_id);
+        $replaced = $this->replacedByReturnItem($request->exclude_gr ? (int) $request->exclude_gr : null);
+
+        $items = $return->items->map(function ($i) use ($replaced) {
+            $b = $i->batch;
+            $poItemId = $b ? ($b->purchase_order_item_id ?: DB::table('goods_receipt_items')->where('id', $b->goods_receipt_item_id)->value('purchase_order_item_id')) : null;
+            $done = (float) ($replaced[$i->id] ?? 0);
+            $netto = $i->variant && $i->variant->netto ? trim($i->variant->netto->netto_value . ' ' . $i->variant->netto->satuan) : '';
+
+            return [
+                'supplier_return_item_id' => $i->id,
+                'purchase_order_item_id' => $poItemId,
+                'product_id' => $i->product_id,
+                'variant_id' => $i->product_variant_id,
+                'product_name' => trim(($i->product->merek->name ?? '') . ' ' . ($i->product->name ?? '')),
+                'description' => $netto,
+                'satuan' => $i->variant->netto->satuan ?? '',
+                'batch_no' => $b->batch_no ?? '',
+                'expiry_date' => $b && $b->expiry_date ? $b->expiry_date->format('Y-m') : '',
+                'buy_price' => (float) $i->buy_price,
+                'qty_returned' => (float) $i->qty,
+                'qty_replaced' => $done,
+                'qty_remaining' => max(0, (float) $i->qty - $done),
+            ];
+        })->filter(fn($x) => $x['qty_remaining'] > 0)->values();
+
+        return response()->json([
+            'return_number' => $return->return_number,
+            'supplier_id' => $return->supplier_id,
+            'warehouse_id' => $return->warehouse_id,
+            'items' => $items,
+        ]);
+    }
+
+    /** Pastikan qty pengganti tidak melebihi sisa qty item return. Return pesan error atau null. */
+    private function replacementError(array $items, ?int $excludeGrId = null): ?string
+    {
+        $replaced = $this->replacedByReturnItem($excludeGrId);
+        $incoming = [];
+        foreach ($items as $it) {
+            if (!empty($it['supplier_return_item_id'])) {
+                $incoming[$it['supplier_return_item_id']] = ($incoming[$it['supplier_return_item_id']] ?? 0) + (float) $it['qty_received'];
+            }
+        }
+        foreach ($incoming as $riId => $qty) {
+            $ri = \App\Models\SupplierReturnItem::find($riId);
+            if (!$ri) {
+                return 'Item return tidak ditemukan.';
+            }
+            $remaining = (float) $ri->qty - (float) ($replaced[$riId] ?? 0);
+            if ($qty > $remaining + 0.0001) {
+                return "Qty pengganti melebihi sisa return (sisa {$remaining}).";
+            }
+        }
+
+        return null;
     }
 
     public function getPoItems(Request $request)
@@ -334,6 +422,9 @@ class GoodsReceiptController extends Controller
         if ($validator->fails()) {
             return response()->json(['status' => 'error', 'message' => $validator->errors()->first()], 422);
         }
+        if ($err = $this->replacementError($request->items)) {
+            return response()->json(['status' => 'error', 'message' => $err], 422);
+        }
 
         try {
             DB::beginTransaction();
@@ -341,6 +432,7 @@ class GoodsReceiptController extends Controller
             $gr = GoodsReceipt::create([
                 'sj_number' => GoodsReceipt::generateGRNumber(),
                 'purchase_order_id' => $request->purchase_order_id ?: null,
+                'supplier_return_id' => $request->supplier_return_id ?: null,
                 'supplier_id' => $request->supplier_id,
                 'warehouse_id' => $request->warehouse_id,
                 'delivery_note_number' => $request->delivery_note_number,
@@ -377,6 +469,7 @@ class GoodsReceiptController extends Controller
                 $grItem = GoodsReceiptItem::create([
                     'goods_receipt_id' => $gr->id,
                     'purchase_order_item_id' => $item['purchase_order_item_id'] ?? null,
+                    'supplier_return_item_id' => $item['supplier_return_item_id'] ?? null,
                     'product_id' => $productId,
                     'product_variant_id' => $variantId,
                     'product_name' => $item['product_name'],
@@ -433,7 +526,7 @@ class GoodsReceiptController extends Controller
                     $anyReceived = false;
 
                     foreach ($po->items as $poItem) {
-                        $totalReceived = GoodsReceiptItem::where('purchase_order_item_id', $poItem->id)->sum('quantity_received');
+                        $totalReceived = GoodsReceiptItem::where('purchase_order_item_id', $poItem->id)->whereNull('supplier_return_item_id')->sum('quantity_received');
                         if ($totalReceived > 0) {
                             $anyReceived = true;
                         }
@@ -451,6 +544,8 @@ class GoodsReceiptController extends Controller
                     }
                 }
             }
+
+            PurchaseOrderItem::syncReturned(collect($request->items)->pluck('purchase_order_item_id')->filter()->all());
 
             DB::commit();
             return response()->json(['status' => 'success', 'message' => 'Penerimaan Barang berhasil dikonfirmasi', 'redirect' => route('admin.purchasing.goods_receipts.index')]);
@@ -493,11 +588,15 @@ class GoodsReceiptController extends Controller
         if ($validator->fails()) {
             return response()->json(['status' => 'error', 'message' => $validator->errors()->first()], 422);
         }
+        if ($err = $this->replacementError($request->items, (int) $id)) {
+            return response()->json(['status' => 'error', 'message' => $err], 422);
+        }
 
         try {
             DB::beginTransaction();
 
             $gr = GoodsReceipt::with('items')->findOrFail($id);
+            $oldPoItemIds = $gr->items->pluck('purchase_order_item_id')->filter()->all();
 
             // Delete old ProductBatch entries linked to this GR
             $poId = null;
@@ -543,6 +642,7 @@ class GoodsReceiptController extends Controller
 
             $gr->update([
                 'purchase_order_id' => $request->purchase_order_id ?: null,
+                'supplier_return_id' => $request->supplier_return_id ?: $gr->supplier_return_id,
                 'supplier_id' => $request->supplier_id,
                 'warehouse_id' => $request->warehouse_id,
                 'delivery_note_number' => $request->delivery_note_number,
@@ -577,6 +677,7 @@ class GoodsReceiptController extends Controller
                 $grItem = GoodsReceiptItem::create([
                     'goods_receipt_id' => $gr->id,
                     'purchase_order_item_id' => $item['purchase_order_item_id'] ?? null,
+                    'supplier_return_item_id' => $item['supplier_return_item_id'] ?? null,
                     'product_id' => $productId,
                     'product_variant_id' => $variantId,
                     'product_name' => $item['product_name'],
@@ -651,7 +752,7 @@ class GoodsReceiptController extends Controller
                     $anyReceived = false;
 
                     foreach ($po->items as $poItem) {
-                        $totalReceived = GoodsReceiptItem::where('purchase_order_item_id', $poItem->id)->sum('quantity_received');
+                        $totalReceived = GoodsReceiptItem::where('purchase_order_item_id', $poItem->id)->whereNull('supplier_return_item_id')->sum('quantity_received');
                         if ($totalReceived > 0) {
                             $anyReceived = true;
                         }
@@ -670,6 +771,8 @@ class GoodsReceiptController extends Controller
                 }
             }
 
+            PurchaseOrderItem::syncReturned(array_merge($oldPoItemIds, collect($request->items)->pluck('purchase_order_item_id')->filter()->all()));
+
             DB::commit();
             return response()->json(['status' => 'success', 'message' => 'Penerimaan Barang berhasil diperbarui', 'redirect' => route('admin.purchasing.goods_receipts.index')]);
         } catch (\Exception $e) {
@@ -684,6 +787,7 @@ class GoodsReceiptController extends Controller
             DB::beginTransaction();
 
             $gr = GoodsReceipt::with('items')->findOrFail($id);
+            $affectedPoItemIds = $gr->items->pluck('purchase_order_item_id')->filter()->all();
 
             $poId = null;
 
@@ -738,7 +842,7 @@ class GoodsReceiptController extends Controller
                     $anyReceived = false;
 
                     foreach ($po->items as $poItem) {
-                        $totalReceived = GoodsReceiptItem::where('purchase_order_item_id', $poItem->id)->sum('quantity_received');
+                        $totalReceived = GoodsReceiptItem::where('purchase_order_item_id', $poItem->id)->whereNull('supplier_return_item_id')->sum('quantity_received');
                         if ($totalReceived > 0) {
                             $anyReceived = true;
                         }
@@ -756,6 +860,8 @@ class GoodsReceiptController extends Controller
                     }
                 }
             }
+
+            PurchaseOrderItem::syncReturned($affectedPoItemIds);
 
             DB::commit();
             return response()->json(['success' => true, 'message' => 'Penerimaan Barang berhasil dihapus.']);

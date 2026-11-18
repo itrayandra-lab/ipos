@@ -618,10 +618,11 @@ class SettlementController extends Controller
                 ->pluck('received_qty', 'purchase_order_item_id');
             foreach ($allocations->groupBy('purchase_order_item_id') as $purchaseOrderItemId => $items) {
                 $purchaseOrderItem = $purchaseOrderItems->get($purchaseOrderItemId);
-                $receivedQty = (float) ($receivedQuantities[$purchaseOrderItemId] ?? 0);
+                // qty yang bisa dibayar = diterima - di-return ke supplier
+                $receivedQty = (float) ($receivedQuantities[$purchaseOrderItemId] ?? 0) - (float) ($purchaseOrderItem->returned_qty ?? 0);
                 if (!$purchaseOrderItem
                     || (float) $purchaseOrderItem->paid_qty + (float) $items->sum('allocated_qty') > $receivedQty + 0.0001) {
-                    throw new \InvalidArgumentException('Jumlah pembayaran akan melebihi kuantitas yang sudah diterima pada PO.');
+                    throw new \InvalidArgumentException('Jumlah pembayaran akan melebihi kuantitas PO yang sudah diterima (setelah dikurangi return).');
                 }
             }
 
@@ -755,7 +756,7 @@ class SettlementController extends Controller
         $totalQty = 0;
         $totalPaid = 0;
         foreach ($items as $item) {
-            $totalQty += $item->quantity;
+            $totalQty += max(0, (float) $item->quantity - (float) $item->returned_qty + (float) $item->replaced_qty); // qty bayar = qty PO - return + pengganti
             $totalPaid += $item->paid_qty;
         }
 

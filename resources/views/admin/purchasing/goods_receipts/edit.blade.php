@@ -159,6 +159,7 @@
                                     <div class="col-md-4">
                                         <div class="form-group">
                                             <label>Purchase Order (Opsional)</label>
+                                            @if($gr->supplier_return_id)<input type="hidden" name="supplier_return_id" value="{{ $gr->supplier_return_id }}">@endif
                                             <select name="purchase_order_id" id="purchase_order_id" class="form-control select2">
                                                 <option value="">-- Tanpa PO (Input Manual) --</option>
                                                 @foreach($pos as $po)
@@ -227,6 +228,10 @@
                                             <tr>
                                                 <td class="text-center">{{ $index + 1 }}</td>
                                                 <td>
+                                                    @if($item->supplier_return_item_id)
+                                                    <input type="hidden" name="items[{{ $index }}][supplier_return_item_id]" value="{{ $item->supplier_return_item_id }}">
+                                                    <span class="badge badge-warning mb-1">Pengganti return {{ $gr->supplierReturn->return_number ?? '' }}</span>
+                                                    @endif
                                                     @if($item->purchase_order_item_id)
                                                     <input type="hidden" name="items[{{ $index }}][purchase_order_item_id]" value="{{ $item->purchase_order_item_id }}">
                                                     @endif

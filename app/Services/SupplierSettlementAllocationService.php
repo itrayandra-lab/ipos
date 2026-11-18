@@ -92,14 +92,17 @@ class SupplierSettlementAllocationService
                 'purchase_order_items.product_id',
                 'purchase_order_items.unit_price',
                 'purchase_order_items.paid_qty',
+                'purchase_order_items.returned_qty',
                 'purchase_orders.id as purchase_order_id',
                 'purchase_orders.supplier_id',
                 'purchase_orders.po_number',
                 'purchase_orders.po_date',
+                'purchase_orders.is_opening',
                 'suppliers.name as supplier_name',
                 DB::raw('COALESCE(received.received_qty, 0) as received_qty'),
             ])
-            ->whereRaw('COALESCE(received.received_qty, 0) > purchase_order_items.paid_qty')
+            // qty yang dibayar = diterima - di-return ke supplier
+            ->whereRaw('COALESCE(received.received_qty, 0) - purchase_order_items.returned_qty > purchase_order_items.paid_qty')
             ->orderByRaw('COALESCE(purchase_orders.po_date, ?) ASC', ['9999-12-31'])
             ->orderBy('purchase_orders.id')
             ->orderBy('purchase_order_items.id');
@@ -114,7 +117,7 @@ class SupplierSettlementAllocationService
             $key = $purchaseOrderItem->product_id . '|' . $purchaseOrderItem->supplier_id;
             $purchaseOrderPools[$key][] = [
                 'item' => $purchaseOrderItem,
-                'remaining_qty' => max(0, (float) $purchaseOrderItem->received_qty - (float) $purchaseOrderItem->paid_qty),
+                'remaining_qty' => max(0, (float) $purchaseOrderItem->received_qty - (float) $purchaseOrderItem->returned_qty - (float) $purchaseOrderItem->paid_qty),
             ];
         }
 
@@ -127,14 +130,17 @@ class SupplierSettlementAllocationService
             $pool = $purchaseOrderPools[$poolKey] ?? [];
             $poolOffset = $poolOffsets[$poolKey] ?? 0;
 
-            while ($remainingQty > 0.0001 && $poolOffset < count($pool)) {
-                if ($pool[$poolOffset]['remaining_qty'] <= 0.0001) {
-                    $poolOffset++;
+            for ($poolIndex = $poolOffset; $remainingQty > 0.0001 && $poolIndex < count($pool); $poolIndex++) {
+                if ($pool[$poolIndex]['remaining_qty'] <= 0.0001) {
                     continue;
                 }
 
-                $purchaseOrderItem = $pool[$poolOffset]['item'];
-                $allocatedQty = min($remainingQty, $pool[$poolOffset]['remaining_qty']);
+                $purchaseOrderItem = $pool[$poolIndex]['item'];
+                // PO stok awal hasil import SO hanya untuk penjualan pada/sesudah tanggal PO tsb
+                if (!empty($purchaseOrderItem->is_opening) && $sale->transaction_date < $purchaseOrderItem->po_date) {
+                    continue;
+                }
+                $allocatedQty = min($remainingQty, $pool[$poolIndex]['remaining_qty']);
                 $unitPrice = (float) $purchaseOrderItem->unit_price > 0
                     ? (float) $purchaseOrderItem->unit_price
                     : (float) $sale->source_buy_price;
@@ -163,10 +169,10 @@ class SupplierSettlementAllocationService
                 ]);
 
                 $remainingQty -= $allocatedQty;
-                $pool[$poolOffset]['remaining_qty'] -= $allocatedQty;
-                if ($pool[$poolOffset]['remaining_qty'] <= 0.0001) {
-                    $poolOffset++;
-                }
+                $pool[$poolIndex]['remaining_qty'] -= $allocatedQty;
+            }
+            while ($poolOffset < count($pool) && $pool[$poolOffset]['remaining_qty'] <= 0.0001) {
+                $poolOffset++;
             }
 
             if ($remainingQty > 0.0001) {

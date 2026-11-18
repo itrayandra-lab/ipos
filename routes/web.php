@@ -185,6 +185,12 @@ Route::prefix('admin')->middleware(['auth', 'role:super_admin,store_manager,fina
                 }
                 );
 
+                Route::prefix('stock-opname-check')->group(function () {
+                    Route::get('/', [\App\Http\Controllers\Admin\ManageMaster\StockOpnameCheckController::class , 'index']);
+                    Route::post('/', [\App\Http\Controllers\Admin\ManageMaster\StockOpnameCheckController::class , 'process']);
+                }
+                );
+
                 Route::prefix('stock-opname')->group(function () {
                     Route::get('/', [\App\Http\Controllers\Admin\ManageMaster\StockOpnameController::class , 'index']);
                     Route::get('/create', [\App\Http\Controllers\Admin\ManageMaster\StockOpnameController::class , 'create']);
@@ -502,6 +508,7 @@ Route::prefix('admin')->middleware(['auth', 'role:super_admin,store_manager,fina
                     Route::get('/goods-receipts/all', 'getall')->name('admin.purchasing.goods_receipts.getall');
                     Route::get('/goods-receipts/po-items', 'getPoItems')->name('admin.purchasing.goods_receipts.get_po_items');
                     Route::get('/goods-receipts/products', 'getProducts')->name('admin.purchasing.goods_receipts.get_products');
+                    Route::get('/goods-receipts/return-items', 'getReturnItems')->name('admin.purchasing.goods_receipts.get_return_items');
                     Route::post('/goods-receipts', 'store')->name('admin.purchasing.goods_receipts.store');
                     Route::get('/goods-receipts/{id}/edit', 'edit')->name('admin.purchasing.goods_receipts.edit');
                     Route::put('/goods-receipts/{id}', 'update')->name('admin.purchasing.goods_receipts.update');

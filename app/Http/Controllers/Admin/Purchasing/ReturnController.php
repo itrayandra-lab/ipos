@@ -277,6 +277,7 @@ class ReturnController extends Controller
             ]);
 
             // Hapus items lama
+            $oldBatchIds = $return->items()->pluck('product_batch_id')->all();
             $return->items()->delete();
 
             // Create new items
@@ -296,6 +297,7 @@ class ReturnController extends Controller
             }
 
             Product::bulkSyncStock(array_unique(array_merge($old_product_ids, collect($allocated)->pluck('batch.product_id')->all())));
+            \App\Models\PurchaseOrderItem::syncReturnedForBatches(array_merge($oldBatchIds, collect($allocated)->pluck('batch.id')->all()));
 
             DB::commit();
             return response()->json([
@@ -330,8 +332,10 @@ class ReturnController extends Controller
             DB::beginTransaction();
             $return = SupplierReturn::findOrFail($id);
             $pids = $return->items->pluck('product_id')->unique()->all();
+            $batchIds = $return->items->pluck('product_batch_id')->all();
             $return->delete();
             Product::bulkSyncStock($pids);
+            \App\Models\PurchaseOrderItem::syncReturnedForBatches($batchIds);
 
             DB::commit();
             return response()->json(['status' => 'success', 'message' => 'Return barang berhasil dihapus']);

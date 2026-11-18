@@ -152,6 +152,23 @@
                                 </div>
 
                                 <div class="row">
+                                    <div class="col-md-12">
+                                        <div class="form-group">
+                                            <label>Tautkan No. Return <span class="text-muted">(Opsional &mdash; untuk barang pengganti dari supplier atas barang yang di-return)</span></label>
+                                            <select name="supplier_return_id" id="supplier_return_id" class="form-control select2-return">
+                                                <option value="">-- Bukan penerimaan pengganti --</option>
+                                                @foreach($returns as $ret)
+                                                    <option value="{{ $ret->id }}">
+                                                        {{ $ret->return_number }} &mdash; {{ $ret->supplier->name ?? '-' }} (sisa belum diganti {{ number_format($ret->remaining_total, 0, ',', '.') }} pcs)
+                                                    </option>
+                                                @endforeach
+                                            </select>
+                                            <small class="text-muted">Qty pengganti yang diterima menambah qty yang harus dibayar pada PO terkait. Bila supplier tidak mengirim pengganti, qty bayar tetap berkurang sebesar return.</small>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div class="row">
                                     <div class="col-md-4">
                                         <div class="form-group">
                                             <label>Supplier <span class="text-danger">*</span></label>
@@ -310,6 +327,23 @@
             }
         });
 
+        // ============================
+        // Penerimaan pengganti return
+        // ============================
+        $('.select2-return').select2({ width: '100%', placeholder: '-- Bukan penerimaan pengganti --', allowClear: true });
+        $('#supplier_return_id').on('change', function() {
+            let retId = $(this).val();
+            if (!retId) {
+                $('#tbody-items tr').not('#empty-row').remove();
+                showEmptyRowIfNeeded();
+                return;
+            }
+            // pengganti tidak memakai pilihan PO (item PO terbaca dari batch yang di-return)
+            if ($('#purchase_order_id').val()) { $('#purchase_order_id').val('').trigger('change'); }
+            $(this).val(retId);
+            loadReturnItems(retId);
+        });
+
         // Tombol Lepas PO
         $('#btn-clear-po').on('click', function() {
             $('#purchase_order_id').val('').trigger('change');
@@ -409,6 +443,68 @@
             });
         });
     });
+
+    // ============================
+    // Load item return (penerimaan pengganti)
+    // ============================
+    function loadReturnItems(retId) {
+        $.LoadingOverlay("show");
+        $.ajax({
+            url: "{{ route('admin.purchasing.goods_receipts.get_return_items') }}",
+            data: { return_id: retId },
+            success: function(res) {
+                $.LoadingOverlay("hide");
+                if (res.supplier_id) { $('#supplier_id').val(res.supplier_id).trigger('change'); }
+                if (res.warehouse_id) { $('#warehouse_id').val(res.warehouse_id).trigger('change'); }
+
+                $('#tbody-items tr').not('#empty-row').remove();
+                hideEmptyRow();
+
+                if (!res.items || res.items.length === 0) {
+                    showEmptyRowIfNeeded();
+                    Swal.fire({ icon: 'info', title: 'Info', text: 'Semua item return ini sudah diganti.' });
+                    return;
+                }
+                res.items.forEach(function(item, index) {
+                    let rowIndex = rowCount++;
+                    let noPo = !item.purchase_order_item_id;
+                    let html = `
+                    <tr class="row-from-return" data-row-type="return">
+                        <td class="text-center font-weight-bold">${index + 1}</td>
+                        <td>
+                            <input type="hidden" name="items[${rowIndex}][supplier_return_item_id]" value="${item.supplier_return_item_id}">
+                            <input type="hidden" name="items[${rowIndex}][purchase_order_item_id]" value="${item.purchase_order_item_id || ''}">
+                            <input type="hidden" name="items[${rowIndex}][product_id]" value="${item.product_id || ''}">
+                            <input type="hidden" name="items[${rowIndex}][variant_id]" value="${item.variant_id || ''}">
+                            <input type="hidden" name="items[${rowIndex}][product_name]" value="${escHtml(item.product_name || '')}">
+                            <input type="hidden" name="items[${rowIndex}][description]" value="${escHtml(item.description || '')}">
+                            <input type="hidden" name="items[${rowIndex}][satuan]" value="${escHtml(item.satuan || '')}">
+                            <div class="font-weight-bold text-dark" style="font-size:13px;">${escHtml(item.product_name)}</div>
+                            ${item.description ? '<small class="text-muted">' + escHtml(item.description) + '</small>' : ''}
+                            <small class="d-block text-muted">Return ${formatNum(item.qty_returned)} &middot; sudah diganti ${formatNum(item.qty_replaced)}</small>
+                            ${noPo ? '<small class="d-block text-warning"><i class="fas fa-exclamation-triangle"></i> Batch yang di-return belum tertaut ke PO, pengganti tidak mempengaruhi pembayaran PO.</small>' : ''}
+                        </td>
+                        <td><input type="text" name="items[${rowIndex}][batch_no]" value="" class="form-control" placeholder="Batch pengganti..."></td>
+                        <td><input type="month" name="items[${rowIndex}][expiry_date]" value="${item.expiry_date || ''}" class="form-control"></td>
+                        <td><input type="text" name="items[${rowIndex}][buy_price]" value="${formatNum(item.buy_price)}" class="form-control buy-price-input text-right"></td>
+                        <td class="text-center">
+                            <input type="hidden" name="items[${rowIndex}][qty_ordered]" value="${item.qty_remaining}">
+                            <span class="font-weight-bold text-info">${formatNum(item.qty_remaining)}</span>
+                            <small class="text-muted d-block">sisa return</small>
+                        </td>
+                        <td><input type="text" name="items[${rowIndex}][qty_received]" value="${formatNum(item.qty_remaining)}" class="form-control qty-received-input text-center font-weight-bold" required></td>
+                        <td><input type="text" name="items[${rowIndex}][item_notes]" class="form-control" placeholder="Catatan..." value="Pengganti return"></td>
+                        <td class="text-center"><button type="button" class="btn btn-sm btn-outline-danger btn-remove-row" title="Hapus baris"><i class="fas fa-times"></i></button></td>
+                    </tr>`;
+                    $('#tbody-items').append(html);
+                });
+            },
+            error: function(err) {
+                $.LoadingOverlay("hide");
+                Swal.fire({ icon: 'error', title: 'Gagal Memuat Return', text: err.responseJSON?.message || 'Terjadi kesalahan' });
+            }
+        });
+    }
 
     // ============================
     // Load PO Items via AJAX
