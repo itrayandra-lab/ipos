@@ -107,12 +107,15 @@
             @endif
 
             {{-- Adjustment Data Group --}}
-            @if($user->hasPermission('access_adjustment_menu') || $user->hasPermission('access_adjustment_products') || $user->hasPermission('access_products_menu'))
-            <li class="nav-item dropdown {{ in_array($sb, ['AdjustmentProduct', 'AdjustmentPurchaseOrder']) ? 'active' : '' }}">
+            @if($user->hasPermission('access_adjustment_menu') || $user->hasPermission('access_adjustment_products') || $user->hasPermission('access_products_menu') || $user->hasPermission('access_stock_opname'))
+            <li class="nav-item dropdown {{ in_array($sb, ['AdjustmentProduct', 'AdjustmentPurchaseOrder', 'StockOpnameCheck']) ? 'active' : '' }}">
                 <a href="#" class="nav-link has-dropdown"><i class="fas fa-sliders-h"></i> <span>Adjustment Data</span></a>
                 <ul class="dropdown-menu">
                     <li class="{{ $sb == 'AdjustmentProduct' ? 'active' : '' }}"><a class="nav-link" href="{{ route('admin.adjustment.products.index') }}">List Produk</a></li>
                     <li class="{{ $sb == 'AdjustmentPurchaseOrder' ? 'active' : '' }}"><a class="nav-link" href="{{ route('admin.adjustment.purchase_orders.index') }}">Adjustment PO</a></li>
+                    @if($user->hasPermission('access_stock_opname'))
+                    <li class="{{ $sb == 'StockOpnameCheck' ? 'active' : '' }}"><a class="nav-link" href="{{ url('admin/manage-master/stock-opname-check') }}">Cek Selisih SO</a></li>
+                    @endif
                 </ul>
             </li>
             @endif
