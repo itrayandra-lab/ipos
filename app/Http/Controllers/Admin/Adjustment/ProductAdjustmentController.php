@@ -542,7 +542,7 @@ class ProductAdjustmentController extends Controller
                 ->when($b->product_variant_id,
                     fn($q) => $q->where('i.product_variant_id', $b->product_variant_id),
                     fn($q) => $q->whereNull('i.product_variant_id'))
-                ->where('sb.batch_no', $b->batch_no)
+                ->whereRaw($this->sqlBatchNorm('sb.batch_no') . ' = ?', [$this->normBatchNo($b->batch_no)])
                 ->whereRaw('DATE_ADD(m.received_at, INTERVAL 7 HOUR) BETWEEN DATE_SUB(?, INTERVAL 8 HOUR) AND DATE_ADD(?, INTERVAL 8 HOUR)', [$b->created_at, $b->created_at])
                 ->select('m.id', 'm.reference_number', 'i.id as movement_item_id', 'i.qty as kirim')
                 ->orderByRaw('ABS(TIMESTAMPDIFF(SECOND, DATE_ADD(m.received_at, INTERVAL 7 HOUR), ?))', [$b->created_at])
@@ -594,6 +594,18 @@ class ProductAdjustmentController extends Controller
         }
 
         return $map;
+    }
+
+    /** Normalisasi no batch: hanya huruf/angka, huruf besar ("0426-032" == "0426 032"). */
+    private function normBatchNo($v): string
+    {
+        return strtoupper(preg_replace('/[^A-Za-z0-9]/', '', (string) $v));
+    }
+
+    /** Padanan SQL dari normBatchNo untuk sebuah kolom. */
+    private function sqlBatchNorm(string $col): string
+    {
+        return "UPPER(REPLACE(REPLACE(REPLACE(REPLACE({$col}, ' ', ''), '-', ''), '/', ''), '.', ''))";
     }
 
     private function adjustmentGuard()
@@ -1012,9 +1024,13 @@ class ProductAdjustmentController extends Controller
         ]);
         $d['expiry_date'] = normalize_expiry_date($d['expiry_date'] ?? null);
         $b = \App\Models\ProductBatch::findOrFail($d['batch_id']);
-        $dup = \App\Models\ProductBatch::findDuplicate(
+        // Cek duplikat hanya bila no batch / gudang diubah; mengubah qty/harga/expiry
+        // pada batch yang sudah berdampingan dengan batch sama tidak boleh terblokir.
+        $identityChanged = trim((string) $d['batch_no']) !== trim((string) $b->batch_no)
+            || (int) ($d['warehouse_id'] ?? 0) !== (int) ($b->warehouse_id ?? 0);
+        $dup = $identityChanged ? \App\Models\ProductBatch::findDuplicate(
             $b->product_id, $b->product_variant_id, $d['warehouse_id'] ?? null, $d['batch_no'], $b->id
-        );
+        ) : null;
         if ($dup) {
             return response()->json(['status' => 'error',
                 'message' => "No batch '{$d['batch_no']}' sudah dipakai baris #{$dup->id}. Pakai Merge Batch untuk menggabungkannya."], 422);
@@ -1070,7 +1086,7 @@ class ProductAdjustmentController extends Controller
             ->where('m.status', 'completed')
             ->where('m.to_warehouse_id', $batch->warehouse_id)
             ->where('i.product_id', $batch->product_id)
-            ->where('source.batch_no', $batch->batch_no)
+            ->whereRaw($this->sqlBatchNorm('source.batch_no') . ' = ?', [$this->normBatchNo($batch->batch_no)])
             ->whereNull('source.deleted_at')
             ->where(function ($q) use ($variantId) {
                 if ($variantId === null) {
@@ -1142,7 +1158,7 @@ class ProductAdjustmentController extends Controller
             if ((int) $item->product_id !== (int) $batch->product_id
                 || (int) ($item->product_variant_id ?? 0) !== (int) ($batch->product_variant_id ?? 0)
                 || !$item->batch
-                || $item->batch->batch_no !== $batch->batch_no) {
+                || $this->normBatchNo($item->batch->batch_no) !== $this->normBatchNo($batch->batch_no)) {
                 throw new \Exception('Movement tidak cocok dengan produk, varian, atau nomor batch ini.');
             }
             if ($batch->goods_receipt_item_id) {
@@ -1160,7 +1176,9 @@ class ProductAdjustmentController extends Controller
             }
 
             $previousQty = (int) $batch->qty;
+            // No batch distandarkan mengikuti batch sumber (mis. "0426-032" -> "0426 032").
             $batch->update([
+                'batch_no' => $item->batch->batch_no,
                 'stock_movement_id' => $movement->id,
                 'stock_movement_item_id' => $item->id,
                 'qty' => (int) $item->qty,

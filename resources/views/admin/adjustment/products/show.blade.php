@@ -1155,7 +1155,9 @@
                 $('#btn-do-link-incoming-mv').prop('disabled', !valid);
                 $('#im-preview').text(valid
                     ? 'M akan disamakan dari ' + current + ' menjadi ' + qty +
-                        ' sesuai qty yang dikirim pada movement. S akan dihitung ulang setelah ditautkan.'
+                        ' sesuai qty yang dikirim pada movement' +
+                        (qty != current ? ' (selisih ' + (qty - current > 0 ? '+' : '') + (qty - current) + ').' : '.') +
+                        ' No batch juga disamakan dengan batch sumber. S akan dihitung ulang setelah ditautkan.'
                     : 'Pilih movement untuk melihat perubahan M.');
             });
 
