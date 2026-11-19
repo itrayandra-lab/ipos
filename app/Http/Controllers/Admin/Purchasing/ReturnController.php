@@ -107,6 +107,23 @@ class ReturnController extends Controller
      * stok satu batch otomatis dilanjutkan ke batch berikutnya.
      * $oldQty = [batch_id => qty] return lama (saat edit) yang dikembalikan ke stok.
      */
+    /**
+     * Return hanya untuk supplier: semua batch harus berada di gudang return.
+     * Perpindahan stok antar gudang memakai Stock Movement, bukan return.
+     */
+    private function warehouseMismatchMessage(array $items, $warehouseId): ?string
+    {
+        $batches = ProductBatch::whereIn('id', collect($items)->pluck('product_batch_id')->filter()->all())->get();
+        foreach ($batches as $b) {
+            if ((int) $b->warehouse_id !== (int) $warehouseId) {
+                $name = Warehouse::find($b->warehouse_id)->name ?? ('#' . $b->warehouse_id);
+                return "Batch {$b->batch_no} berada di gudang {$name}, bukan gudang return yang dipilih. Return hanya untuk mengembalikan barang ke supplier dari gudang yang sama; untuk memindahkan stok antar gudang gunakan Stock Movement.";
+            }
+        }
+
+        return null;
+    }
+
     private function allocateItems(array $items, array $oldQty = []): array
     {
         $out = [];
@@ -162,6 +179,10 @@ class ReturnController extends Controller
 
         if ($validator->fails()) {
             return response()->json(['status' => 'error', 'message' => $validator->errors()->first()], 422);
+        }
+
+        if ($msg = $this->warehouseMismatchMessage($request->items, $request->warehouse_id)) {
+            return response()->json(['status' => 'error', 'message' => $msg], 422);
         }
 
         try {
@@ -254,6 +275,10 @@ class ReturnController extends Controller
 
         if ($validator->fails()) {
             return response()->json(['status' => 'error', 'message' => $validator->errors()->first()], 422);
+        }
+
+        if ($msg = $this->warehouseMismatchMessage($request->items, $request->warehouse_id)) {
+            return response()->json(['status' => 'error', 'message' => $msg], 422);
         }
 
         try {
