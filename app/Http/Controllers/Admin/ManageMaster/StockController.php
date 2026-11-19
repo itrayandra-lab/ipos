@@ -703,7 +703,10 @@ class StockController extends Controller
                 'netto'     => $nettoInfo,
                 'variant_id' => $variantId ?: null,
             ],
-            'batches' => $batches,
+            // Rincian batch: data terbaru di atas (tanggal dibuat, lalu id sebagai pemecah urutan)
+            'batches' => $batches->sort(function ($a, $b) {
+                return [$b->created_at, $b->id] <=> [$a->created_at, $a->id];
+            })->values(),
             'incoming' => $incoming,
             'outgoing' => $outgoing
         ]);

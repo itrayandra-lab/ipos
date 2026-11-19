@@ -61,7 +61,8 @@ class PoReceiptService
                 'satuan' => $b->satuan,
                 'batch_no' => $b->batch_no,
                 'expiry_date' => $b->expiry_date,
-                'quantity_ordered' => $b->qty_ordered,
+                // qty PO hasil import = total stok; per batch tampilkan qty batch agar baris cocok
+                'quantity_ordered' => $b->qty,
                 'quantity_received' => $b->qty,
                 'quantity_difference' => 0,
                 'created_at' => now(), 'updated_at' => now(),
