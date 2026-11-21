@@ -20,6 +20,14 @@ use App\Models\TransactionPayment;
 
 class SalesDocumentController extends Controller
 {
+    private function requireInvoiceAccess(): void
+    {
+        $u = auth()->user();
+        if (!$u->hasPermission('access_sales_invoices') && !$u->hasPermission('access_sales_pusat')) {
+            abort(403, 'Anda tidak memiliki akses ke Invoice Penjualan.');
+        }
+    }
+
     public function invoices()
     {
         if (!auth()->user()->hasPermission('access_sales_invoices') && !auth()->user()->hasPermission('access_sales_pusat')) {
@@ -186,8 +194,9 @@ class SalesDocumentController extends Controller
 
     public function storeInvoice(Request $request)
     {
+        $this->requireInvoiceAccess();
         $request->validate([
-            'invoice_number' => 'nullable|string|max:50',
+            'invoice_number' => 'nullable|string|max:50|unique:transactions,invoice_number',
             'customer_id' => 'nullable|exists:customers,id',
             'customer_name' => 'nullable|string|max:150',
             'customer_phone' => 'nullable|string|max:30',
@@ -331,6 +340,15 @@ class SalesDocumentController extends Controller
                 ]);
                 $invNum = $request->invoice_number ?: InvoiceService::generate($txDate);
                 $transaction->update(['invoice_number' => $invNum]);
+
+                // DP dicatat sebagai pembayaran nyata agar sisa tagihan benar
+                $dpAmount = (float) ($request->down_payment_amount ?? 0);
+                if ($request->payment_status === 'credit' && $dpAmount > 0) {
+                    if ($dpAmount > $grandTotal + 0.01) {
+                        throw new \Exception('Down payment melebihi total invoice.');
+                    }
+                    $transaction->ensureDownPaymentRecorded();
+                }
                 $stockService = new \App\Services\StockService();
                 $syncInvoiceProductIds = [];
                 foreach ($itemsToCreate as $itemData) {
@@ -425,8 +443,13 @@ class SalesDocumentController extends Controller
 
     public function updateInvoice(Request $request, $id)
     {
+        $this->requireInvoiceAccess();
         $transaction = Transaction::findOrFail($id);
-        
+
+        if ($transaction->payment_status === 'paid' || $transaction->payments()->exists()) {
+            return redirect()->back()->with('error', 'Invoice yang sudah lunas atau sudah memiliki pembayaran tidak dapat diubah.')->withInput();
+        }
+
         $request->validate([
             'customer_id' => 'nullable|exists:customers,id',
             'customer_name' => 'nullable|string|max:150',
@@ -551,12 +574,17 @@ class SalesDocumentController extends Controller
 
     public function destroyInvoice($id)
     {
+        $this->requireInvoiceAccess();
         $transaction = Transaction::with('items')->findOrFail($id);
+        if ($reason = $transaction->deletionBlocker(auth()->user())) {
+            return response()->json(['success' => false, 'message' => $reason]);
+        }
         try {
             DB::transaction(function () use ($transaction) {
                 // Model Jurnal: tanpa restore M (tidak pernah dikurangi); hapus baris lalu sync rumus.
                 $syncProductIds = $transaction->items->pluck('product_id')->all();
                 $transaction->items()->delete();
+                $transaction->payments()->delete();
                 $transaction->delete();
                 Product::bulkSyncStock($syncProductIds);
             });
@@ -568,10 +596,11 @@ class SalesDocumentController extends Controller
 
     public function uploadReceipt(Request $request, $id)
     {
+        $this->requireInvoiceAccess();
         try {
             $request->validate([
                 'receipt'      => 'nullable|file|mimes:jpg,jpeg,png,pdf|max:2048',
-                'amount'       => 'required|numeric|min:0',
+                'amount'       => 'required|numeric|min:1',
                 'payment_date' => 'required|date',
                 'notes'        => 'nullable|string',
             ]);
@@ -587,17 +616,13 @@ class SalesDocumentController extends Controller
                 $file->move($fullPath, $filename);
                 $dbPath = 'uploads/receipts/' . $filename;
             }
-            $payment = TransactionPayment::create([
-                'transaction_id' => $transaction->id,
-                'amount'         => $request->amount,
-                'payment_date'   => $request->payment_date,
-                'payment_method' => $transaction->payment_method ?: 'manual', 
-                'payment_receipt' => $dbPath,
-                'notes'          => $request->notes,
-            ]);
-            $totalPaid = $transaction->payments()->sum('amount');
-            if ($totalPaid >= $transaction->total_amount) {
-                $transaction->update(['payment_status' => 'paid']);
+            try {
+                $transaction->recordPayment((float) $request->amount, $request->payment_date, null, $dbPath, $request->notes);
+            } catch (\Throwable $e) {
+                if ($dbPath && File::exists(public_path($dbPath))) {
+                    File::delete(public_path($dbPath));
+                }
+                throw $e;
             }
             return redirect()->back()->with('message', 'Pembayaran berhasil dicatat.');
         } catch (\Throwable $e) {
@@ -607,12 +632,18 @@ class SalesDocumentController extends Controller
 
     public function settlePayment(Request $request, $id)
     {
+        $this->requireInvoiceAccess();
         $transaction = Transaction::with('items.batch.product')->findOrFail($id);
         if ($transaction->payment_status === 'paid') {
             return redirect()->back()->with('info', 'Invoice sudah lunas.');
         }
         try {
             DB::transaction(function () use ($transaction, $request) {
+                $transaction = Transaction::lockForUpdate()->with('items.batch.product')->findOrFail($transaction->id);
+                if ($transaction->payment_status === 'paid') {
+                    throw new \Exception('Invoice sudah lunas.');
+                }
+                $transaction->ensureDownPaymentRecorded();
                 if (!in_array($transaction->payment_status, ['paid', 'credit'])) {
                     foreach ($transaction->items as $item) {
                         if ($item->product_batch_id) {
@@ -637,14 +668,16 @@ class SalesDocumentController extends Controller
                     $file->move($fullPath, $filename);
                     $dbPath = 'uploads/receipts/' . $filename;
                 }
-                TransactionPayment::create([
-                    'transaction_id' => $transaction->id,
-                    'amount'         => $balance,
-                    'payment_date'   => Carbon::now(),
-                    'payment_method' => $request->payment_method ?? $transaction->payment_method,
-                    'payment_receipt' => $dbPath,
-                    'notes'          => 'Pelunasan',
-                ]);
+                if ($balance > 0.01) {
+                    TransactionPayment::create([
+                        'transaction_id' => $transaction->id,
+                        'amount'         => $balance,
+                        'payment_date'   => Carbon::now(),
+                        'payment_method' => $request->payment_method ?? $transaction->payment_method,
+                        'payment_receipt' => $dbPath,
+                        'notes'          => 'Pelunasan',
+                    ]);
+                }
                 $transaction->update([
                     'payment_status' => 'paid',
                     'payment_method' => $request->payment_method ?? $transaction->payment_method,

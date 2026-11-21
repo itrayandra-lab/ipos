@@ -236,14 +236,18 @@
             @endif
             
             {{-- Finance Group --}}
-            @if($user->hasPermission('access_finance_menu') || $user->hasPermission('access_petty_cash') || $user->hasPermission('access_expense_categories') || $user->hasPermission('access_finance_settlement') || $user->hasPermission('access_fund_requests') || $user->hasPermission('access_finance_reports'))
-            <li class="nav-item dropdown {{ ($sb == 'PettyCash' || $sb == 'ExpenseCategory' || $sb == 'FinanceReport' || $sb == 'FinanceSettlement' || $sb == 'FinanceFundRequest') ? 'active' : '' }}">
+            @if($user->hasPermission('access_finance_menu') || $user->hasPermission('access_petty_cash') || $user->hasPermission('access_expenses') || $user->hasPermission('access_expense_categories') || $user->hasPermission('access_finance_settlement') || $user->hasPermission('access_fund_requests') || $user->hasPermission('access_finance_reports'))
+            <li class="nav-item dropdown {{ ($sb == 'PettyCash' || $sb == 'Expense' || $sb == 'ExpenseCategory' || $sb == 'FinanceReport' || $sb == 'FinanceSettlement' || $sb == 'FinanceFundRequest') ? 'active' : '' }}">
                 <a href="#" class="nav-link has-dropdown"><i class="fas fa-wallet"></i> <span>Finance</span></a>
                 <ul class="dropdown-menu">
                     @if($user->hasPermission('access_finance_menu') || $user->hasPermission('access_petty_cash'))
                     <li class="{{ $sb == 'PettyCash' ? 'active' : '' }}"><a class="nav-link" href="{{ route('admin.finance.petty_cash.index') }}">Petty Cash</a></li>
                     @endif
                     
+                    @if($user->hasPermission('access_finance_menu') || $user->hasPermission('access_expenses'))
+                    <li class="{{ $sb == 'Expense' ? 'active' : '' }}"><a class="nav-link" href="{{ route('admin.finance.expenses.index') }}">Pengeluaran</a></li>
+                    @endif
+
                     @if($user->hasPermission('access_finance_menu') || $user->hasPermission('access_expense_categories'))
                     <li class="{{ $sb == 'ExpenseCategory' ? 'active' : '' }}"><a class="nav-link" href="{{ route('admin.finance.expense_categories.index') }}">Kategori Pengeluaran</a></li>
                     @endif

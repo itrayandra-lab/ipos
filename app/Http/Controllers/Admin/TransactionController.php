@@ -1122,6 +1122,9 @@ class TransactionController extends Controller
     public function destroy($id)
     {
         $transaction = Transaction::with('items.product')->findOrFail($id);
+        if ($reason = $transaction->deletionBlocker(auth()->user())) {
+            return response()->json(['success' => false, 'message' => $reason]);
+        }
         try {
             DB::transaction(function () use ($transaction) {
                 // Model Jurnal: tanpa restore M (tidak pernah dikurangi); hapus baris lalu sync rumus.
@@ -1151,7 +1154,7 @@ class TransactionController extends Controller
         try {
             $request->validate([
                 'receipt'      => 'nullable|file|mimes:jpg,jpeg,png,pdf|max:2048',
-                'amount'       => 'required|numeric|min:0',
+                'amount'       => 'required|numeric|min:1',
                 'payment_date' => 'required|date',
                 'notes'        => 'nullable|string',
             ]);
@@ -1167,17 +1170,13 @@ class TransactionController extends Controller
                 $file->move($fullPath, $filename);
                 $dbPath = 'uploads/receipts/' . $filename;
             }
-            $payment = TransactionPayment::create([
-                'transaction_id' => $transaction->id,
-                'amount'         => $request->amount,
-                'payment_date'   => $request->payment_date,
-                'payment_method' => $transaction->payment_method ?: 'manual', 
-                'payment_receipt' => $dbPath,
-                'notes'          => $request->notes,
-            ]);
-            $totalPaid = $transaction->payments()->sum('amount');
-            if ($totalPaid >= $transaction->total_amount) {
-                $transaction->update(['payment_status' => 'paid']);
+            try {
+                $transaction->recordPayment((float) $request->amount, $request->payment_date, null, $dbPath, $request->notes);
+            } catch (\Throwable $e) {
+                if ($dbPath && File::exists(public_path($dbPath))) {
+                    File::delete(public_path($dbPath));
+                }
+                throw $e;
             }
             return redirect()->back()->with('message', 'Pembayaran berhasil dicatat.');
         } catch (\Throwable $e) {
@@ -1193,6 +1192,11 @@ class TransactionController extends Controller
         }
         try {
             DB::transaction(function () use ($transaction, $request) {
+                $transaction = Transaction::lockForUpdate()->with('items.batch.product')->findOrFail($transaction->id);
+                if ($transaction->payment_status === 'paid') {
+                    throw new \Exception('Transaksi sudah lunas.');
+                }
+                $transaction->ensureDownPaymentRecorded();
                 // Deduct stock if not already deducted (for credit/unpaid status)
                 // Model Jurnal: validasi pakai S; M tidak dikurangi, keluar tercatat via TI.
                 if (!in_array($transaction->payment_status, ['paid', 'credit'])) {
@@ -1219,14 +1223,16 @@ class TransactionController extends Controller
                     $file->move($fullPath, $filename);
                     $dbPath = 'uploads/receipts/' . $filename;
                 }
-                TransactionPayment::create([
-                    'transaction_id' => $transaction->id,
-                    'amount'         => $balance,
-                    'payment_date'   => Carbon::now(),
-                    'payment_method' => $request->payment_method ?? $transaction->payment_method,
-                    'payment_receipt' => $dbPath,
-                    'notes'          => 'Pelunasan',
-                ]);
+                if ($balance > 0.01) {
+                    TransactionPayment::create([
+                        'transaction_id' => $transaction->id,
+                        'amount'         => $balance,
+                        'payment_date'   => Carbon::now(),
+                        'payment_method' => $request->payment_method ?? $transaction->payment_method,
+                        'payment_receipt' => $dbPath,
+                        'notes'          => 'Pelunasan',
+                    ]);
+                }
                 $transaction->update([
                     'payment_status' => 'paid',
                     'payment_method' => $request->payment_method ?? $transaction->payment_method,

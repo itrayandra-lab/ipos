@@ -106,7 +106,7 @@ class FundRequestController extends Controller
             'attachment'          => 'nullable|file|mimes:jpg,jpeg,png,pdf|max:2048'
         ]);
 
-        $data = $request->all();
+        $data = $request->only(['title', 'expense_category_id', 'amount', 'description', 'bank_name', 'bank_account_number', 'bank_account_name']);
         $data['request_code'] = FundRequest::generateCode();
         $data['user_id'] = Auth::id();
         $data['status'] = 'pending';
@@ -129,12 +129,29 @@ class FundRequestController extends Controller
         return view('admin.finance.fund_requests.show', compact('fundRequest'))->with('sb', 'FinanceFundRequest');
     }
 
+    /**
+     * Pastikan pengajuan berada di salah satu status yang diizinkan sebelum diproses.
+     * Mengembalikan redirect error bila tidak, atau null bila boleh lanjut.
+     */
+    private function requireStatus(FundRequest $fundRequest, array $allowed)
+    {
+        if (!in_array($fundRequest->status, $allowed, true)) {
+            return redirect()->back()->with('error', 'Aksi tidak dapat dilakukan: status pengajuan saat ini "' . $fundRequest->status . '".');
+        }
+
+        return null;
+    }
+
     public function approveManager(Request $request, $id)
     {
         $fundRequest = FundRequest::findOrFail($id);
         
         if (Auth::user()->role !== 'store_manager' && Auth::user()->role !== 'super_admin') {
             return redirect()->back()->with('error', 'Hanya Store Manager yang dapat menyetujui pengajuan ini');
+        }
+
+        if ($err = $this->requireStatus($fundRequest, ['pending'])) {
+            return $err;
         }
 
         $fundRequest->update([
@@ -155,6 +172,10 @@ class FundRequestController extends Controller
             return redirect()->back()->with('error', 'Hanya Store Manager yang dapat menolak pengajuan ini');
         }
 
+        if ($err = $this->requireStatus($fundRequest, ['pending'])) {
+            return $err;
+        }
+
         $fundRequest->update([
             'status' => 'manager_rejected',
             'manager_id' => Auth::id(),
@@ -171,6 +192,10 @@ class FundRequestController extends Controller
         
         if (Auth::user()->role !== 'finance' && Auth::user()->role !== 'super_admin') {
             return redirect()->back()->with('error', 'Hanya Finance yang dapat menyetujui pengajuan ini');
+        }
+
+        if ($err = $this->requireStatus($fundRequest, ['manager_approved'])) {
+            return $err;
         }
 
         $fundRequest->update([
@@ -191,6 +216,10 @@ class FundRequestController extends Controller
             return redirect()->back()->with('error', 'Hanya Finance yang dapat menolak pengajuan ini');
         }
 
+        if ($err = $this->requireStatus($fundRequest, ['manager_approved'])) {
+            return $err;
+        }
+
         $fundRequest->update([
             'status' => 'finance_rejected',
             'finance_id' => Auth::id(),
@@ -207,6 +236,10 @@ class FundRequestController extends Controller
         
         if (Auth::user()->role !== 'finance' && Auth::user()->role !== 'super_admin') {
             return redirect()->back()->with('error', 'Hanya Finance yang dapat menandai pencairan dana');
+        }
+
+        if ($err = $this->requireStatus($fundRequest, ['finance_approved'])) {
+            return $err;
         }
 
         $request->validate([

@@ -66,6 +66,7 @@ class PermissionSeeder extends Seeder
             // Grup Finance
             ['name' => 'Grup Finance (Utama)', 'slug' => 'access_finance_menu', 'group' => 'Finance'],
             ['name' => 'Petty Cash', 'slug' => 'access_petty_cash', 'group' => 'Finance'],
+            ['name' => 'Pengeluaran (Expense)', 'slug' => 'access_expenses', 'group' => 'Finance'],
             ['name' => 'Kategori Pengeluaran', 'slug' => 'access_expense_categories', 'group' => 'Finance'],
             ['name' => 'Pelunasan Supplier', 'slug' => 'access_finance_settlement', 'group' => 'Finance'],
             ['name' => 'Pengajuan Dana', 'slug' => 'access_fund_requests', 'group' => 'Finance'],

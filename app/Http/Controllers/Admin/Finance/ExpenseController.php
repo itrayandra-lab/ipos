@@ -15,8 +15,23 @@ use Illuminate\Support\Facades\File;
 
 class ExpenseController extends Controller
 {
+    private function canAccess(): bool
+    {
+        $u = auth()->user();
+
+        return $u->hasPermission('access_expenses') || $u->hasPermission('access_finance_menu');
+    }
+
+    private function denied()
+    {
+        return response()->json(['success' => false, 'message' => 'Anda tidak memiliki akses Pengeluaran.'], 403);
+    }
+
     public function index()
     {
+        if (!$this->canAccess()) {
+            abort(403, 'Anda tidak memiliki akses ke Pengeluaran.');
+        }
         $categories = ExpenseCategory::all();
         $bankAccounts = BankAccount::all();
         return view('admin.finance.expenses.index', compact('categories', 'bankAccounts'))->with('sb', 'Expense');
@@ -24,6 +39,9 @@ class ExpenseController extends Controller
 
     public function data(Request $request)
     {
+        if (!$this->canAccess()) {
+            return $this->denied();
+        }
         $query = Expense::with(['category', 'user', 'bankAccount'])->orderBy('transaction_date', 'desc');
         
         if ($request->start_date) {
@@ -39,7 +57,7 @@ class ExpenseController extends Controller
                 return 'Rp ' . number_format($row->amount, 0, ',', '.');
             })
             ->editColumn('payment_method', function ($row) {
-                return $row->payment_method == 'petty_cash' ? 'Kas Kecil' : 'Transfer ('.$row->bankAccount->bank_name.')';
+                return $row->payment_method == 'petty_cash' ? 'Kas Kecil' : 'Transfer ('.($row->bankAccount->bank_name ?? '-').')';
             })
             ->addColumn('action', function ($row) {
                 return '<button class="btn btn-sm btn-danger" onclick="deleteExpense('.$row->id.')">Hapus</button>';
@@ -49,6 +67,9 @@ class ExpenseController extends Controller
 
     public function store(Request $request)
     {
+        if (!$this->canAccess()) {
+            return $this->denied();
+        }
         $request->validate([
             'expense_category_id' => 'required|exists:expense_categories,id',
             'amount' => 'required|numeric|min:1',
@@ -82,19 +103,21 @@ class ExpenseController extends Controller
 
                 // If payment is petty cash, deduct from petty cash balance
                 if ($request->payment_method == 'petty_cash') {
-                    $lastBalance = PettyCashTransaction::orderBy('id', 'desc')->first()->balance_after ?? 0;
-                    if ($lastBalance < $request->amount) {
-                        throw new \Exception('Saldo kas kecil tidak mencukupi.');
-                    }
-
                     PettyCashTransaction::create([
                         'type' => 'out',
+                        'payment_method' => 'cash',
+                        'expense_category_id' => $request->expense_category_id,
+                        'transaction_date' => $request->transaction_date,
                         'amount' => $request->amount,
                         'description' => 'Pengeluaran: ' . $request->description,
                         'reference_id' => $expense->id,
-                        'balance_after' => $lastBalance - $request->amount,
+                        'receipt_photo' => $receiptPath,
+                        'balance_after' => 0,
                         'user_id' => Auth::id(),
                     ]);
+
+                    // Saldo dihitung berurutan tanggal; ditolak bila saldo menjadi minus
+                    PettyCashTransaction::rebuildBalances();
                 }
             });
 
@@ -106,21 +129,20 @@ class ExpenseController extends Controller
 
     public function destroy($id)
     {
+        if (!$this->canAccess()) {
+            return $this->denied();
+        }
         try {
             DB::transaction(function () use ($id) {
-                $expense = Expense::findOrFail($id);
-                
-                // If it was petty cash, we might want to refund it? 
-                // Usually, deleting an expense should reverse the cash flow for consistency.
+                $expense = Expense::lockForUpdate()->findOrFail($id);
+
+                // Hapus baris petty cash yang terhubung (bukan menambah baris "pembatalan"),
+                // lalu hitung ulang saldo. Menghapus pengeluaran hanya menaikkan saldo.
                 if ($expense->payment_method == 'petty_cash') {
-                    $lastBalance = PettyCashTransaction::orderBy('id', 'desc')->first()->balance_after ?? 0;
-                    PettyCashTransaction::create([
-                        'type' => 'in',
-                        'amount' => $expense->amount,
-                        'description' => 'Pembatalan Pengeluaran: ' . $expense->description,
-                        'balance_after' => $lastBalance + $expense->amount,
-                        'user_id' => Auth::id(),
-                    ]);
+                    PettyCashTransaction::where('reference_id', $expense->id)
+                        ->where('type', 'out')
+                        ->delete();
+                    PettyCashTransaction::rebuildBalances(true);
                 }
 
                 if ($expense->receipt_photo && File::exists(public_path($expense->receipt_photo))) {

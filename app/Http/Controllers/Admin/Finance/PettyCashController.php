@@ -18,8 +18,7 @@ class PettyCashController extends Controller
             abort(403, 'Anda tidak memiliki akses ke Petty Cash.');
         }
 
-        $latest = PettyCashTransaction::latest()->first();
-        $balance = $latest ? $latest->balance_after : 0;
+        $balance = PettyCashTransaction::currentBalance();
 
         $monthIn = PettyCashTransaction::where('type', 'in')
             ->whereMonth('created_at', now()->month)
@@ -130,8 +129,19 @@ class PettyCashController extends Controller
         return null;
     }
 
+    private function storeReceipt(\Illuminate\Http\UploadedFile $file): string
+    {
+        $filename = uniqid('pc_', true) . '.' . strtolower($file->getClientOriginalExtension());
+        $file->move(public_path('uploads/petty_cash'), $filename);
+
+        return 'uploads/petty_cash/' . $filename;
+    }
+
     public function show($id)
     {
+        if ($g = $this->pettyCashGuard()) {
+            return $g;
+        }
         $trx = PettyCashTransaction::with(['user', 'category'])->findOrFail($id);
         $pmMap = ['cash' => 'Cash', 'transfer' => 'Transfer Bank', 'qris' => 'QRIS'];
         $trx->payment_method_label = $pmMap[$trx->payment_method] ?? $trx->payment_method;
@@ -155,32 +165,17 @@ class PettyCashController extends Controller
 
         try {
             DB::transaction(function () use ($request, $id) {
-                $trx = PettyCashTransaction::findOrFail($id);
+                $trx = PettyCashTransaction::lockForUpdate()->findOrFail($id);
 
-                // Recalculate balance: reverse old effect, apply new
-                // Get balance before this transaction
-                $prevTrx = PettyCashTransaction::where('id', '<', $id)->orderBy('id', 'desc')->first();
-                $balanceBefore = $prevTrx ? $prevTrx->balance_after : 0;
-
-                $newBalance = $balanceBefore;
-                if ($request->type == 'out' && $request->payment_method == 'cash') {
-                    if ($balanceBefore < $request->amount) {
-                        throw new \Exception('Saldo kas kecil tidak mencukupi untuk jumlah baru.');
-                    }
-                    $newBalance = $balanceBefore - $request->amount;
-                } elseif ($request->type == 'in') {
-                    $newBalance = $balanceBefore + $request->amount;
+                if ($trx->reference_id) {
+                    throw new \RuntimeException('Transaksi ini berasal dari modul Pengeluaran. Ubah/batalkan lewat menu Pengeluaran.');
                 }
 
                 $receiptPath = $trx->receipt_photo;
+                $oldReceipt = null;
                 if ($request->hasFile('receipt_photo')) {
-                    if ($receiptPath && file_exists(public_path($receiptPath))) {
-                        unlink(public_path($receiptPath));
-                    }
-                    $file = $request->file('receipt_photo');
-                    $filename = time() . '_' . $file->getClientOriginalName();
-                    $file->move(public_path('uploads/petty_cash'), $filename);
-                    $receiptPath = 'uploads/petty_cash/' . $filename;
+                    $oldReceipt = $receiptPath;
+                    $receiptPath = $this->storeReceipt($request->file('receipt_photo'));
                 }
 
                 $trx->update([
@@ -191,19 +186,20 @@ class PettyCashController extends Controller
                     'amount'              => $request->amount,
                     'description'         => $request->description,
                     'receipt_photo'       => $receiptPath,
-                    'balance_after'       => $newBalance,
                 ]);
 
-                // Recalculate all subsequent transactions' balance_after
-                $subsequent = PettyCashTransaction::where('id', '>', $id)->orderBy('id', 'asc')->get();
-                $runningBalance = $newBalance;
-                foreach ($subsequent as $s) {
-                    if ($s->type == 'in') {
-                        $runningBalance += $s->amount;
-                    } elseif ($s->payment_method == 'cash') {
-                        $runningBalance -= $s->amount;
+                // Hitung ulang seluruh saldo (urut tanggal, id); gagal bila ada saldo jadi minus
+                try {
+                    PettyCashTransaction::rebuildBalances();
+                } catch (\Throwable $e) {
+                    if ($oldReceipt !== null && $receiptPath && file_exists(public_path($receiptPath))) {
+                        unlink(public_path($receiptPath));
                     }
-                    $s->update(['balance_after' => $runningBalance]);
+                    throw $e;
+                }
+
+                if ($oldReceipt && file_exists(public_path($oldReceipt))) {
+                    unlink(public_path($oldReceipt));
                 }
             });
 
@@ -220,26 +216,20 @@ class PettyCashController extends Controller
         }
         try {
             DB::transaction(function () use ($id) {
-                $trx = PettyCashTransaction::findOrFail($id);
+                $trx = PettyCashTransaction::lockForUpdate()->findOrFail($id);
 
-                if ($trx->receipt_photo && file_exists(public_path($trx->receipt_photo))) {
-                    unlink(public_path($trx->receipt_photo));
+                if ($trx->reference_id) {
+                    throw new \RuntimeException('Transaksi ini berasal dari modul Pengeluaran. Hapus/batalkan lewat menu Pengeluaran.');
                 }
 
+                $receipt = $trx->receipt_photo;
                 $trx->delete();
 
-                // Recalculate all subsequent transactions' balance_after
-                $prevTrx = PettyCashTransaction::where('id', '<', $id)->orderBy('id', 'desc')->first();
-                $runningBalance = $prevTrx ? $prevTrx->balance_after : 0;
+                // Gagal (dan rollback) bila penghapusan membuat saldo transaksi sesudahnya minus
+                PettyCashTransaction::rebuildBalances();
 
-                $subsequent = PettyCashTransaction::where('id', '>', $id)->orderBy('id', 'asc')->get();
-                foreach ($subsequent as $s) {
-                    if ($s->type == 'in') {
-                        $runningBalance += $s->amount;
-                    } elseif ($s->payment_method == 'cash') {
-                        $runningBalance -= $s->amount;
-                    }
-                    $s->update(['balance_after' => $runningBalance]);
+                if ($receipt && file_exists(public_path($receipt))) {
+                    unlink(public_path($receipt));
                 }
             });
 
@@ -266,28 +256,11 @@ class PettyCashController extends Controller
 
         try {
             DB::transaction(function () use ($request) {
-                $latest = PettyCashTransaction::latest()->first();
-                $lastBalance = $latest ? $latest->balance_after : 0;
-
-                // Hanya potong/tambah saldo jika metode Cash
-                // Transfer & QRIS = pengeluaran dicatat tapi saldo kas tidak berubah
-                $newBalance = $lastBalance;
-                if ($request->type == 'out' && $request->payment_method == 'cash') {
-                    if ($lastBalance < $request->amount) {
-                        throw new \Exception('Saldo kas kecil tidak mencukupi. Saldo saat ini: Rp ' . number_format($lastBalance, 0, ',', '.'));
-                    }
-                    $newBalance = $lastBalance - $request->amount;
-                } elseif ($request->type == 'in') {
-                    $newBalance = $lastBalance + $request->amount;
-                }
-
-                $receiptPath = null;
-                if ($request->hasFile('receipt_photo')) {
-                    $file = $request->file('receipt_photo');
-                    $filename = time() . '_' . $file->getClientOriginalName();
-                    $file->move(public_path('uploads/petty_cash'), $filename);
-                    $receiptPath = 'uploads/petty_cash/' . $filename;
-                }
+                // Hanya kas masuk dan kas keluar bermetode Cash yang mengubah saldo.
+                // Transfer & QRIS = pengeluaran dicatat tapi saldo kas tidak berubah.
+                $receiptPath = $request->hasFile('receipt_photo')
+                    ? $this->storeReceipt($request->file('receipt_photo'))
+                    : null;
 
                 PettyCashTransaction::create([
                     'type'                => $request->type,
@@ -297,9 +270,19 @@ class PettyCashController extends Controller
                     'amount'              => $request->amount,
                     'description'         => $request->description,
                     'receipt_photo'       => $receiptPath,
-                    'balance_after'       => $newBalance,
+                    'balance_after'       => 0,
                     'user_id'             => Auth::id(),
                 ]);
+
+                try {
+                    // Mengunci baris, hitung saldo berurutan tanggal; tolak bila ada saldo minus
+                    PettyCashTransaction::rebuildBalances();
+                } catch (\Throwable $e) {
+                    if ($receiptPath && file_exists(public_path($receiptPath))) {
+                        unlink(public_path($receiptPath));
+                    }
+                    throw $e;
+                }
             });
 
             return response()->json(['success' => true, 'message' => 'Transaksi berhasil dicatat.']);
